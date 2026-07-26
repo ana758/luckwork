@@ -41,6 +41,7 @@ export type GEvent = {
   id: string;
   summary?: string;
   description?: string;
+  location?: string;
   htmlLink?: string;
   status?: string;
   start?: { dateTime?: string; date?: string };
