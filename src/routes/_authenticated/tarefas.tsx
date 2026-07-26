@@ -83,20 +83,13 @@ function TasksPage() {
   const { data: meetings = [] } = useMeetings();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
-  const [range, setRange] = useState<"week" | "month">("week");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
 
   const visible = useMemo(() => {
-    const now = new Date();
-    const start = range === "week" ? startOfWeek() : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end =
-      range === "week"
-        ? endOfWeek()
-        : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-    // Eventos da agenda (não-reunião) viram tarefas SEMPRE apenas da semana atual (7 dias).
     const weekStart = startOfWeek();
     const weekEnd = endOfWeek();
+
+    // Eventos da agenda (não-reunião) viram tarefas apenas da semana atual (7 dias).
     const agendaAsTasks = meetings
       .filter((m) => m.meeting_type !== "Reunião")
       .filter((m) => {
@@ -105,7 +98,7 @@ function TasksPage() {
       })
       .map(meetingToTask);
 
-    const own = tasks.filter((t) => inRange(t, range));
+    const own = tasks.filter(inRange);
 
     return [...own, ...agendaAsTasks].filter(
       (t) => filter === "all" || t.source === filter,
