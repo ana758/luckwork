@@ -140,6 +140,22 @@ function TasksPage() {
         ))}
       </div>
 
+      {visibleMeetings.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Reuniões · {visibleMeetings.length}
+          </h2>
+          <div className="-mx-4 overflow-x-auto px-4 pb-1 md:-mx-6 md:px-6">
+            <div className="flex gap-2 min-w-max">
+              {visibleMeetings.map((m) => (
+                <MeetingChip key={m.id} meeting={m} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : view === "board" ? (
