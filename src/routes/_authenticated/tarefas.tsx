@@ -313,3 +313,22 @@ function TaskCard({
     </div>
   );
 }
+
+function MeetingChip({ meeting }: { meeting: Meeting }) {
+  const d = new Date(meeting.starts_at);
+  const when = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
+    " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return (
+    <div className={`min-w-[220px] rounded-lg border border-l-4 border-l-reuniao bg-card p-2.5`}>
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-reuniao">
+        <span className={`h-1.5 w-1.5 rounded-full ${SOURCE_DOT[meeting.source]}`} />
+        Reunião · {when}
+      </div>
+      <p className="mt-1 text-sm leading-snug line-clamp-2">{meeting.title}</p>
+      {meeting.people && (
+        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{meeting.people}</p>
+      )}
+    </div>
+  );
+}
+
