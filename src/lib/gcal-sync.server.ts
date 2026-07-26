@@ -83,7 +83,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const seenPairs = new Set<string>(); // `${google_account}::${google_event_id}`
 
   // Carrega regras aprendidas (título → empresa correta).
-  const { normalizeTitleKey } = await import("./source-rules");
+  const { normalizeTitleKey, inferSourceFromTitle } = await import("./source-rules");
   const { data: rulesData } = await supabase.from("source_rules").select("title_key, source");
   const rulesMap = new Map<string, string>();
   for (const r of rulesData ?? []) rulesMap.set(r.title_key as string, r.source as string);
