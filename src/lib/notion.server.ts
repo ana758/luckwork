@@ -192,6 +192,7 @@ export async function listMyPages(): Promise<NotionTask[]> {
       priority: findPriority(props),
       dueDate: findDate(props),
       updated: p.last_edited_time ?? new Date().toISOString(),
+      created: p.created_time ?? p.last_edited_time ?? new Date().toISOString(),
       databaseId: dbId,
     });
   }
