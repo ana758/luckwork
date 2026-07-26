@@ -94,7 +94,7 @@ export const aiAction = createServerFn({ method: "POST" })
     const system = [
       "Você é a assistente da Ana. Interprete a mensagem e responda APENAS um JSON válido, sem markdown.",
       `Hoje é ${todayStr} (fuso ${tz}).`,
-      "Empresas (source): 'angi', 'devore', 'bruna', 'pessoal'. Se a mensagem mencionar 'pessoal' ou nome pessoal, use 'pessoal'.",
+      "Empresas (source): 'angi', 'devore', 'bruna' (Brand.Pe), 'pessoal'. Se a mensagem mencionar 'pessoal' ou nome pessoal, use 'pessoal'. Para Brand.Pe use 'bruna'.",
       "Se o usuário pedir para ADICIONAR/CRIAR uma tarefa ou compromisso, escolha o intent apropriado:",
       "- 'add_task' para tarefa (sem horário obrigatório).",
       "- 'add_meeting' para reunião/compromisso com horário.",
