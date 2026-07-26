@@ -150,9 +150,10 @@ export function MeetingEditModal({
 
         <p className="mb-3 text-[11px] text-muted-foreground">
           {isFromGoogle
-            ? "Este evento veio do Google. Editar/remover afeta só o Anora — o Google Agenda continua igual."
+            ? "Vinculado ao Google Agenda — salvar atualiza os dois lados. Remover apaga só no Anora."
             : "Este evento foi criado no Anora."}
         </p>
+
 
         <div className="flex items-center gap-2">
           <button
