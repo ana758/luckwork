@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function assertMember(supabase: any, userId: string) {
-  const { data } = await supabase.rpc("is_active_member", { _user_id: userId });
+  const { data } = await supabase
+    .from("workspace_members")
+    .select("status")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
   if (!data) throw new Error("Sem permissão");
 }
 
