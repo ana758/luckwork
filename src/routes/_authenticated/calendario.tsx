@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { SOURCE_DOT } from "@/lib/sources";
 
@@ -56,8 +57,9 @@ function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex items-center gap-2">
+      <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold tracking-tight">Calendário</h1>
+        <SyncGoogleButton />
         <button
           aria-label="Mês anterior"
           onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}

@@ -83,12 +83,15 @@ export type Database = {
           created_by: string | null
           ends_at: string | null
           external_url: string | null
+          google_account: string | null
+          google_event_id: string | null
           id: string
           meeting_type: string | null
           notes: string | null
           people: string | null
           source: Database["public"]["Enums"]["source_key"]
           starts_at: string
+          synced_at: string | null
           title: string
           updated_at: string
         }
@@ -97,12 +100,15 @@ export type Database = {
           created_by?: string | null
           ends_at?: string | null
           external_url?: string | null
+          google_account?: string | null
+          google_event_id?: string | null
           id?: string
           meeting_type?: string | null
           notes?: string | null
           people?: string | null
           source?: Database["public"]["Enums"]["source_key"]
           starts_at: string
+          synced_at?: string | null
           title: string
           updated_at?: string
         }
@@ -111,12 +117,15 @@ export type Database = {
           created_by?: string | null
           ends_at?: string | null
           external_url?: string | null
+          google_account?: string | null
+          google_event_id?: string | null
           id?: string
           meeting_type?: string | null
           notes?: string | null
           people?: string | null
           source?: Database["public"]["Enums"]["source_key"]
           starts_at?: string
+          synced_at?: string | null
           title?: string
           updated_at?: string
         }
