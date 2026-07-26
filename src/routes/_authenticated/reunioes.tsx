@@ -26,11 +26,14 @@ function MeetingsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Reuniões</h1>
-        <p className="text-sm text-muted-foreground">
-          Reuniões aparecem em vermelho no calendário e no início.
-        </p>
+      <header className="flex flex-wrap items-start gap-3">
+        <div className="mr-auto">
+          <h1 className="text-xl font-semibold tracking-tight">Reuniões</h1>
+          <p className="text-sm text-muted-foreground">
+            Reuniões aparecem em vermelho no calendário e no início.
+          </p>
+        </div>
+        <SyncGoogleButton />
       </header>
 
       {isLoading ? (
