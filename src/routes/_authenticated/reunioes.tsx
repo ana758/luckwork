@@ -58,10 +58,12 @@ function Section({
   title,
   items,
   empty,
+  onOpen,
 }: {
   title: string;
   items: Meeting[];
   empty: string;
+  onOpen: (m: Meeting) => void;
 }) {
   return (
     <section>
@@ -71,7 +73,11 @@ function Section({
       ) : (
         <div className="space-y-2">
           {items.map((m) => (
-            <article key={m.id} className="rounded-xl border border-l-4 border-l-reuniao bg-card p-3">
+            <button
+              key={m.id}
+              onClick={() => onOpen(m)}
+              className="block w-full rounded-xl border border-l-4 border-l-reuniao bg-card p-3 text-left hover:bg-accent/40"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium">{m.title}</p>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
