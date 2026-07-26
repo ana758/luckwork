@@ -33,6 +33,24 @@ export function QuickAdd() {
           .select("id")
           .single();
         if (error) throw new Error(error.message);
+        // Se marcou como Angi, cria também no board Angi | Commercial & Marketing (Jira)
+        if (source === "angi" && inserted?.id) {
+          try {
+            const jira = await pushJira({
+              data: { summary: title.trim(), dueDate: when || null },
+            });
+            await supabase
+              .from("tasks")
+              .update({
+                external_system: "jira",
+                external_id: jira.key,
+                external_url: jira.url,
+              })
+              .eq("id", inserted.id);
+          } catch (e) {
+            toast.error(`Jira: ${(e as Error).message}`);
+          }
+        }
         // Se tem data, empurra pro Google como all-day
         if (when && inserted?.id) {
           try {
@@ -61,6 +79,7 @@ export function QuickAdd() {
           }
         }
         return { pushed: false };
+
       }
       if (!when) throw new Error("Escolha a data e hora da reunião.");
       const startsAt = new Date(when).toISOString();
