@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Check, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +35,19 @@ export function NotificationsBell() {
 
   const unread = items.filter((n) => !n.read_at).length;
 
+  // App icon badge on installed PWA (iOS 16.4+ / Android Chrome).
+  useEffect(() => {
+    const nav = navigator as Navigator & {
+      setAppBadge?: (n?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    if (unread > 0) nav.setAppBadge?.(unread).catch(() => {});
+    else nav.clearAppBadge?.().catch(() => {});
+    // Tab title indicator
+    const base = "Anora";
+    document.title = unread > 0 ? `(${unread}) ${base}` : base;
+  }, [unread]);
+
   const markAllRead = useMutation({
     mutationFn: async () => {
       const ids = items.filter((n) => !n.read_at).map((n) => n.id);
@@ -69,7 +82,9 @@ export function NotificationsBell() {
       <PopoverTrigger asChild>
         <button
           aria-label="Notificações"
-          className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border bg-card hover:bg-accent"
+          className={`relative inline-flex h-9 w-9 items-center justify-center rounded-md border bg-card hover:bg-accent ${
+            unread > 0 ? "border-destructive/60 text-destructive animate-pulse" : ""
+          }`}
         >
           <Bell className="h-4 w-4" />
           {unread > 0 && (

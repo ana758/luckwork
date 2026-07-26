@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { QuickAdd } from "./QuickAdd";
 import { NotificationsBell } from "./NotificationsBell";
 import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
+import { useOverdueScan } from "@/hooks/useOverdueScan";
 
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -57,6 +58,7 @@ export function AppShell() {
   });
 
   useAutoSyncGoogle();
+  useOverdueScan();
 
 
   async function signOut() {
