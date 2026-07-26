@@ -296,3 +296,70 @@ function SummaryCard({
     </div>
   );
 }
+
+const CATEGORY_LABEL: Record<string, string> = {
+  juridico: "Jurídico",
+  pessoal: "Pessoal",
+  trabalho: "Trabalho",
+  financeiro: "Financeiro",
+  outro: "Importante",
+};
+
+function ImportantEmailsCard({
+  loading,
+  emails,
+  error,
+}: {
+  loading: boolean;
+  emails: ImportantEmail[];
+  error?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-3 text-sm">
+      <div className="mb-2 flex items-center gap-2">
+        <Mail className="h-4 w-4 text-primary" />
+        <p className="font-medium">E-mails importantes</p>
+        {loading && <span className="text-xs text-muted-foreground">carregando…</span>}
+      </div>
+      {error && !loading && (
+        <p className="text-xs text-muted-foreground">
+          {error} A IA lê apenas a caixa conectada; spam e promoções são ignorados.
+        </p>
+      )}
+      {!loading && !error && emails.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          Nada urgente na caixa de entrada — só ruído (promoções, newsletters).
+        </p>
+      )}
+      {emails.length > 0 && (
+        <ul className="space-y-2">
+          {emails.slice(0, 8).map((e) => (
+            <li key={e.id} className="rounded-lg border bg-background/40 p-2">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  {CATEGORY_LABEL[e.category] ?? "Importante"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">{e.subject}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{e.from}</p>
+                  {e.reason && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">↳ {e.reason}</p>
+                  )}
+                </div>
+                <a
+                  href={e.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="shrink-0 text-muted-foreground hover:text-primary"
+                  aria-label="Abrir no Gmail"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
