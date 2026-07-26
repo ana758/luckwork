@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { useMeetings, useTasks } from "@/lib/queries";
+import { supabase } from "@/integrations/supabase/client";
+import { moveGoogleEvent } from "@/lib/gcal.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
