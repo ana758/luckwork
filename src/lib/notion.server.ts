@@ -41,7 +41,9 @@ export type NotionTask = {
   priority: "alta" | "media" | "baixa";
   dueDate: string | null;
   updated: string;
+  databaseId: string | null;
 };
+
 
 function pickTitle(props: Record<string, any>): string {
   for (const v of Object.values(props)) {
@@ -102,17 +104,17 @@ function findPriority(props: Record<string, any>): "alta" | "media" | "baixa" {
  * - DAILY GESTÃO (Devore)
  * - Calendar Content (dentro da página "Content Pipeline")
  */
-const ALLOWED_DATABASE_IDS = [
-  "360a1b13-9721-8002-8f72-fd6d48b499aa",
-  "358a1b13-9721-819b-9122-c95a838069a9",
-];
+export const DAILY_GESTAO_DB = "360a1b13-9721-8002-8f72-fd6d48b499aa";
+export const CONTENT_PIPELINE_DB = "358a1b13-9721-819b-9122-c95a838069a9";
+const ALLOWED_DATABASE_IDS = [CONTENT_PIPELINE_DB, DAILY_GESTAO_DB];
 
-function normId(id: string) {
+export function normId(id: string) {
   return id.replace(/-/g, "").toLowerCase();
 }
 
 async function listDatabases(): Promise<string[]> {
   const allowed = new Set(ALLOWED_DATABASE_IDS.map(normId));
+
   const ids: string[] = [];
   let start: string | undefined;
   for (let i = 0; i < 5; i++) {
@@ -168,18 +170,32 @@ export async function listMyPages(): Promise<NotionTask[]> {
     if (p.archived) continue;
     const props = p.properties ?? {};
     const st = findStatus(props);
+    const dbId = p.parent?.database_id ? normId(p.parent.database_id) : null;
+    // Regras por database:
+    // - Content Pipeline: sempre "done" na Anora
+    // - DAILY GESTÃO: "done" apenas se Concluída no Notion, senão "todo"
+    let status: NotionTask["status"];
+    if (dbId === normId(CONTENT_PIPELINE_DB)) {
+      status = "done";
+    } else if (dbId === normId(DAILY_GESTAO_DB)) {
+      status = st && mapStatus(st.name) === "done" ? "done" : "todo";
+    } else {
+      status = st ? mapStatus(st.name) : "todo";
+    }
     out.push({
       pageId: p.id,
       url: p.url,
       title: pickTitle(props),
-      status: st ? (mapStatus(st.name) as NotionTask["status"]) : "todo",
+      status,
       priority: findPriority(props),
       dueDate: findDate(props),
       updated: p.last_edited_time ?? new Date().toISOString(),
+      databaseId: dbId,
     });
   }
   return out;
 }
+
 
 /** Move a página Notion para o status equivalente (só se houver property status/select). */
 export async function transitionPage(
