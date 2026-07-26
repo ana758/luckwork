@@ -45,10 +45,10 @@ export function useAccessEntries() {
   });
 }
 
+// Semana = domingo → sábado (padrão da Anora).
 export function startOfWeek(d = new Date()) {
   const date = new Date(d);
-  const day = (date.getDay() + 6) % 7; // segunda = 0
-  date.setDate(date.getDate() - day);
+  date.setDate(date.getDate() - date.getDay()); // domingo = 0
   date.setHours(0, 0, 0, 0);
   return date;
 }
