@@ -138,18 +138,44 @@ export const aiAction = createServerFn({ method: "POST" })
 
     if (parsed.intent === "add_task" && parsed.task?.title) {
       const t = parsed.task;
-      const { error } = await context.supabase.from("tasks").insert({
-        created_by: context.userId,
-        title: String(t.title),
-        notes: t.notes ?? null,
-        source: (t.source ?? "pessoal") as any,
-        status: (t.status ?? "todo") as any,
-        priority: (t.priority ?? "media") as any,
-        start_date: t.start_date ?? null,
-        due_date: t.due_date ?? null,
-        recurrence: "none" as any,
-      });
+      const { data: inserted, error } = await context.supabase
+        .from("tasks")
+        .insert({
+          created_by: context.userId,
+          title: String(t.title),
+          notes: t.notes ?? null,
+          source: (t.source ?? "pessoal") as any,
+          status: (t.status ?? "todo") as any,
+          priority: (t.priority ?? "media") as any,
+          start_date: t.start_date ?? null,
+          due_date: t.due_date ?? null,
+          recurrence: "none" as any,
+        })
+        .select("id")
+        .single();
       if (error) throw new Error(`Não consegui salvar a tarefa: ${error.message}`);
+      // Se tem data, também empurra pro Google Agenda como all-day
+      if (t.due_date || t.start_date) {
+        try {
+          const { runCalendarPush } = await import("./gcal-sync.server");
+          const res = await runCalendarPush(context.supabase, context.userId, {
+            title: String(t.title),
+            startsAt: `${t.due_date ?? t.start_date}T09:00:00`,
+            allDay: true,
+            notes: t.notes ?? null,
+            location: t.location ?? null,
+            source: t.source ?? "pessoal",
+          });
+          if (res.eventId && inserted?.id) {
+            await context.supabase
+              .from("tasks")
+              .update({ external_url: res.url, external_system: "google_calendar" })
+              .eq("id", inserted.id);
+          }
+        } catch {
+          // segue mesmo se Google falhar
+        }
+      }
       return {
         intent: "add_task",
         reply: parsed.reply ?? `Tarefa "${t.title}" adicionada.`,
@@ -159,6 +185,25 @@ export const aiAction = createServerFn({ method: "POST" })
 
     if (parsed.intent === "add_meeting" && parsed.meeting?.title && parsed.meeting?.starts_at) {
       const m = parsed.meeting;
+      let googleId: string | null = null;
+      let googleAccount: string | null = null;
+      let externalUrl: string | null = null;
+      try {
+        const { runCalendarPush } = await import("./gcal-sync.server");
+        const res = await runCalendarPush(context.supabase, context.userId, {
+          title: String(m.title),
+          startsAt: m.starts_at,
+          endsAt: m.ends_at ?? null,
+          notes: m.notes ?? null,
+          location: m.location ?? null,
+          source: m.source ?? "pessoal",
+        });
+        googleId = res.eventId ?? null;
+        googleAccount = res.calendarId ?? null;
+        externalUrl = res.url ?? null;
+      } catch {
+        // segue mesmo se falhar
+      }
       const { error } = await context.supabase.from("meetings").insert({
         created_by: context.userId,
         title: String(m.title),
@@ -170,11 +215,14 @@ export const aiAction = createServerFn({ method: "POST" })
         notes: m.notes ?? null,
         meeting_type: m.meeting_type ?? "Compromisso",
         status: "todo",
+        google_event_id: googleId,
+        google_account: googleAccount,
+        external_url: externalUrl,
       });
       if (error) throw new Error(`Não consegui salvar o compromisso: ${error.message}`);
       return {
         intent: "add_meeting",
-        reply: parsed.reply ?? `Compromisso "${m.title}" adicionado.`,
+        reply: parsed.reply ?? `Compromisso "${m.title}" adicionado${googleId ? " (também no Google Agenda)" : ""}.`,
         created: { kind: "meeting", title: m.title, when: m.starts_at },
       };
     }
