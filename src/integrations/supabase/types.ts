@@ -211,6 +211,8 @@ export type Database = {
           external_id: string | null
           external_system: string | null
           external_url: string | null
+          google_account: string | null
+          google_event_id: string | null
           id: string
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
@@ -229,6 +231,8 @@ export type Database = {
           external_id?: string | null
           external_system?: string | null
           external_url?: string | null
+          google_account?: string | null
+          google_event_id?: string | null
           id?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -247,6 +251,8 @@ export type Database = {
           external_id?: string | null
           external_system?: string | null
           external_url?: string | null
+          google_account?: string | null
+          google_event_id?: string | null
           id?: string
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
