@@ -118,7 +118,8 @@ export async function runCalendarSync(supabase: any, userId: string) {
         .map((e) => {
           const title = e.summary?.trim() || "(sem título)";
           const learned = rulesMap.get(normalizeTitleKey(title));
-          const source = learned ?? defaultSource;
+          const inferred = inferSourceFromTitle(title);
+          const source = learned ?? inferred ?? defaultSource;
           return {
             title,
             source,
