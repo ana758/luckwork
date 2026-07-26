@@ -15,6 +15,11 @@ export async function runNotionSync(supabase: any, userId: string) {
   // Nunca importar páginas concluídas do Notion — só "a fazer" / "em execução" / "on hold".
   const pages = allPages.filter((p) => p.status !== "done");
 
+  // Cutoff: só importa páginas do Notion CRIADAS a partir daqui.
+  // Páginas antigas que foram apagadas manualmente na Anora não devem voltar.
+  const IMPORT_CUTOFF_ISO = "2026-07-26T22:00:00.000Z";
+
+
   const { data: existing } = await supabase
     .from("tasks")
     .select("id, external_id, status")
