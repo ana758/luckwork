@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -41,7 +41,6 @@ function inRange(task: Task) {
   if (task.recurrence !== "none") return true;
   const ref = task.due_date ?? task.start_date;
   if (!ref) {
-    // sem data: considera pela criação
     const c = new Date(task.created_at);
     return c >= ws && c <= we;
   }
@@ -50,7 +49,21 @@ function inRange(task: Task) {
 }
 
 type AgendaMeta = { time: string; location: string | null };
-type VisibleTask = Task & { agenda?: AgendaMeta };
+type VisibleTask = Task & { agenda?: AgendaMeta; sortAt: number };
+
+const DOW = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
+function dayLabel(d: Date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
+  const base = `${DOW[target.getDay()]} ${String(target.getDate()).padStart(2, "0")}/${String(target.getMonth() + 1).padStart(2, "0")}`;
+  if (diff === 0) return `hoje · ${base}`;
+  if (diff === 1) return `amanhã · ${base}`;
+  return base;
+}
 
 function meetingToTask(m: Meeting): VisibleTask {
   const dateStr = m.starts_at.slice(0, 10);
@@ -74,7 +87,27 @@ function meetingToTask(m: Meeting): VisibleTask {
     created_at: m.starts_at,
     updated_at: m.starts_at,
     agenda: { time, location: m.location ?? null },
+    sortAt: new Date(m.starts_at).getTime(),
   };
+}
+
+function taskSortAt(t: Task): number {
+  const ref = t.due_date ?? t.start_date;
+  if (ref) return new Date(`${ref}T12:00:00`).getTime();
+  return new Date(t.created_at).getTime();
+}
+
+const ORDER_KEY = "anora.tasks.order.v1";
+
+function loadOrder(): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(ORDER_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+function saveOrder(o: Record<string, number>) {
+  localStorage.setItem(ORDER_KEY, JSON.stringify(o));
 }
 
 
@@ -84,12 +117,19 @@ function TasksPage() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
+  const [order, setOrder] = useState<Record<string, number>>(() =>
+    typeof window !== "undefined" ? loadOrder() : {},
+  );
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  const visible = useMemo(() => {
+  useEffect(() => {
+    saveOrder(order);
+  }, [order]);
+
+  const visible = useMemo<VisibleTask[]>(() => {
     const weekStart = startOfWeek();
     const weekEnd = endOfWeek();
 
-    // Eventos da agenda (não-reunião) viram tarefas apenas da semana atual (7 dias).
     const agendaAsTasks = meetings
       .filter((m) => m.meeting_type !== "Reunião")
       .filter((m) => {
@@ -98,12 +138,26 @@ function TasksPage() {
       })
       .map(meetingToTask);
 
-    const own = tasks.filter(inRange);
+    const own: VisibleTask[] = tasks
+      .filter(inRange)
+      .map((t) => ({ ...t, sortAt: taskSortAt(t) }));
 
     return [...own, ...agendaAsTasks].filter(
       (t) => filter === "all" || t.source === filter,
     );
   }, [tasks, meetings, filter]);
+
+  const byStatus = (status: TaskStatus) =>
+    visible
+      .filter((t) => t.status === status)
+      .sort((a, b) => {
+        const oa = order[a.id];
+        const ob = order[b.id];
+        if (oa != null && ob != null) return oa - ob;
+        if (oa != null) return -1;
+        if (ob != null) return 1;
+        return a.sortAt - b.sortAt;
+      });
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
@@ -176,6 +230,26 @@ function TasksPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Reordena: coloca `draggedId` imediatamente antes de `targetId` (ou no final se null),
+  // dentro do status alvo. Persiste no localStorage.
+  function reorder(draggedId: string, targetStatus: TaskStatus, targetId: string | null) {
+    const current = byStatus(targetStatus).filter((t) => t.id !== draggedId);
+    const dragged = visible.find((t) => t.id === draggedId);
+    if (!dragged) return;
+    const idx = targetId ? current.findIndex((t) => t.id === targetId) : current.length;
+    const nextIds = [...current.map((t) => t.id)];
+    nextIds.splice(idx === -1 ? current.length : idx, 0, draggedId);
+    const next = { ...order };
+    // remove ordens antigas de outras colunas para esse id
+    delete next[draggedId];
+    nextIds.forEach((id, i) => {
+      next[id] = i;
+    });
+    setOrder(next);
+    if (dragged.status !== targetStatus) {
+      move.mutate({ id: draggedId, status: targetStatus });
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -215,31 +289,68 @@ function TasksPage() {
 
 
       {isLoading ? (
-
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : view === "board" ? (
         <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
           <div className="flex gap-3 min-w-max">
-            {STATUS_ORDER.map((status) => (
-              <div key={status} className="w-72 shrink-0 rounded-xl border bg-secondary/40 p-2">
-                <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
-                  {STATUS_LABEL[status]} · {visible.filter((t) => t.status === status).length}
-                </p>
-                <div className="space-y-2">
-                  {visible
-                    .filter((t) => t.status === status)
-                    .map((t) => (
-                      <TaskCard
+            {STATUS_ORDER.map((status) => {
+              const items = byStatus(status);
+              return (
+                <div
+                  key={status}
+                  className="w-72 shrink-0 rounded-xl border bg-secondary/40 p-2"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const id = e.dataTransfer.getData("text/plain");
+                    if (!id) return;
+                    reorder(id, status, null);
+                    setDragOverId(null);
+                  }}
+                >
+                  <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
+                    {STATUS_LABEL[status]} · {items.length}
+                  </p>
+                  <div className="space-y-2 min-h-8">
+                    {items.map((t) => (
+                      <div
                         key={t.id}
-                        task={t}
-                        onMove={(s) => move.mutate({ id: t.id, status: s })}
-                        onDelete={() => remove.mutate(t.id)}
-                        onChangeSource={(s) => changeSource.mutate({ id: t.id, source: s })}
-                      />
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", t.id);
+                          e.dataTransfer.effectAllowed = "move";
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDragOverId(t.id);
+                        }}
+                        onDragLeave={() => setDragOverId((v) => (v === t.id ? null : v))}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const id = e.dataTransfer.getData("text/plain");
+                          if (id && id !== t.id) reorder(id, status, t.id);
+                          setDragOverId(null);
+                        }}
+                        className={dragOverId === t.id ? "rounded-lg ring-2 ring-foreground/30" : ""}
+                      >
+                        <TaskCard
+                          task={t}
+                          onMove={(s) => move.mutate({ id: t.id, status: s })}
+                          onDelete={() => remove.mutate(t.id)}
+                          onChangeSource={(s) =>
+                            changeSource.mutate({ id: t.id, source: s })
+                          }
+                        />
+                      </div>
                     ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -249,60 +360,59 @@ function TasksPage() {
               <tr>
                 <th className="p-3">Tarefa</th>
                 <th className="p-3">Empresa</th>
-                <th className="p-3">Início</th>
-                <th className="p-3">Prazo</th>
+                <th className="p-3">Dia</th>
                 <th className="p-3">Prioridade</th>
-                <th className="p-3">Atualizado</th>
                 <th className="p-3">Status</th>
               </tr>
             </thead>
             <tbody>
-              {visible.map((t) => (
-                <tr key={t.id} className="border-b last:border-0">
-                  <td className="p-3">
-                    <span className={isOverdue(t) ? "text-reuniao" : ""}>{t.title}</span>
-                  </td>
-                  <td className="p-3">
-                    <select
-                      value={t.source}
-                      onChange={(e) =>
-                        changeSource.mutate({ id: t.id, source: e.target.value as SourceKey })
-                      }
-                      className="rounded-md border bg-background px-2 py-1 text-xs"
-                    >
-                      {SOURCES.map((s) => (
-                        <option key={s.key} value={s.key}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-3 text-xs text-muted-foreground">{t.start_date ?? "—"}</td>
-                  <td className="p-3 text-xs text-muted-foreground">{t.due_date ?? "—"}</td>
-                  <td className="p-3 text-xs">{PRIORITY_LABEL[t.priority]}</td>
-                  <td className="p-3 text-xs text-muted-foreground">
-                    {new Date(t.updated_at).toLocaleDateString("pt-BR")}
-                  </td>
-                  <td className="p-3">
-                    <select
-                      value={t.status}
-                      onChange={(e) =>
-                        move.mutate({ id: t.id, status: e.target.value as TaskStatus })
-                      }
-                      className="rounded-md border bg-background px-2 py-1 text-xs"
-                    >
-                      {STATUS_ORDER.map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_LABEL[s]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
+              {[...visible]
+                .sort((a, b) => a.sortAt - b.sortAt)
+                .map((t) => (
+                  <tr key={t.id} className="border-b last:border-0">
+                    <td className="p-3">
+                      <span className={isOverdue(t) ? "text-reuniao" : ""}>{t.title}</span>
+                    </td>
+                    <td className="p-3">
+                      <select
+                        value={t.source}
+                        onChange={(e) =>
+                          changeSource.mutate({ id: t.id, source: e.target.value as SourceKey })
+                        }
+                        className="rounded-md border bg-background px-2 py-1 text-xs"
+                      >
+                        {SOURCES.map((s) => (
+                          <option key={s.key} value={s.key}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {dayLabel(new Date(t.sortAt))}
+                      {t.agenda && ` · ${t.agenda.time}`}
+                    </td>
+                    <td className="p-3 text-xs">{PRIORITY_LABEL[t.priority]}</td>
+                    <td className="p-3">
+                      <select
+                        value={t.status}
+                        onChange={(e) =>
+                          move.mutate({ id: t.id, status: e.target.value as TaskStatus })
+                        }
+                        className="rounded-md border bg-background px-2 py-1 text-xs"
+                      >
+                        {STATUS_ORDER.map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_LABEL[s]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-sm text-muted-foreground">
+                  <td colSpan={5} className="p-6 text-center text-sm text-muted-foreground">
                     Nenhuma tarefa neste período.
                   </td>
                 </tr>
@@ -350,21 +460,22 @@ function TaskCard({
   onDelete: () => void;
   onChangeSource: (s: SourceKey) => void;
 }) {
+  const when = dayLabel(new Date(task.sortAt));
   return (
-    <div className={`rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}>
+    <div
+      className={`cursor-grab active:cursor-grabbing rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}
+    >
       <p className="text-sm">{task.title}</p>
-      {task.agenda && (
-        <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
-          <p>{task.agenda.time}</p>
-          {task.agenda.location && <p className="line-clamp-1">📍 {task.agenda.location}</p>}
-        </div>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-        {task.due_date && !task.agenda && (
-          <span className={isOverdue(task) ? "font-medium text-reuniao" : ""}>
-            {new Date(`${task.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
-          </span>
+      <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+        <p>
+          {when}
+          {task.agenda ? ` · ${task.agenda.time}` : ""}
+        </p>
+        {task.agenda?.location && (
+          <p className="line-clamp-1">📍 {task.agenda.location}</p>
         )}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         {!task.agenda && <span>{PRIORITY_LABEL[task.priority]}</span>}
         {task.recurrence !== "none" && <span>recorrente</span>}
       </div>
@@ -402,6 +513,3 @@ function TaskCard({
     </div>
   );
 }
-
-
-
