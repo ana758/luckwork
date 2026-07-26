@@ -3,8 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { patchGoogleEvent } from "@/lib/gcal.functions";
+import { deleteGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+
 
 function toLocalInput(iso: string) {
   const d = new Date(iso);
@@ -25,6 +26,7 @@ export function MeetingEditModal({
   const [notes, setNotes] = useState(meeting.notes ?? "");
   const qc = useQueryClient();
   const patchGoogle = useServerFn(patchGoogleEvent);
+  const delGoogle = useServerFn(deleteGoogleEvent);
   const isFromGoogle = Boolean(meeting.google_event_id);
 
   const save = useMutation({
@@ -45,7 +47,6 @@ export function MeetingEditModal({
         const { learnSourceRule } = await import("@/lib/learn-source");
         await learnSourceRule(title.trim(), source);
       }
-      // Bilateral: se está vinculado ao Google, atualiza lá também.
       if (meeting.google_event_id && meeting.google_account) {
         try {
           await patchGoogle({
@@ -76,25 +77,39 @@ export function MeetingEditModal({
 
   const remove = useMutation({
     mutationFn: async () => {
-      if (isFromGoogle) {
-        // Soft-delete: mantém o vínculo para não reimportar do Google.
-        const { error } = await supabase
-          .from("meetings")
-          .update({ hidden: true })
-          .eq("id", meeting.id);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase.from("meetings").delete().eq("id", meeting.id);
-        if (error) throw new Error(error.message);
+      let googleOk = true;
+      if (meeting.google_event_id && meeting.google_account) {
+        try {
+          await delGoogle({
+            data: {
+              googleAccount: meeting.google_account,
+              googleEventId: meeting.google_event_id,
+            },
+          });
+        } catch (e) {
+          googleOk = false;
+          toast.error(`Google Agenda: ${(e as Error).message}`);
+        }
       }
+      const { error } = await supabase.from("meetings").delete().eq("id", meeting.id);
+      if (error) throw new Error(error.message);
+      return { googleOk, wasLinked: isFromGoogle };
     },
-    onSuccess: () => {
-      toast.success("Removido do Anora (Google Agenda não foi alterado)");
+    onSuccess: (r) => {
+      toast.success(
+        r.wasLinked
+          ? r.googleOk
+            ? "Removido do Anora e do Google Agenda"
+            : "Removido do Anora (Google Agenda falhou)"
+          : "Removido",
+      );
       qc.invalidateQueries({ queryKey: ["meetings"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <div
@@ -150,19 +165,22 @@ export function MeetingEditModal({
 
         <p className="mb-3 text-[11px] text-muted-foreground">
           {isFromGoogle
-            ? "Vinculado ao Google Agenda — salvar atualiza os dois lados. Remover apaga só no Anora."
+            ? "Vinculado ao Google Agenda — salvar e remover atualizam os dois lados."
             : "Este evento foi criado no Anora."}
         </p>
 
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => remove.mutate()}
+            onClick={() => {
+              if (confirm("Apagar este item? Também será removido do Google Agenda quando vinculado.")) remove.mutate();
+            }}
             disabled={remove.isPending}
-            className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
+            className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-60"
           >
-            Remover
+            {remove.isPending ? "Apagando…" : "Apagar"}
           </button>
+
           <div className="ml-auto flex gap-2">
             <button
               onClick={onClose}

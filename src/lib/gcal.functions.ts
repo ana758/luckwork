@@ -64,6 +64,17 @@ export const patchGoogleEvent = createServerFn({ method: "POST" })
     return runPatchGoogleEvent(context.supabase, context.userId, data);
   });
 
+/** Apaga um evento no Google Agenda. */
+export const deleteGoogleEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { googleAccount: string; googleEventId: string }) => input,
+  )
+  .handler(async ({ data, context }) => {
+    const { runDeleteGoogleEvent } = await import("./gcal-sync.server");
+    return runDeleteGoogleEvent(context.supabase, context.userId, data);
+  });
+
 /** Lista as contas Google conectadas (para a tela de Ajustes). */
 export const listGoogleAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -71,4 +82,5 @@ export const listGoogleAccounts = createServerFn({ method: "GET" })
     const { runListAccounts } = await import("./gcal-sync.server");
     return runListAccounts();
   });
+
 

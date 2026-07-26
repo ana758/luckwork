@@ -5,6 +5,7 @@ import {
   GOOGLE_ACCOUNTS,
   classifyCalendar,
   createEvent,
+  deleteEvent,
   eventEnd,
   eventPeople,
   eventStart,
@@ -13,6 +14,7 @@ import {
   patchEvent,
   primaryCalendarId,
 } from "./gcal.server";
+
 
 
 async function assertMember(supabase: any, userId: string) {
@@ -316,4 +318,24 @@ export async function runPatchGoogleEvent(
   }
   throw new Error(`Não consegui atualizar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
 }
+
+export async function runDeleteGoogleEvent(
+  supabase: any,
+  userId: string,
+  data: { googleAccount: string; googleEventId: string },
+) {
+  await assertMember(supabase, userId);
+  const accounts = connectedAccounts();
+  let lastErr: unknown = null;
+  for (const acc of accounts) {
+    try {
+      await deleteEvent(acc.key, data.googleAccount, data.googleEventId);
+      return { ok: true };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`Não consegui apagar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
+}
+
 

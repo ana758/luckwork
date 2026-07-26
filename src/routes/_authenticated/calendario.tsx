@@ -6,10 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
+import { TaskEditModal } from "@/components/TaskEditModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent } from "@/lib/gcal.functions";
-import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+
 
 
 export const Route = createFileRoute("/_authenticated/calendario")({
@@ -36,7 +38,8 @@ function fmtKey(d: Date) {
 
 type CalItem =
   | { kind: "meeting"; id: string; title: string; dot: string; meeting: Meeting }
-  | { kind: "task"; id: string; title: string; dot: string };
+  | { kind: "task"; id: string; title: string; dot: string; task: Task };
+
 
 function CalendarPage() {
   const [view, setView] = useState<ViewMode>("month");
@@ -46,6 +49,8 @@ function CalendarPage() {
   });
   const [filter, setFilter] = useState<SourceKey | "all">("all");
   const [editing, setEditing] = useState<Meeting | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
@@ -72,7 +77,7 @@ function CalendarPage() {
         })),
       ...visibleTasks
         .filter((t) => t.due_date === key)
-        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source] })),
+        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source], task: t })),
     ];
   }
 
@@ -121,7 +126,9 @@ function CalendarPage() {
 
   function openItem(item: CalItem) {
     if (item.kind === "meeting") setEditing(item.meeting);
+    else setEditingTask(item.task);
   }
+
 
   async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
     const oldStart = new Date(m.starts_at);
@@ -370,6 +377,8 @@ function CalendarPage() {
 
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
+      {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
+
     </div>
   );
 }
