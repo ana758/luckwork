@@ -18,7 +18,10 @@ export const pushToGoogleCalendar = createServerFn({ method: "POST" })
       startsAt: string;
       endsAt?: string | null;
       notes?: string | null;
+      location?: string | null;
+      allDay?: boolean;
       account?: string | null;
+      source?: string | null;
     }) => input,
   )
   .handler(async ({ data, context }) => {
@@ -40,6 +43,25 @@ export const moveGoogleEvent = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { runMoveGoogleEvent } = await import("./gcal-sync.server");
     return runMoveGoogleEvent(context.supabase, context.userId, data);
+  });
+
+/** Atualiza título/notas/local/horário de um evento no Google. */
+export const patchGoogleEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      googleAccount: string;
+      googleEventId: string;
+      title?: string;
+      startsAt?: string | null;
+      endsAt?: string | null;
+      notes?: string | null;
+      location?: string | null;
+    }) => input,
+  )
+  .handler(async ({ data, context }) => {
+    const { runPatchGoogleEvent } = await import("./gcal-sync.server");
+    return runPatchGoogleEvent(context.supabase, context.userId, data);
   });
 
 /** Lista as contas Google conectadas (para a tela de Ajustes). */

@@ -191,6 +191,21 @@ export async function runCalendarSync(supabase: any, userId: string) {
 }
 
 
+// Roteia por empresa → conta do Google.
+// Angi e Devore vão para ana@devoresnacks.com (GOOGLE_CALENDAR_API_KEY).
+// Bruna e Pessoal vão para anaduquek@gmail.com (GOOGLE_CALENDAR_API_KEY_1).
+function pickAccountBySource(source?: string | null) {
+  const accs = connectedAccounts();
+  const wantsDevore = source === "angi" || source === "devore";
+  const wantsPessoal = source === "bruna" || source === "pessoal";
+  const preferredEnv = wantsDevore
+    ? "GOOGLE_CALENDAR_API_KEY"
+    : wantsPessoal
+      ? "GOOGLE_CALENDAR_API_KEY_1"
+      : null;
+  return (preferredEnv && accs.find((a) => a.envVar === preferredEnv)) || accs[0] || null;
+}
+
 export async function runCalendarPush(
   supabase: any,
   userId: string,
@@ -199,7 +214,10 @@ export async function runCalendarPush(
     startsAt: string;
     endsAt?: string | null;
     notes?: string | null;
+    location?: string | null;
+    allDay?: boolean;
     account?: string | null;
+    source?: string | null;
   },
 ) {
   await assertMember(supabase, userId);
@@ -207,20 +225,30 @@ export async function runCalendarPush(
   const accounts = connectedAccounts();
   const acc = data.account
     ? accounts.find((a) => a.envVar === data.account)
-    : accounts[0];
+    : pickAccountBySource(data.source);
   if (!acc) throw new Error("Conta do Google Agenda não encontrada.");
 
   const calendarId = await primaryCalendarId(acc.key);
-  const start = new Date(data.startsAt);
-  const end = data.endsAt ? new Date(data.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
 
-  const created = await createEvent(acc.key, calendarId, {
+  const body: Record<string, unknown> = {
     summary: data.title,
     description: data.notes ?? undefined,
-    start: { dateTime: start.toISOString() },
-    end: { dateTime: end.toISOString() },
-  });
+    location: data.location ?? undefined,
+  };
+  if (data.allDay) {
+    const day = data.startsAt.slice(0, 10);
+    const next = new Date(day + "T00:00:00");
+    next.setDate(next.getDate() + 1);
+    body.start = { date: day };
+    body.end = { date: next.toISOString().slice(0, 10) };
+  } else {
+    const start = new Date(data.startsAt);
+    const end = data.endsAt ? new Date(data.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+    body.start = { dateTime: start.toISOString() };
+    body.end = { dateTime: end.toISOString() };
+  }
 
+  const created = await createEvent(acc.key, calendarId, body);
   return { ok: true, eventId: created.id, calendarId, url: created.htmlLink ?? null };
 }
 
@@ -231,7 +259,6 @@ export async function runMoveGoogleEvent(
 ) {
   await assertMember(supabase, userId);
   const accounts = connectedAccounts();
-  // Tenta cada conta conectada — a que tiver acesso à agenda faz o PATCH.
   let lastErr: unknown = null;
   for (const acc of accounts) {
     try {
@@ -243,6 +270,45 @@ export async function runMoveGoogleEvent(
         start: { dateTime: start.toISOString() },
         end: { dateTime: end.toISOString() },
       });
+      return { ok: true };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`Não consegui atualizar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
+}
+
+export async function runPatchGoogleEvent(
+  supabase: any,
+  userId: string,
+  data: {
+    googleAccount: string;
+    googleEventId: string;
+    title?: string;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    notes?: string | null;
+    location?: string | null;
+  },
+) {
+  await assertMember(supabase, userId);
+  const accounts = connectedAccounts();
+  const body: Record<string, unknown> = {};
+  if (data.title !== undefined) body.summary = data.title;
+  if (data.notes !== undefined) body.description = data.notes ?? "";
+  if (data.location !== undefined) body.location = data.location ?? "";
+  if (data.startsAt) {
+    const start = new Date(data.startsAt);
+    const end = data.endsAt
+      ? new Date(data.endsAt)
+      : new Date(start.getTime() + 60 * 60 * 1000);
+    body.start = { dateTime: start.toISOString() };
+    body.end = { dateTime: end.toISOString() };
+  }
+  let lastErr: unknown = null;
+  for (const acc of accounts) {
+    try {
+      await patchEvent(acc.key, data.googleAccount, data.googleEventId, body);
       return { ok: true };
     } catch (e) {
       lastErr = e;
