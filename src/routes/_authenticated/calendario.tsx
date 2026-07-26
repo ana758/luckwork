@@ -1,10 +1,16 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { useMeetings, useTasks } from "@/lib/queries";
+import { supabase } from "@/integrations/supabase/client";
+import { moveGoogleEvent } from "@/lib/gcal.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -40,8 +46,12 @@ function CalendarPage() {
   });
   const [filter, setFilter] = useState<SourceKey | "all">("all");
   const [editing, setEditing] = useState<Meeting | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
+  const qc = useQueryClient();
+  const moveGoogle = useServerFn(moveGoogleEvent);
+
 
   const todayKey = fmtKey(new Date());
 
@@ -112,6 +122,71 @@ function CalendarPage() {
   function openItem(item: CalItem) {
     if (item.kind === "meeting") setEditing(item.meeting);
   }
+
+  async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
+    const oldStart = new Date(m.starts_at);
+    const [y, mo, d] = targetKey.split("-").map(Number);
+    const newStart = new Date(oldStart);
+    newStart.setFullYear(y, mo - 1, d);
+    if (fmtKey(newStart) === fmtKey(oldStart)) return;
+    let newEndIso: string | null = null;
+    if (m.ends_at) {
+      const oldEnd = new Date(m.ends_at);
+      const diff = oldEnd.getTime() - oldStart.getTime();
+      newEndIso = new Date(newStart.getTime() + diff).toISOString();
+    }
+    const newStartIso = newStart.toISOString();
+
+    // Otimista: atualiza local primeiro.
+    const { error } = await supabase
+      .from("meetings")
+      .update({ starts_at: newStartIso, ends_at: newEndIso ?? m.ends_at })
+      .eq("id", m.id);
+    if (error) {
+      toast.error("Não movi: " + error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["meetings"] });
+
+    // Se veio do Google, empurra pra lá pra próxima sync não desfazer.
+    if (m.google_event_id && m.google_account) {
+      try {
+        await moveGoogle({
+          data: {
+            googleAccount: m.google_account,
+            googleEventId: m.google_event_id,
+            startsAt: newStartIso,
+            endsAt: newEndIso,
+          },
+        });
+        toast.success("Evento movido (Anora + Google)");
+      } catch (e: any) {
+        toast.error("Movi aqui mas não no Google: " + (e?.message ?? "erro"));
+      }
+    } else {
+      toast.success("Evento movido");
+    }
+  }
+
+  function onDragStart(ev: React.DragEvent, itemId: string) {
+    ev.dataTransfer.setData("text/anora-meeting", itemId);
+    ev.dataTransfer.effectAllowed = "move";
+  }
+  function onDragOver(ev: React.DragEvent, key: string) {
+    if (ev.dataTransfer.types.includes("text/anora-meeting")) {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+      if (dragOverKey !== key) setDragOverKey(key);
+    }
+  }
+  function onDrop(ev: React.DragEvent, key: string) {
+    const id = ev.dataTransfer.getData("text/anora-meeting");
+    setDragOverKey(null);
+    if (!id) return;
+    const m = meetings.find((x) => x.id === id);
+    if (m) moveMeetingToDate(m as any, key);
+  }
+
 
   return (
     <div className="space-y-4">
@@ -188,7 +263,10 @@ function CalendarPage() {
               return (
                 <div
                   key={key}
-                  className={`min-h-20 border-b border-r p-1.5 last:border-r-0 ${muted ? "bg-secondary/30" : ""}`}
+                  onDragOver={(e) => onDragOver(e, key)}
+                  onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
+                  onDrop={(e) => onDrop(e, key)}
+                  className={`min-h-20 border-b border-r p-1.5 last:border-r-0 ${muted ? "bg-secondary/30" : ""} ${dragOverKey === key ? "bg-accent" : ""}`}
                 >
                   <span
                     className={`text-[11px] ${
@@ -205,6 +283,8 @@ function CalendarPage() {
                     {items.slice(0, 3).map((i) => (
                       <button
                         key={i.id}
+                        draggable={i.kind === "meeting"}
+                        onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
                         onClick={() => openItem(i)}
                         className="flex w-full items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
                       >
@@ -220,6 +300,7 @@ function CalendarPage() {
                   </div>
                 </div>
               );
+
             })}
           </div>
         </div>
@@ -256,7 +337,13 @@ function CalendarPage() {
               const key = fmtKey(d);
               const items = itemsFor(key);
               return (
-                <div key={key} className="min-h-[60vh] space-y-1 border-r p-2 last:border-r-0">
+                <div
+                  key={key}
+                  onDragOver={(e) => onDragOver(e, key)}
+                  onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
+                  onDrop={(e) => onDrop(e, key)}
+                  className={`min-h-[60vh] space-y-1 border-r p-2 last:border-r-0 ${dragOverKey === key ? "bg-accent/60" : ""}`}
+                >
                   {items.length === 0 && (
                     <div className="pt-4 text-center text-[11px] text-muted-foreground">
                       Sem itens
@@ -265,6 +352,8 @@ function CalendarPage() {
                   {items.map((i) => (
                     <button
                       key={i.id}
+                      draggable={i.kind === "meeting"}
+                      onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
                       onClick={() => openItem(i)}
                       className="flex w-full items-start gap-1.5 rounded-md border bg-background p-1.5 text-left hover:bg-accent/60"
                     >
@@ -278,6 +367,7 @@ function CalendarPage() {
           </div>
         </div>
       )}
+
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
     </div>

@@ -105,6 +105,21 @@ export async function createEvent(
   });
 }
 
+/** Patch an event on a calendar (usado ao arrastar no calendário). */
+export async function patchEvent(
+  connectionKey: string,
+  calendarId: string,
+  eventId: string,
+  body: Record<string, unknown>,
+): Promise<GEvent> {
+  return gcal(
+    connectionKey,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+  );
+}
+
+
 export function eventStart(e: GEvent): string | null {
   const v = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00` : null);
   return v ? new Date(v).toISOString() : null;
@@ -147,9 +162,13 @@ export function classifyCalendar(
   if (
     name.includes("branding pessoal") ||
     name.includes("trabalho bruna") ||
-    name.includes("bruna")
+    name.includes("bruna bergamini") ||
+    name === "bruna"
   )
     return { source: "bruna", isMeeting: false, skip: true };
+
+  // Agenda literalmente chamada "Pessoal" no anaduquek — pedido: não puxar.
+  if (name.trim() === "pessoal") return { source: "pessoal", isMeeting: false, skip: true };
 
   // Agenda compartilhada da Devore aparece nas duas contas → sempre Devore.
   if (id.includes("devoresnacks") || name.includes("devoresnacks") || name.includes("devore"))
@@ -159,8 +178,9 @@ export function classifyCalendar(
 
   if (name.includes("reuni")) return { source: "pessoal", isMeeting: true };
 
-  // ana beatriz, pagamentos, pessoal, urgente, feriados, primária → Pessoal.
+  // ana beatriz, pagamentos, urgente, feriados, primária → Pessoal.
   return { source: "pessoal", isMeeting: false };
 }
+
 
 

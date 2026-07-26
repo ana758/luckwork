@@ -10,8 +10,10 @@ import {
   eventStart,
   listCalendars,
   listEvents,
+  patchEvent,
   primaryCalendarId,
 } from "./gcal.server";
+
 
 async function assertMember(supabase: any, userId: string) {
   let { data } = await supabase
@@ -189,3 +191,31 @@ export async function runCalendarPush(
 
   return { ok: true, eventId: created.id, calendarId, url: created.htmlLink ?? null };
 }
+
+export async function runMoveGoogleEvent(
+  supabase: any,
+  userId: string,
+  data: { googleAccount: string; googleEventId: string; startsAt: string; endsAt?: string | null },
+) {
+  await assertMember(supabase, userId);
+  const accounts = connectedAccounts();
+  // Tenta cada conta conectada — a que tiver acesso à agenda faz o PATCH.
+  let lastErr: unknown = null;
+  for (const acc of accounts) {
+    try {
+      const start = new Date(data.startsAt);
+      const end = data.endsAt
+        ? new Date(data.endsAt)
+        : new Date(start.getTime() + 60 * 60 * 1000);
+      await patchEvent(acc.key, data.googleAccount, data.googleEventId, {
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      });
+      return { ok: true };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`Não consegui atualizar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
+}
+
