@@ -126,6 +126,7 @@ function TasksPage() {
     typeof window !== "undefined" ? loadOrder() : {},
   );
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     saveOrder(order);
