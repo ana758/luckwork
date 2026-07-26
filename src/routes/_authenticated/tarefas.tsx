@@ -415,6 +415,7 @@ function TasksPage() {
                           onChangeSource={(s) =>
                             changeSource.mutate({ id: t.id, source: s })
                           }
+                          onEdit={() => setEditingId(t.id)}
                         />
                       </div>
                     ))}
