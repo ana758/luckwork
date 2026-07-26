@@ -130,16 +130,21 @@ function TasksPage() {
     const weekStart = startOfWeek();
     const weekEnd = endOfWeek();
 
+    // Eventos da agenda (não-reunião) viram tarefas:
+    // - dentro da semana atual: sempre aparecem
+    // - fora da semana: só permanecem se ainda estiverem pendentes (não concluído/removido)
     const agendaAsTasks = meetings
       .filter((m) => m.meeting_type !== "Reunião")
       .filter((m) => {
         const d = new Date(m.starts_at);
-        return d >= weekStart && d <= weekEnd;
+        const inWeek = d >= weekStart && d <= weekEnd;
+        const pending = (m.status ?? "todo") !== "done";
+        return inWeek || pending;
       })
       .map(meetingToTask);
 
     const own: VisibleTask[] = tasks
-      .filter(inRange)
+      .filter((t) => inRange(t) || t.status !== "done")
       .map((t) => ({ ...t, sortAt: taskSortAt(t) }));
 
     return [...own, ...agendaAsTasks].filter(
