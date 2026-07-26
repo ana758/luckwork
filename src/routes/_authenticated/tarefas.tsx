@@ -151,6 +151,23 @@ function TasksPage() {
     },
   });
 
+  const changeSource = useMutation({
+    mutationFn: async ({ id, source }: { id: string; source: SourceKey }) => {
+      const isMeeting = id.startsWith("m:");
+      const realId = isMeeting ? id.slice(2) : id;
+      const table = isMeeting ? "meetings" : "tasks";
+      const { error } = await supabase.from(table).update({ source }).eq("id", realId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({
+        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
