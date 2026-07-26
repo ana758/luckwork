@@ -10,8 +10,10 @@ import {
   eventStart,
   listCalendars,
   listEvents,
+  patchEvent,
   primaryCalendarId,
 } from "./gcal.server";
+
 
 async function assertMember(supabase: any, userId: string) {
   let { data } = await supabase
