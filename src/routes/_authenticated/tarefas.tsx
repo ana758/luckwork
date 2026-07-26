@@ -171,15 +171,7 @@ function TasksPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold tracking-tight">Tarefas</h1>
-        
-        <Toggle
-          options={[
-            { v: "week", l: "Semana" },
-            { v: "month", l: "Mês" },
-          ]}
-          value={range}
-          onChange={(v) => setRange(v as "week" | "month")}
-        />
+        <span className="text-xs text-muted-foreground">Semana atual</span>
         <Toggle
           options={[
             { v: "board", l: "Board" },
