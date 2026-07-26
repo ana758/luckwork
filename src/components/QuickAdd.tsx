@@ -53,7 +53,31 @@ export function QuickAdd() {
             toast.error(`Jira: ${(e as Error).message}`);
           }
         }
-        // Se tem data, empurra pro Google como all-day
+        // Se marcou como Devore, cria também no DAILY GESTÃO (Notion)
+        if (source === "devore" && inserted?.id) {
+          try {
+            const notion = await pushNotion({
+              data: {
+                title: title.trim(),
+                dueDate: when || null,
+                status: "todo",
+              },
+            });
+            if (notion?.pageId) {
+              await supabase
+                .from("tasks")
+                .update({
+                  external_system: "notion",
+                  external_id: notion.pageId,
+                  external_url: notion.url,
+                })
+                .eq("id", inserted.id);
+            }
+          } catch (e) {
+            toast.error(`Notion: ${(e as Error).message}`);
+          }
+        }
+
         if (when && inserted?.id) {
           try {
             const res = await pushGoogle({
