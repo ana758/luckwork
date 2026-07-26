@@ -316,4 +316,29 @@ function TaskCard({
   );
 }
 
+function MeetingChip({ meeting }: { meeting: Meeting }) {
+  const d = new Date(meeting.starts_at);
+  const when =
+    d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
+    " " +
+    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const isReuniao = meeting.meeting_type === "Reunião";
+  return (
+    <div
+      className={`min-w-[220px] shrink-0 rounded-lg border border-l-4 ${SOURCE_BORDER[meeting.source]} ${SOURCE_TINT[meeting.source]} p-2.5`}
+    >
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${isReuniao ? "bg-reuniao" : SOURCE_DOT[meeting.source]}`}
+        />
+        {isReuniao ? "Reunião" : "Agenda"} · {when}
+      </div>
+      <p className="mt-1 text-sm leading-snug line-clamp-2">{meeting.title}</p>
+      {meeting.people && (
+        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{meeting.people}</p>
+      )}
+    </div>
+  );
+}
+
 
