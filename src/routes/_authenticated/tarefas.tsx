@@ -88,7 +88,7 @@ function TasksPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold tracking-tight">Tarefas</h1>
-        <SyncGoogleButton />
+        
         <Toggle
           options={[
             { v: "week", l: "Semana" },
@@ -128,20 +128,6 @@ function TasksPage() {
         ))}
       </div>
 
-      {visibleMeetings.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Reuniões · {visibleMeetings.length}
-          </h2>
-          <div className="-mx-4 overflow-x-auto px-4 pb-1 md:-mx-6 md:px-6">
-            <div className="flex gap-2 min-w-max">
-              {visibleMeetings.map((m) => (
-                <MeetingChip key={m.id} meeting={m} />
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
 
       {isLoading ? (
