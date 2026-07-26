@@ -263,7 +263,10 @@ function CalendarPage() {
               return (
                 <div
                   key={key}
-                  className={`min-h-20 border-b border-r p-1.5 last:border-r-0 ${muted ? "bg-secondary/30" : ""}`}
+                  onDragOver={(e) => onDragOver(e, key)}
+                  onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
+                  onDrop={(e) => onDrop(e, key)}
+                  className={`min-h-20 border-b border-r p-1.5 last:border-r-0 ${muted ? "bg-secondary/30" : ""} ${dragOverKey === key ? "bg-accent" : ""}`}
                 >
                   <span
                     className={`text-[11px] ${
@@ -280,6 +283,8 @@ function CalendarPage() {
                     {items.slice(0, 3).map((i) => (
                       <button
                         key={i.id}
+                        draggable={i.kind === "meeting"}
+                        onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
                         onClick={() => openItem(i)}
                         className="flex w-full items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
                       >
@@ -295,6 +300,7 @@ function CalendarPage() {
                   </div>
                 </div>
               );
+
             })}
           </div>
         </div>
