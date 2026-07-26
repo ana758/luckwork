@@ -3,8 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { patchGoogleEvent } from "@/lib/gcal.functions";
+import { deleteGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+
 
 function toLocalInput(iso: string) {
   const d = new Date(iso);
