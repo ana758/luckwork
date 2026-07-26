@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccessDrawer } from "@/components/AccessDrawer";
 import { SOURCES, SOURCE_DOT, type SourceKey } from "@/lib/sources";
+import { useArchivedSources } from "@/lib/archived-sources";
 
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({
@@ -25,6 +26,7 @@ function SettingsPage() {
   const queryClient = useQueryClient();
   const [drawer, setDrawer] = useState<SourceKey | null>(null);
   const [newEmail, setNewEmail] = useState("");
+  const { archived, archive, unarchive, isArchived } = useArchivedSources();
 
   const { data: members = [] } = useQuery({
     queryKey: ["workspace_members"],
@@ -159,6 +161,38 @@ function SettingsPage() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="text-sm font-medium">Empresas no CRM</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Arquivadas somem do painel, tarefas e calendário — mas ficam aqui para desarquivar.
+        </p>
+        <ul className="mt-3 space-y-2">
+          {SOURCES.map((s) => {
+            const arch = isArchived(s.key);
+            return (
+              <li key={s.key} className="flex items-center gap-2 text-sm">
+                <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[s.key]}`} />
+                <span className={arch ? "text-muted-foreground line-through" : ""}>{s.label}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {arch ? "arquivada" : "ativa"}
+                </span>
+                <button
+                  onClick={() => (arch ? unarchive(s.key) : archive(s.key))}
+                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                >
+                  {arch ? "Desarquivar" : "Arquivar"}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        {archived.length > 0 && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {archived.length} arquivada(s).
+          </p>
+        )}
       </section>
 
       {drawer && <AccessDrawer source={drawer} onClose={() => setDrawer(null)} />}
