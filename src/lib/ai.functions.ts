@@ -66,3 +66,119 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
     const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     return { text: json.choices?.[0]?.message?.content ?? "Sem resposta." };
   });
+
+// ---------------------------------------------------------------------------
+// aiAction: interpreta linguagem natural e cria tarefa ou reunião
+// ---------------------------------------------------------------------------
+
+type ActionResult = {
+  intent: "add_task" | "add_meeting" | "chat";
+  reply: string;
+  created?: { kind: "task" | "meeting"; title: string; when?: string };
+};
+
+export const aiAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { text: string }) => {
+    if (!input?.text?.trim()) throw new Error("Mensagem vazia.");
+    return { text: input.text.trim() };
+  })
+  .handler(async ({ data, context }): Promise<ActionResult> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("IA indisponível no momento.");
+
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const tz = "America/Sao_Paulo";
+
+    const system = [
+      "Você é a assistente da Ana. Interprete a mensagem e responda APENAS um JSON válido, sem markdown.",
+      `Hoje é ${todayStr} (fuso ${tz}).`,
+      "Empresas (source): 'angi', 'devore', 'bruna', 'pessoal'. Se a mensagem mencionar 'pessoal' ou nome pessoal, use 'pessoal'.",
+      "Se o usuário pedir para ADICIONAR/CRIAR uma tarefa ou compromisso, escolha o intent apropriado:",
+      "- 'add_task' para tarefa (sem horário obrigatório).",
+      "- 'add_meeting' para reunião/compromisso com horário.",
+      "- 'chat' para qualquer outra pergunta.",
+      "Formato de resposta (JSON):",
+      `{"intent":"add_task","reply":"texto curto de confirmação em pt-BR","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","notes":"opcional","location":"opcional"}}`,
+      `{"intent":"add_meeting","reply":"...","meeting":{"title":"...","source":"pessoal","starts_at":"YYYY-MM-DDTHH:mm:00-03:00","ends_at":"YYYY-MM-DDTHH:mm:00-03:00 ou null","location":"opcional","people":"opcional","notes":"opcional","meeting_type":"Compromisso"}}`,
+      `{"intent":"chat","reply":"resposta curta"}`,
+      "Se falar 'falar com X' sem horário, use add_task. Se disser 'reunião' ou horário explícito, add_meeting.",
+      "Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base na data de hoje.",
+    ].join("\n");
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3.5-flash",
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: data.text },
+        ],
+      }),
+    });
+
+    if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
+    if (res.status === 402) throw new Error("Créditos de IA esgotados.");
+    if (!res.ok) throw new Error(`Falha na IA (${res.status})`);
+
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const raw = json.choices?.[0]?.message?.content ?? "{}";
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { intent: "chat", reply: raw };
+    }
+
+    if (parsed.intent === "add_task" && parsed.task?.title) {
+      const t = parsed.task;
+      const { error } = await context.supabase.from("tasks").insert({
+        user_id: context.userId,
+        title: String(t.title),
+        notes: t.notes ?? null,
+        source: (t.source ?? "pessoal") as any,
+        status: (t.status ?? "todo") as any,
+        priority: (t.priority ?? "media") as any,
+        start_date: t.start_date ?? null,
+        due_date: t.due_date ?? null,
+        recurrence: "none" as any,
+      });
+      if (error) throw new Error(`Não consegui salvar a tarefa: ${error.message}`);
+      return {
+        intent: "add_task",
+        reply: parsed.reply ?? `Tarefa "${t.title}" adicionada.`,
+        created: { kind: "task", title: t.title, when: t.due_date ?? t.start_date },
+      };
+    }
+
+    if (parsed.intent === "add_meeting" && parsed.meeting?.title && parsed.meeting?.starts_at) {
+      const m = parsed.meeting;
+      const { error } = await context.supabase.from("meetings").insert({
+        user_id: context.userId,
+        title: String(m.title),
+        source: (m.source ?? "pessoal") as any,
+        starts_at: m.starts_at,
+        ends_at: m.ends_at ?? null,
+        location: m.location ?? null,
+        people: m.people ?? null,
+        notes: m.notes ?? null,
+        meeting_type: m.meeting_type ?? "Compromisso",
+        status: "todo",
+      });
+      if (error) throw new Error(`Não consegui salvar o compromisso: ${error.message}`);
+      return {
+        intent: "add_meeting",
+        reply: parsed.reply ?? `Compromisso "${m.title}" adicionado.`,
+        created: { kind: "meeting", title: m.title, when: m.starts_at },
+      };
+    }
+
+    return { intent: "chat", reply: parsed.reply ?? "Ok." };
+  });
+
