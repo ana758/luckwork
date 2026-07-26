@@ -103,7 +103,7 @@ function TasksPage() {
     return [...own, ...agendaAsTasks].filter(
       (t) => filter === "all" || t.source === filter,
     );
-  }, [tasks, meetings, range, filter]);
+  }, [tasks, meetings, filter]);
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
