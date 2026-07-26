@@ -233,6 +233,7 @@ function TasksPage() {
                         task={t}
                         onMove={(s) => move.mutate({ id: t.id, status: s })}
                         onDelete={() => remove.mutate(t.id)}
+                        onChangeSource={(s) => changeSource.mutate({ id: t.id, source: s })}
                       />
                     ))}
                 </div>
