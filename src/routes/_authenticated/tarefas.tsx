@@ -45,8 +45,15 @@ function inRange(task: Task, range: "week" | "month") {
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
-function meetingToTask(m: Meeting): Task {
+type AgendaMeta = { time: string; location: string | null };
+type VisibleTask = Task & { agenda?: AgendaMeta };
+
+function meetingToTask(m: Meeting): VisibleTask {
   const dateStr = m.starts_at.slice(0, 10);
+  const time = new Date(m.starts_at).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return {
     id: `m:${m.id}`,
     title: m.title,
@@ -62,8 +69,10 @@ function meetingToTask(m: Meeting): Task {
     completed_at: m.completed_at ?? null,
     created_at: m.starts_at,
     updated_at: m.starts_at,
+    agenda: { time, location: m.location ?? null },
   };
 }
+
 
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
