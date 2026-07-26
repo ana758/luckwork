@@ -65,6 +65,11 @@ function Dashboard() {
 
   const weekTotal = weekly.reduce((a, b) => a + b.value, 0);
 
+  const overdueTasks = useMemo(() => {
+    const keys = visibleSources.map((s) => s.key);
+    return tasks.filter((t) => isOverdue(t) && keys.includes(t.source));
+  }, [tasks, visibleSources]);
+
   return (
     <div className="space-y-6">
       <header>
@@ -77,6 +82,41 @@ function Dashboard() {
           })}
         </p>
       </header>
+
+      {overdueTasks.length > 0 && (
+        <section className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+          <div className="mb-2 flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <h2 className="text-sm font-semibold">
+              {overdueTasks.length} tarefa{overdueTasks.length > 1 ? "s" : ""} atrasada
+              {overdueTasks.length > 1 ? "s" : ""}
+            </h2>
+          </div>
+          <ul className="space-y-1.5">
+            {overdueTasks.slice(0, 6).map((t) => (
+              <li key={t.id} className="flex items-center gap-2 text-sm">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${SOURCE_DOT[t.source]}`} />
+                <Link to="/tarefas" className="truncate hover:underline">
+                  {t.title}
+                </Link>
+                <span className="ml-auto shrink-0 text-xs text-destructive/80">
+                  {t.due_date &&
+                    new Date(`${t.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                </span>
+              </li>
+            ))}
+            {overdueTasks.length > 6 && (
+              <li className="pt-1 text-xs text-muted-foreground">
+                +{overdueTasks.length - 6} outra(s) — ver em{" "}
+                <Link to="/tarefas" className="underline">
+                  Tarefas
+                </Link>
+                .
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
 
       {/* Hoje */}
       <section className="rounded-xl border bg-card p-4">
