@@ -48,11 +48,13 @@ export function TaskEditModal({
 
   const remove = useMutation({
     mutationFn: async () => {
-      const { data: row } = await supabase
+      const { data: rowData } = await supabase
         .from("tasks")
         .select("google_event_id, google_account")
         .eq("id", task.id)
         .maybeSingle();
+      const row = rowData as { google_event_id?: string | null; google_account?: string | null } | null;
+
       let googleOk = true;
       let wasLinked = false;
       if (row?.google_event_id && row?.google_account) {
