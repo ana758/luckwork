@@ -116,6 +116,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
           ends_at: eventEnd(e),
           meeting_type: isMeeting ? "Reunião" : e.hangoutLink ? "Online" : null,
           people: eventPeople(e),
+          location: e.location ?? null,
           notes: e.description?.slice(0, 4000) ?? null,
           external_url: e.hangoutLink ?? e.htmlLink ?? null,
           google_event_id: e.id,
