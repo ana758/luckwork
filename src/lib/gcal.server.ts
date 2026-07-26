@@ -120,6 +120,20 @@ export async function patchEvent(
   );
 }
 
+/** Delete an event on a calendar. */
+export async function deleteEvent(
+  connectionKey: string,
+  calendarId: string,
+  eventId: string,
+): Promise<void> {
+  await gcal(
+    connectionKey,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "DELETE" },
+  );
+}
+
+
 
 export function eventStart(e: GEvent): string | null {
   const v = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00` : null);
