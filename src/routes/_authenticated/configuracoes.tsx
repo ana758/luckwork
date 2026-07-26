@@ -43,7 +43,7 @@ function SettingsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("email_accounts")
-        .select("id, email, provider, is_active")
+        .select("id, email, provider")
         .order("email");
       if (error) throw new Error(error.message);
       return data ?? [];
@@ -51,7 +51,7 @@ function SettingsPage() {
   });
 
   const approve = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status }: { id: string; status: "active" | "pending" }) => {
       const { error } = await supabase.from("workspace_members").update({ status }).eq("id", id);
       if (error) throw new Error(error.message);
     },
