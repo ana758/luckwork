@@ -153,6 +153,17 @@ function TasksPage() {
       const isMeeting = id.startsWith("m:");
       const realId = isMeeting ? id.slice(2) : id;
       const table = isMeeting ? "meetings" : "tasks";
+      let jiraKey: string | null = null;
+      if (!isMeeting) {
+        const { data: current } = await supabase
+          .from("tasks")
+          .select("external_system, external_id")
+          .eq("id", realId)
+          .maybeSingle();
+        if (current?.external_system === "jira" && current.external_id) {
+          jiraKey = current.external_id;
+        }
+      }
       const { error } = await supabase
         .from(table)
         .update({
@@ -161,6 +172,14 @@ function TasksPage() {
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);
+      if (status === "done" && jiraKey) {
+        try {
+          const { completeJiraIssue } = await import("@/lib/jira.functions");
+          await completeJiraIssue({ data: { issueKey: jiraKey } });
+        } catch (e) {
+          console.warn("Falha ao concluir issue no Jira:", e);
+        }
+      }
     },
     onSuccess: (_d, v) => {
       queryClient.invalidateQueries({
