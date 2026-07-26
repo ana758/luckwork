@@ -64,15 +64,21 @@ export function QuickAdd() {
             });
             if (res.eventId) {
               // Se a tarefa é Angi, external_system/external_url já apontam pro Jira; só guardamos os campos do Google.
-              const patch: Record<string, unknown> = {
+              const patch: {
+                google_event_id: string;
+                google_account: string | null;
+                external_url?: string | null;
+                external_system?: string | null;
+              } = {
                 google_event_id: res.eventId,
-                google_account: res.calendarId,
+                google_account: res.calendarId ?? null,
               };
               if (source !== "angi") {
                 patch.external_url = res.url;
                 patch.external_system = "google_calendar";
               }
               await supabase.from("tasks").update(patch).eq("id", inserted.id);
+
             }
 
             return { pushed: true };
