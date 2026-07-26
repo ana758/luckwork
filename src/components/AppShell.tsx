@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { QuickAdd } from "./QuickAdd";
+import { NotificationsBell } from "./NotificationsBell";
 
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -82,7 +83,7 @@ export function AppShell() {
         {/* Desktop nav */}
         <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
           <div className="mb-6 px-2">
-            <p className="text-sm font-semibold tracking-tight">Anora</p>
+            <p className="text-lg font-semibold tracking-tight">Anora</p>
             <p className="text-xs text-muted-foreground">Angi · Devore · Bruna · Pessoal</p>
           </div>
           <nav className="space-y-1">
@@ -113,6 +114,14 @@ export function AppShell() {
         </aside>
 
         <main className="min-w-0 flex-1">
+          <header className="mb-4 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground md:hidden">
+              ANORA
+            </p>
+            <div className="ml-auto flex items-center gap-2">
+              <NotificationsBell />
+            </div>
+          </header>
           <Outlet />
         </main>
       </div>
