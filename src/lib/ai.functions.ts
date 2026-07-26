@@ -139,7 +139,7 @@ export const aiAction = createServerFn({ method: "POST" })
     if (parsed.intent === "add_task" && parsed.task?.title) {
       const t = parsed.task;
       const { error } = await context.supabase.from("tasks").insert({
-        user_id: context.userId,
+        created_by: context.userId,
         title: String(t.title),
         notes: t.notes ?? null,
         source: (t.source ?? "pessoal") as any,
