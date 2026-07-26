@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SOURCES, type SourceKey } from "@/lib/sources";
 import { pushToGoogleCalendar } from "@/lib/gcal.functions";
+import { createJiraIssue } from "@/lib/jira.functions";
+
 
 type Kind = "task" | "meeting";
 
@@ -17,6 +19,8 @@ export function QuickAdd() {
   const [source, setSource] = useState<SourceKey>("pessoal");
   const queryClient = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
+  const pushJira = useServerFn(createJiraIssue);
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -29,6 +33,24 @@ export function QuickAdd() {
           .select("id")
           .single();
         if (error) throw new Error(error.message);
+        // Se marcou como Angi, cria também no board Angi | Commercial & Marketing (Jira)
+        if (source === "angi" && inserted?.id) {
+          try {
+            const jira = await pushJira({
+              data: { summary: title.trim(), dueDate: when || null },
+            });
+            await supabase
+              .from("tasks")
+              .update({
+                external_system: "jira",
+                external_id: jira.key,
+                external_url: jira.url,
+              })
+              .eq("id", inserted.id);
+          } catch (e) {
+            toast.error(`Jira: ${(e as Error).message}`);
+          }
+        }
         // Se tem data, empurra pro Google como all-day
         if (when && inserted?.id) {
           try {
@@ -57,6 +79,7 @@ export function QuickAdd() {
           }
         }
         return { pushed: false };
+
       }
       if (!when) throw new Error("Escolha a data e hora da reunião.");
       const startsAt = new Date(when).toISOString();
