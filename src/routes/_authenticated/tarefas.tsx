@@ -296,7 +296,7 @@ function TasksPage() {
         >
           Todas
         </button>
-        {SOURCES.map((s) => (
+        {visibleSources.map((s) => (
           <button
             key={s.key}
             onClick={() => setFilter(s.key)}
