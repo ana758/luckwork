@@ -117,6 +117,22 @@ export async function runCalendarSync(supabase: any, userId: string) {
       if (error) throw new Error(error.message);
     }
 
+    // Remove localmente eventos que sumiram do Google (deletados lá) na janela sincronizada.
+    const keepIds = candidates.map((e) => e.id);
+    const { data: existing } = await supabase
+      .from("meetings")
+      .select("id, google_event_id")
+      .eq("google_account", calendarId)
+      .not("google_event_id", "is", null)
+      .gte("starts_at", timeMin)
+      .lte("starts_at", timeMax);
+    const toDelete = (existing ?? [])
+      .filter((r: any) => !keepIds.includes(r.google_event_id))
+      .map((r: any) => r.id);
+    if (toDelete.length > 0) {
+      await supabase.from("meetings").delete().in("id", toDelete);
+    }
+
     imported += rows.length;
     perAccount.push({ email: calendarId, count: rows.length });
   }
