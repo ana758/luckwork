@@ -12,6 +12,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { QuickAdd } from "./QuickAdd";
 import { NotificationsBell } from "./NotificationsBell";
+import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
 
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -54,6 +55,8 @@ export function AppShell() {
     enabled: membership?.status === "active",
     refetchInterval: 60_000,
   });
+
+  useAutoSyncGoogle();
 
 
   async function signOut() {
