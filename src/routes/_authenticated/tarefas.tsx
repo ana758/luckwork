@@ -262,10 +262,19 @@ function TasksPage() {
                     <span className={isOverdue(t) ? "text-reuniao" : ""}>{t.title}</span>
                   </td>
                   <td className="p-3">
-                    <span className="flex items-center gap-1.5 text-xs">
-                      <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[t.source]}`} />
-                      {t.source}
-                    </span>
+                    <select
+                      value={t.source}
+                      onChange={(e) =>
+                        changeSource.mutate({ id: t.id, source: e.target.value as SourceKey })
+                      }
+                      className="rounded-md border bg-background px-2 py-1 text-xs"
+                    >
+                      {SOURCES.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="p-3 text-xs text-muted-foreground">{t.start_date ?? "—"}</td>
                   <td className="p-3 text-xs text-muted-foreground">{t.due_date ?? "—"}</td>
