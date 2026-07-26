@@ -99,7 +99,7 @@ export function QuickAdd() {
                 google_event_id: res.eventId,
                 google_account: res.calendarId ?? null,
               };
-              if (source !== "angi") {
+              if (source !== "angi" && source !== "devore") {
                 patch.external_url = res.url;
                 patch.external_system = "google_calendar";
               }
