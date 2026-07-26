@@ -126,7 +126,9 @@ function CalendarPage() {
 
   function openItem(item: CalItem) {
     if (item.kind === "meeting") setEditing(item.meeting);
+    else setEditingTask(item.task);
   }
+
 
   async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
     const oldStart = new Date(m.starts_at);
