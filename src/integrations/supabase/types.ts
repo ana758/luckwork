@@ -79,6 +79,7 @@ export type Database = {
       }
       meetings: {
         Row: {
+          completed_at: string | null
           created_at: string
           created_by: string | null
           ends_at: string | null
@@ -92,11 +93,13 @@ export type Database = {
           people: string | null
           source: Database["public"]["Enums"]["source_key"]
           starts_at: string
+          status: string
           synced_at: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          completed_at?: string | null
           created_at?: string
           created_by?: string | null
           ends_at?: string | null
@@ -110,11 +113,13 @@ export type Database = {
           people?: string | null
           source?: Database["public"]["Enums"]["source_key"]
           starts_at: string
+          status?: string
           synced_at?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          completed_at?: string | null
           created_at?: string
           created_by?: string | null
           ends_at?: string | null
@@ -128,6 +133,7 @@ export type Database = {
           people?: string | null
           source?: Database["public"]["Enums"]["source_key"]
           starts_at?: string
+          status?: string
           synced_at?: string | null
           title?: string
           updated_at?: string

@@ -45,6 +45,26 @@ function inRange(task: Task, range: "week" | "month") {
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
+function meetingToTask(m: Meeting): Task {
+  const dateStr = m.starts_at.slice(0, 10);
+  return {
+    id: `m:${m.id}`,
+    title: m.title,
+    notes: m.notes,
+    source: m.source,
+    status: (m.status ?? "todo") as TaskStatus,
+    priority: "media",
+    start_date: dateStr,
+    due_date: dateStr,
+    recurrence: "none",
+    external_system: "google_calendar",
+    external_url: m.external_url,
+    completed_at: m.completed_at ?? null,
+    created_at: m.starts_at,
+    updated_at: m.starts_at,
+  };
+}
+
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
   const { data: meetings = [] } = useMeetings();
@@ -53,50 +73,72 @@ function TasksPage() {
   const [range, setRange] = useState<"week" | "month">("week");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
 
-  const visible = useMemo(
-    () =>
-      tasks.filter((t) => inRange(t, range) && (filter === "all" || t.source === filter)),
-    [tasks, range, filter],
-  );
-
-  const visibleMeetings = useMemo(() => {
+  const visible = useMemo(() => {
     const now = new Date();
     const start = range === "week" ? startOfWeek() : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = range === "week" ? endOfWeek() : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    return meetings
+    const end =
+      range === "week"
+        ? endOfWeek()
+        : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Eventos da agenda (não-reunião) viram tarefas no período.
+    const agendaAsTasks = meetings
+      .filter((m) => m.meeting_type !== "Reunião")
       .filter((m) => {
         const d = new Date(m.starts_at);
-        return d >= start && d <= end && (filter === "all" || m.source === filter);
+        return d >= start && d <= end;
       })
-      .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
-  }, [meetings, range, filter]);
+      .map(meetingToTask);
 
+    const own = tasks.filter((t) => inRange(t, range));
 
-
+    return [...own, ...agendaAsTasks].filter(
+      (t) => filter === "all" || t.source === filter,
+    );
+  }, [tasks, meetings, range, filter]);
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
+      const isMeeting = id.startsWith("m:");
+      const realId = isMeeting ? id.slice(2) : id;
+      const table = isMeeting ? "meetings" : "tasks";
       const { error } = await supabase
-        .from("tasks")
+        .from(table)
         .update({
           status,
           completed_at: status === "done" ? new Date().toISOString() : null,
         })
-        .eq("id", id);
+        .eq("id", realId);
       if (error) throw new Error(error.message);
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({
+        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
+      });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("tasks").delete().eq("id", id);
-      if (error) throw new Error(error.message);
+      const isMeeting = id.startsWith("m:");
+      const realId = isMeeting ? id.slice(2) : id;
+      if (isMeeting) {
+        const { error } = await supabase
+          .from("meetings")
+          .update({ hidden: true })
+          .eq("id", realId);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("tasks").delete().eq("id", realId);
+        if (error) throw new Error(error.message);
+      }
     },
-    onSuccess: () => {
-      toast.success("Tarefa removida");
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    onSuccess: (_d, id) => {
+      toast.success("Removido");
+      queryClient.invalidateQueries({
+        queryKey: [id.startsWith("m:") ? "meetings" : "tasks"],
+      });
     },
   });
 
@@ -144,18 +186,6 @@ function TasksPage() {
         ))}
       </div>
 
-      {visibleMeetings.length > 0 && (
-        <section>
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-            Da agenda · {visibleMeetings.length}
-          </p>
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:-mx-6 md:px-6">
-            {visibleMeetings.map((m) => (
-              <MeetingChip key={m.id} meeting={m} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {isLoading ? (
 
@@ -316,29 +346,5 @@ function TaskCard({
   );
 }
 
-function MeetingChip({ meeting }: { meeting: Meeting }) {
-  const d = new Date(meeting.starts_at);
-  const when =
-    d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
-    " " +
-    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const isReuniao = meeting.meeting_type === "Reunião";
-  return (
-    <div
-      className={`min-w-[220px] shrink-0 rounded-lg border border-l-4 ${SOURCE_BORDER[meeting.source]} ${SOURCE_TINT[meeting.source]} p-2.5`}
-    >
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${isReuniao ? "bg-reuniao" : SOURCE_DOT[meeting.source]}`}
-        />
-        {isReuniao ? "Reunião" : "Agenda"} · {when}
-      </div>
-      <p className="mt-1 text-sm leading-snug line-clamp-2">{meeting.title}</p>
-      {meeting.people && (
-        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{meeting.people}</p>
-      )}
-    </div>
-  );
-}
 
 

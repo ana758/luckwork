@@ -96,6 +96,8 @@ export type Meeting = {
   people: string | null;
   notes: string | null;
   external_url: string | null;
+  status?: TaskStatus;
+  completed_at?: string | null;
 };
 
 export type AccessEntry = {
