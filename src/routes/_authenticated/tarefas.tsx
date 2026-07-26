@@ -172,14 +172,15 @@ function TasksPage() {
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);
-      if (status === "done" && jiraKey) {
+      if (jiraKey) {
         try {
-          const { completeJiraIssue } = await import("@/lib/jira.functions");
-          await completeJiraIssue({ data: { issueKey: jiraKey } });
+          const { transitionJiraIssue } = await import("@/lib/jira.functions");
+          await transitionJiraIssue({ data: { issueKey: jiraKey, status } });
         } catch (e) {
-          console.warn("Falha ao concluir issue no Jira:", e);
+          console.warn("Falha ao mover issue no Jira:", e);
         }
       }
+
     },
     onSuccess: (_d, v) => {
       queryClient.invalidateQueries({
