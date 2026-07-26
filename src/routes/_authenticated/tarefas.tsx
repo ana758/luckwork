@@ -248,7 +248,7 @@ function TaskCard({
   onDelete: () => void;
 }) {
   return (
-    <div className={`rounded-lg border border-l-4 bg-card p-3 ${SOURCE_BORDER[task.source]}`}>
+    <div className={`rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}>
       <p className="text-sm">{task.title}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
         {task.due_date && (
