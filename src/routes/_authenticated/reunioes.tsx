@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMeetings } from "@/lib/queries";
-import { SOURCE_DOT, SOURCE_LABEL } from "@/lib/sources";
+import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 
 export const Route = createFileRoute("/_authenticated/reunioes")({
   head: () => ({
@@ -50,7 +50,7 @@ function Section({
   empty,
 }: {
   title: string;
-  items: ReturnType<typeof useMeetings>["data"] extends (infer T)[] | undefined ? T[] : never;
+  items: Meeting[];
   empty: string;
 }) {
   return (
