@@ -153,11 +153,17 @@ function TasksPage() {
       const isMeeting = id.startsWith("m:");
       const realId = isMeeting ? id.slice(2) : id;
       const table = isMeeting ? "meetings" : "tasks";
-      const { data: current } = await supabase
-        .from(table)
-        .select("external_system, external_id")
-        .eq("id", realId)
-        .maybeSingle();
+      let jiraKey: string | null = null;
+      if (!isMeeting) {
+        const { data: current } = await supabase
+          .from("tasks")
+          .select("external_system, external_id")
+          .eq("id", realId)
+          .maybeSingle();
+        if (current?.external_system === "jira" && current.external_id) {
+          jiraKey = current.external_id;
+        }
+      }
       const { error } = await supabase
         .from(table)
         .update({
@@ -166,11 +172,10 @@ function TasksPage() {
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);
-      // Ecoa para o Jira quando a tarefa vem de lá.
-      if (status === "done" && !isMeeting && current?.external_system === "jira" && current?.external_id) {
+      if (status === "done" && jiraKey) {
         try {
           const { completeJiraIssue } = await import("@/lib/jira.functions");
-          await completeJiraIssue({ data: { issueKey: current.external_id } });
+          await completeJiraIssue({ data: { issueKey: jiraKey } });
         } catch (e) {
           console.warn("Falha ao concluir issue no Jira:", e);
         }
