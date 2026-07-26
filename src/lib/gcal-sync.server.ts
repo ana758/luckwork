@@ -82,8 +82,20 @@ export async function runCalendarSync(supabase: any, userId: string) {
     const calendarId = await primaryCalendarId(acc.key);
     const events = await listEvents(acc.key, calendarId, timeMin, timeMax);
 
-    const rows = events
-      .filter((e) => e.status !== "cancelled" && eventStart(e))
+    const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
+
+    // Respeita eventos escondidos localmente (soft-delete): não reimportar.
+    const ids = candidates.map((e) => e.id);
+    const { data: hiddenRows } = await supabase
+      .from("meetings")
+      .select("google_event_id")
+      .eq("google_account", calendarId)
+      .eq("hidden", true)
+      .in("google_event_id", ids.length ? ids : ["__none__"]);
+    const hiddenSet = new Set((hiddenRows ?? []).map((r: any) => r.google_event_id));
+
+    const rows = candidates
+      .filter((e) => !hiddenSet.has(e.id))
       .map((e) => ({
         title: e.summary?.trim() || "(sem título)",
         source: acc.defaultSource,
