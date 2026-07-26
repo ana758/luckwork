@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { SOURCE_DOT } from "@/lib/sources";
 
