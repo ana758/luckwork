@@ -41,8 +41,10 @@ export type NotionTask = {
   priority: "alta" | "media" | "baixa";
   dueDate: string | null;
   updated: string;
+  created: string;
   databaseId: string | null;
 };
+
 
 
 function pickTitle(props: Record<string, any>): string {
