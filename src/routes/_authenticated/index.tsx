@@ -13,6 +13,13 @@ import {
 } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
+const SOURCE_HEX: Record<SourceKey, string> = {
+  angi: "hsl(var(--angi))",
+  devore: "hsl(var(--devore))",
+  bruna: "hsl(var(--bruna))",
+  pessoal: "hsl(var(--pessoal))",
+};
+
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
