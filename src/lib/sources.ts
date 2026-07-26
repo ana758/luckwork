@@ -39,6 +39,14 @@ export const SOURCE_BORDER: Record<SourceKey, string> = {
   pessoal: "border-l-pessoal",
 };
 
+/** Full-card tint: soft brand background + brand border. */
+export const SOURCE_TINT: Record<SourceKey, string> = {
+  angi: "bg-angi-soft border-angi/30",
+  devore: "bg-devore-soft border-devore/30",
+  bruna: "bg-bruna-soft border-bruna/30",
+  pessoal: "bg-pessoal-soft border-pessoal/30",
+};
+
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "A fazer",
   doing: "Em andamento",
