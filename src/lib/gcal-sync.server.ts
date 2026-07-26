@@ -14,12 +14,17 @@ import {
 async function assertMember(supabase: any, userId: string) {
   const { data } = await supabase
     .from("workspace_members")
-    .select("status")
+    .select("status, email")
     .eq("user_id", userId)
-    .eq("status", "active")
     .maybeSingle();
-  if (!data) throw new Error("Sem permissão");
+  if (!data) throw new Error("Sua conta ainda não faz parte do workspace.");
+  if (data.status !== "active") {
+    throw new Error(
+      `Acesso pendente para ${data.email}. Entre com ana@devoresnacks.com e aprove em Ajustes → Acessos.`,
+    );
+  }
 }
+
 
 function connectedAccounts() {
   return GOOGLE_ACCOUNTS.map((a) => ({ ...a, key: process.env[a.envVar] })).filter(
