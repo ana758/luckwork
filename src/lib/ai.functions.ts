@@ -160,7 +160,7 @@ export const aiAction = createServerFn({ method: "POST" })
     if (parsed.intent === "add_meeting" && parsed.meeting?.title && parsed.meeting?.starts_at) {
       const m = parsed.meeting;
       const { error } = await context.supabase.from("meetings").insert({
-        user_id: context.userId,
+        created_by: context.userId,
         title: String(m.title),
         source: (m.source ?? "pessoal") as any,
         starts_at: m.starts_at,
