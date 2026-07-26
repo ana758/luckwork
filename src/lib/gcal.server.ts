@@ -50,15 +50,29 @@ export type GEvent = {
   hangoutLink?: string;
 };
 
+export type GCalendar = {
+  id: string;
+  summary?: string;
+  summaryOverride?: string;
+  primary?: boolean;
+  selected?: boolean;
+  accessRole?: string;
+};
+
+/** All calendars visible to the account (includes shared/subscribed ones). */
+export async function listCalendars(connectionKey: string): Promise<GCalendar[]> {
+  const data = await gcal(connectionKey, "/users/me/calendarList?maxResults=250");
+  return (data.items ?? []) as GCalendar[];
+}
+
 /** Primary calendar id (the account's own e-mail). */
 export async function primaryCalendarId(connectionKey: string): Promise<string> {
-  const data = await gcal(connectionKey, "/users/me/calendarList?maxResults=250");
-  const items: { id: string; primary?: boolean }[] = data.items ?? [];
+  const items = await listCalendars(connectionKey);
   const primary = items.find((i) => i.primary);
   return primary?.id ?? "primary";
 }
 
-/** Events in a window on the account's primary calendar. */
+/** Events in a window on a specific calendar. */
 export async function listEvents(
   connectionKey: string,
   calendarId: string,
@@ -79,7 +93,7 @@ export async function listEvents(
   return (data.items ?? []) as GEvent[];
 }
 
-/** Create an event on the account's primary calendar (Anora → Google). */
+/** Create an event on a calendar (Anora → Google). */
 export async function createEvent(
   connectionKey: string,
   calendarId: string,
@@ -107,4 +121,31 @@ export function eventPeople(e: GEvent): string | null {
     .filter(Boolean) as string[];
   if (names.length === 0) return e.organizer?.displayName ?? e.organizer?.email ?? null;
   return names.slice(0, 8).join(", ");
+}
+
+/**
+ * Map a calendar (account + calendar name) to the Anora source colour and
+ * whether it's specifically a "Reunião" bucket.
+ *
+ * Rules:
+ * - ana@devoresnacks.com → always Devore.
+ * - anaduquek@gmail.com (formerly drabiazinha) → look at the calendar name:
+ *     "ana beatriz" / primary → Pessoal
+ *     "branding pessoal"      → Bruna
+ *     "pagament*"             → Pessoal
+ *     "reuni*"                → Pessoal, marcado como Reunião
+ *     qualquer outra           → Pessoal
+ */
+export function classifyCalendar(
+  accountDefault: SourceKey,
+  cal: GCalendar,
+): { source: SourceKey; isMeeting: boolean } {
+  if (accountDefault === "devore") return { source: "devore", isMeeting: false };
+
+  const name = (cal.summaryOverride || cal.summary || "").toLowerCase();
+  if (name.includes("branding pessoal") || name.includes("bruna"))
+    return { source: "bruna", isMeeting: false };
+  if (name.includes("reuni")) return { source: "pessoal", isMeeting: true };
+  // ana beatriz, pagamentos, primária e o restante caem em pessoal.
+  return { source: "pessoal", isMeeting: false };
 }

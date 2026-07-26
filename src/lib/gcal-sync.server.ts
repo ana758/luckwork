@@ -3,10 +3,12 @@
  */
 import {
   GOOGLE_ACCOUNTS,
+  classifyCalendar,
   createEvent,
   eventEnd,
   eventPeople,
   eventStart,
+  listCalendars,
   listEvents,
   primaryCalendarId,
 } from "./gcal.server";
@@ -19,7 +21,6 @@ async function assertMember(supabase: any, userId: string) {
     .maybeSingle();
 
   if (!data) {
-    // Auto-provisiona registro pendente para usuários criados antes do trigger.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
     const email = u?.user?.email ?? "";
@@ -79,62 +80,72 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const perAccount: { email: string; count: number }[] = [];
 
   for (const acc of accounts) {
-    const calendarId = await primaryCalendarId(acc.key);
-    const events = await listEvents(acc.key, calendarId, timeMin, timeMax);
+    const accountEmail = await primaryCalendarId(acc.key);
+    const calendars = (await listCalendars(acc.key)).filter(
+      (c) => c.selected !== false && c.accessRole && c.accessRole !== "freeBusyReader",
+    );
 
-    const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
+    let accountCount = 0;
 
-    // Respeita eventos escondidos localmente (soft-delete): não reimportar.
-    const ids = candidates.map((e) => e.id);
-    const { data: hiddenRows } = await supabase
-      .from("meetings")
-      .select("google_event_id")
-      .eq("google_account", calendarId)
-      .eq("hidden", true)
-      .in("google_event_id", ids.length ? ids : ["__none__"]);
-    const hiddenSet = new Set((hiddenRows ?? []).map((r: any) => r.google_event_id));
+    for (const cal of calendars) {
+      const { source, isMeeting } = classifyCalendar(acc.defaultSource, cal);
+      const events = await listEvents(acc.key, cal.id, timeMin, timeMax);
+      const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
 
-    const rows = candidates
-      .filter((e) => !hiddenSet.has(e.id))
-      .map((e) => ({
-        title: e.summary?.trim() || "(sem título)",
-        source: acc.defaultSource,
-        starts_at: eventStart(e)!,
-        ends_at: eventEnd(e),
-        meeting_type: e.hangoutLink ? "Online" : null,
-        people: eventPeople(e),
-        notes: e.description?.slice(0, 4000) ?? null,
-        external_url: e.hangoutLink ?? e.htmlLink ?? null,
-        google_event_id: e.id,
-        google_account: calendarId,
-        synced_at: new Date().toISOString(),
-      }));
-
-    if (rows.length > 0) {
-      const { error } = await supabase
+      // Respeita eventos escondidos localmente (soft-delete): não reimportar.
+      const ids = candidates.map((e) => e.id);
+      const { data: hiddenRows } = await supabase
         .from("meetings")
-        .upsert(rows, { onConflict: "google_account,google_event_id" });
-      if (error) throw new Error(error.message);
+        .select("google_event_id")
+        .eq("google_account", cal.id)
+        .eq("hidden", true)
+        .in("google_event_id", ids.length ? ids : ["__none__"]);
+      const hiddenSet = new Set((hiddenRows ?? []).map((r: any) => r.google_event_id));
+
+      const rows = candidates
+        .filter((e) => !hiddenSet.has(e.id))
+        .map((e) => ({
+          title: e.summary?.trim() || "(sem título)",
+          source,
+          starts_at: eventStart(e)!,
+          ends_at: eventEnd(e),
+          meeting_type: isMeeting ? "Reunião" : e.hangoutLink ? "Online" : null,
+          people: eventPeople(e),
+          notes: e.description?.slice(0, 4000) ?? null,
+          external_url: e.hangoutLink ?? e.htmlLink ?? null,
+          google_event_id: e.id,
+          google_account: cal.id,
+          synced_at: new Date().toISOString(),
+        }));
+
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from("meetings")
+          .upsert(rows, { onConflict: "google_account,google_event_id" });
+        if (error) throw new Error(error.message);
+      }
+
+      // Remove localmente eventos que sumiram do Google (deletados lá) na janela sincronizada.
+      const keepIds = candidates.map((e) => e.id);
+      const { data: existing } = await supabase
+        .from("meetings")
+        .select("id, google_event_id")
+        .eq("google_account", cal.id)
+        .not("google_event_id", "is", null)
+        .gte("starts_at", timeMin)
+        .lte("starts_at", timeMax);
+      const toDelete = (existing ?? [])
+        .filter((r: any) => !keepIds.includes(r.google_event_id))
+        .map((r: any) => r.id);
+      if (toDelete.length > 0) {
+        await supabase.from("meetings").delete().in("id", toDelete);
+      }
+
+      accountCount += rows.length;
     }
 
-    // Remove localmente eventos que sumiram do Google (deletados lá) na janela sincronizada.
-    const keepIds = candidates.map((e) => e.id);
-    const { data: existing } = await supabase
-      .from("meetings")
-      .select("id, google_event_id")
-      .eq("google_account", calendarId)
-      .not("google_event_id", "is", null)
-      .gte("starts_at", timeMin)
-      .lte("starts_at", timeMax);
-    const toDelete = (existing ?? [])
-      .filter((r: any) => !keepIds.includes(r.google_event_id))
-      .map((r: any) => r.id);
-    if (toDelete.length > 0) {
-      await supabase.from("meetings").delete().in("id", toDelete);
-    }
-
-    imported += rows.length;
-    perAccount.push({ email: calendarId, count: rows.length });
+    imported += accountCount;
+    perAccount.push({ email: accountEmail, count: accountCount });
   }
 
   return { imported, accounts: perAccount };
