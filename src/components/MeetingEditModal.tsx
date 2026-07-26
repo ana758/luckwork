@@ -165,19 +165,22 @@ export function MeetingEditModal({
 
         <p className="mb-3 text-[11px] text-muted-foreground">
           {isFromGoogle
-            ? "Vinculado ao Google Agenda — salvar atualiza os dois lados. Remover apaga só no Anora."
+            ? "Vinculado ao Google Agenda — salvar e remover atualizam os dois lados."
             : "Este evento foi criado no Anora."}
         </p>
 
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => remove.mutate()}
+            onClick={() => {
+              if (confirm("Apagar este item? Também será removido do Google Agenda quando vinculado.")) remove.mutate();
+            }}
             disabled={remove.isPending}
-            className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
+            className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-60"
           >
-            Remover
+            {remove.isPending ? "Apagando…" : "Apagar"}
           </button>
+
           <div className="ml-auto flex gap-2">
             <button
               onClick={onClose}
