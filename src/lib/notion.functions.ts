@@ -20,3 +20,19 @@ export const transitionNotionPage = createServerFn({ method: "POST" })
     const ok = await transitionPage(data.pageId, data.status);
     return { ok };
   });
+
+/** Cria uma página nova no DAILY GESTÃO (Devore). */
+export const createNotionDailyPage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: {
+      title: string;
+      dueDate?: string | null;
+      status?: "todo" | "doing" | "onhold" | "done";
+      priority?: "alta" | "media" | "baixa";
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { createDailyGestaoPage } = await import("./notion.server");
+    return (await createDailyGestaoPage(data)) ?? { pageId: null, url: null };
+  });

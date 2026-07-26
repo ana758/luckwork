@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SOURCES, type SourceKey } from "@/lib/sources";
 import { pushToGoogleCalendar } from "@/lib/gcal.functions";
 import { createJiraIssue } from "@/lib/jira.functions";
+import { createNotionDailyPage } from "@/lib/notion.functions";
 
 
 type Kind = "task" | "meeting";
@@ -20,6 +21,7 @@ export function QuickAdd() {
   const queryClient = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
   const pushJira = useServerFn(createJiraIssue);
+  const pushNotion = useServerFn(createNotionDailyPage);
 
 
   const mutation = useMutation({
@@ -51,7 +53,31 @@ export function QuickAdd() {
             toast.error(`Jira: ${(e as Error).message}`);
           }
         }
-        // Se tem data, empurra pro Google como all-day
+        // Se marcou como Devore, cria também no DAILY GESTÃO (Notion)
+        if (source === "devore" && inserted?.id) {
+          try {
+            const notion = await pushNotion({
+              data: {
+                title: title.trim(),
+                dueDate: when || null,
+                status: "todo",
+              },
+            });
+            if (notion?.pageId) {
+              await supabase
+                .from("tasks")
+                .update({
+                  external_system: "notion",
+                  external_id: notion.pageId,
+                  external_url: notion.url,
+                })
+                .eq("id", inserted.id);
+            }
+          } catch (e) {
+            toast.error(`Notion: ${(e as Error).message}`);
+          }
+        }
+
         if (when && inserted?.id) {
           try {
             const res = await pushGoogle({
@@ -73,7 +99,7 @@ export function QuickAdd() {
                 google_event_id: res.eventId,
                 google_account: res.calendarId ?? null,
               };
-              if (source !== "angi") {
+              if (source !== "angi" && source !== "devore") {
                 patch.external_url = res.url;
                 patch.external_system = "google_calendar";
               }

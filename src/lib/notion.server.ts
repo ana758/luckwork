@@ -236,3 +236,74 @@ export async function transitionPage(
   }
   return false;
 }
+
+/**
+ * Cria uma página nova no database DAILY GESTÃO (Devore).
+ * Retorna { pageId, url } ou null se falhar.
+ */
+export async function createDailyGestaoPage(input: {
+  title: string;
+  dueDate?: string | null;
+  status?: "todo" | "doing" | "onhold" | "done";
+  priority?: "alta" | "media" | "baixa";
+}): Promise<{ pageId: string; url: string } | null> {
+  const dbId = DAILY_GESTAO_DB;
+  const db: any = await notionFetch(`/databases/${dbId}`);
+  const dbProps = db.properties ?? {};
+
+  // Encontra a property title
+  let titleProp: string | null = null;
+  for (const [name, v] of Object.entries(dbProps)) {
+    if ((v as any)?.type === "title") {
+      titleProp = name;
+      break;
+    }
+  }
+  if (!titleProp) return null;
+
+  const properties: Record<string, unknown> = {
+    [titleProp]: { title: [{ text: { content: input.title } }] },
+  };
+
+  // Status (opcional): mapeia se existir
+  if (input.status) {
+    for (const [name, v] of Object.entries(dbProps)) {
+      const t = (v as any)?.type;
+      if (t !== "status" && t !== "select") continue;
+      const options: { name: string }[] =
+        (v as any).status?.options ?? (v as any).select?.options ?? [];
+      const target = input.status;
+      const pick = options.find((o) => {
+        const n = o.name.toLowerCase();
+        if (target === "done") return /conclu|complete|done|finaliz|resolv/.test(n);
+        if (target === "onhold") return /hold|paus|aguard|review|revis/.test(n);
+        if (target === "doing") return /execu|progress|andamento|doing|working/.test(n);
+        return /não|nao|iniciad|to.?do|a fazer|backlog|novo|open/.test(n);
+      });
+      if (pick) {
+        properties[name] =
+          t === "status" ? { status: { name: pick.name } } : { select: { name: pick.name } };
+      }
+      break;
+    }
+  }
+
+  // Data (opcional): primeira property do tipo date
+  if (input.dueDate) {
+    for (const [name, v] of Object.entries(dbProps)) {
+      if ((v as any)?.type === "date") {
+        properties[name] = { date: { start: input.dueDate } };
+        break;
+      }
+    }
+  }
+
+  const body = { parent: { database_id: dbId }, properties };
+  const res: any = await notionFetch(`/pages`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (!res?.id) return null;
+  return { pageId: res.id, url: res.url ?? "" };
+}
+
