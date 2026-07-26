@@ -171,13 +171,12 @@ export function QuickAdd() {
                 </button>
               ))}
             </div>
-            {kind === "meeting" && (
-              <p className="mb-3 text-[11px] text-muted-foreground">
-                {GOOGLE_ENV_BY_SOURCE[source]
-                  ? "Também será criado no Google Agenda desta conta."
-                  : "Esta empresa não tem Google conectado — fica só no Anora."}
-              </p>
-            )}
+            <p className="mb-3 text-[11px] text-muted-foreground">
+              {kind === "meeting" || (kind === "task" && when)
+                ? `Também será criado no Google Agenda (${source === "angi" || source === "devore" ? "ana@devoresnacks.com" : "anaduquek@gmail.com"}).`
+                : "Adicione uma data pra enviar também ao Google Agenda."}
+            </p>
+
 
             <div className="flex justify-end gap-2">
               <button
