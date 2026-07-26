@@ -78,6 +78,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
 
   let imported = 0;
   const perAccount: { email: string; count: number }[] = [];
+  const seenPairs = new Set<string>(); // `${google_account}::${google_event_id}`
 
   for (const acc of accounts) {
     const accountEmail = await primaryCalendarId(acc.key);
@@ -125,22 +126,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
         if (error) throw new Error(error.message);
       }
 
-      // Remove localmente eventos que sumiram do Google (deletados lá) na janela sincronizada.
-      const keepIds = candidates.map((e) => e.id);
-      const { data: existing } = await supabase
-        .from("meetings")
-        .select("id, google_event_id")
-        .eq("google_account", cal.id)
-        .not("google_event_id", "is", null)
-        .gte("starts_at", timeMin)
-        .lte("starts_at", timeMax);
-      const toDelete = (existing ?? [])
-        .filter((r: any) => !keepIds.includes(r.google_event_id))
-        .map((r: any) => r.id);
-      if (toDelete.length > 0) {
-        await supabase.from("meetings").delete().in("id", toDelete);
-      }
-
+      for (const e of candidates) seenPairs.add(`${cal.id}::${e.id}`);
       accountCount += rows.length;
     }
 
@@ -148,8 +134,26 @@ export async function runCalendarSync(supabase: any, userId: string) {
     perAccount.push({ email: accountEmail, count: accountCount });
   }
 
+  // Limpeza global: apaga qualquer evento vindo do Google na janela
+  // que não apareceu em NENHUMA das agendas processadas nesta sync.
+  // Cobre eventos deletados no Google e também agendas que deixaram de
+  // ser puxadas (renomeadas/desmarcadas/regras antigas).
+  const { data: allSynced } = await supabase
+    .from("meetings")
+    .select("id, google_account, google_event_id")
+    .not("google_event_id", "is", null)
+    .gte("starts_at", timeMin)
+    .lte("starts_at", timeMax);
+  const orphans = (allSynced ?? [])
+    .filter((r: any) => !seenPairs.has(`${r.google_account}::${r.google_event_id}`))
+    .map((r: any) => r.id);
+  if (orphans.length > 0) {
+    await supabase.from("meetings").delete().in("id", orphans);
+  }
+
   return { imported, accounts: perAccount };
 }
+
 
 export async function runCalendarPush(
   supabase: any,
