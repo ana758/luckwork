@@ -13,7 +13,6 @@ import {
   SOURCE_DOT,
   STATUS_LABEL,
   STATUS_ORDER,
-  PRIORITY_LABEL,
   RECURRENCE_LABEL,
   type Meeting,
   type SourceKey,
