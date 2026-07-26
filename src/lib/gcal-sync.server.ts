@@ -89,9 +89,11 @@ export async function runCalendarSync(supabase: any, userId: string) {
     let accountCount = 0;
 
     for (const cal of calendars) {
-      const { source, isMeeting } = classifyCalendar(acc.defaultSource, cal);
+      const { source, isMeeting, skip } = classifyCalendar(acc.defaultSource, cal);
+      if (skip) continue;
       const events = await listEvents(acc.key, cal.id, timeMin, timeMax);
       const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
+
 
       // Respeita eventos escondidos localmente (soft-delete): não reimportar.
       const ids = candidates.map((e) => e.id);

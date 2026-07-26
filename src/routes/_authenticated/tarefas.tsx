@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { endOfWeek, startOfWeek, useTasks } from "@/lib/queries";
+import { endOfWeek, startOfWeek, useMeetings, useTasks } from "@/lib/queries";
 import {
   isOverdue,
   PRIORITY_LABEL,
@@ -13,10 +13,12 @@ import {
   SOURCE_DOT,
   STATUS_LABEL,
   STATUS_ORDER,
+  type Meeting,
   type SourceKey,
   type Task,
   type TaskStatus,
 } from "@/lib/sources";
+
 
 export const Route = createFileRoute("/_authenticated/tarefas")({
   head: () => ({
@@ -45,6 +47,7 @@ function inRange(task: Task, range: "week" | "month") {
 
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
+  const { data: meetings = [] } = useMeetings();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [range, setRange] = useState<"week" | "month">("week");
@@ -55,6 +58,19 @@ function TasksPage() {
       tasks.filter((t) => inRange(t, range) && (filter === "all" || t.source === filter)),
     [tasks, range, filter],
   );
+
+  const visibleMeetings = useMemo(() => {
+    const now = new Date();
+    const start = range === "week" ? startOfWeek() : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = range === "week" ? endOfWeek() : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return meetings
+      .filter((m) => {
+        const d = new Date(m.starts_at);
+        return d >= start && d <= end && (filter === "all" || m.source === filter);
+      })
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  }, [meetings, range, filter]);
+
 
 
 
@@ -128,9 +144,21 @@ function TasksPage() {
         ))}
       </div>
 
-
+      {visibleMeetings.length > 0 && (
+        <section>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+            Da agenda · {visibleMeetings.length}
+          </p>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:-mx-6 md:px-6">
+            {visibleMeetings.map((m) => (
+              <MeetingChip key={m.id} meeting={m} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {isLoading ? (
+
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : view === "board" ? (
         <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
@@ -284,6 +312,31 @@ function TaskCard({
           excluir
         </button>
       </div>
+    </div>
+  );
+}
+
+function MeetingChip({ meeting }: { meeting: Meeting }) {
+  const d = new Date(meeting.starts_at);
+  const when =
+    d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) +
+    " " +
+    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const isReuniao = meeting.meeting_type === "Reunião";
+  return (
+    <div
+      className={`min-w-[220px] shrink-0 rounded-lg border border-l-4 ${SOURCE_BORDER[meeting.source]} ${SOURCE_TINT[meeting.source]} p-2.5`}
+    >
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${isReuniao ? "bg-reuniao" : SOURCE_DOT[meeting.source]}`}
+        />
+        {isReuniao ? "Reunião" : "Agenda"} · {when}
+      </div>
+      <p className="mt-1 text-sm leading-snug line-clamp-2">{meeting.title}</p>
+      {meeting.people && (
+        <p className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{meeting.people}</p>
+      )}
     </div>
   );
 }
