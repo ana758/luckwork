@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { useMeetings } from "@/lib/queries";
 import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 
