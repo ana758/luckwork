@@ -95,6 +95,10 @@ function AIPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, ask.isPending]);
+
   function send(q?: string) {
     const text = (q ?? question).trim();
     if (!text) {
