@@ -105,6 +105,21 @@ export async function createEvent(
   });
 }
 
+/** Patch an event on a calendar (usado ao arrastar no calendário). */
+export async function patchEvent(
+  connectionKey: string,
+  calendarId: string,
+  eventId: string,
+  body: Record<string, unknown>,
+): Promise<GEvent> {
+  return gcal(
+    connectionKey,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+  );
+}
+
+
 export function eventStart(e: GEvent): string | null {
   const v = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00` : null);
   return v ? new Date(v).toISOString() : null;
