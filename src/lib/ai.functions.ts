@@ -52,7 +52,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
               "Estruture assim quando fizer o resumo do dia: '## Resumo do dia' (2 linhas), '## Atrasado' (lista), " +
               "'## Hoje e amanhã' (lista), '## Reuniões' (lista), '## Sugestões' (2 a 4 ações práticas, " +
               "incluindo o que fazer com tarefas que estão arrastando há muito tempo). " +
-              "As empresas são Angi, Devore, Bruna e Pessoal. Não invente dados que não estejam no JSON.",
+              "As empresas são Angi, Devore, Brand.Pe e Pessoal. Não invente dados que não estejam no JSON.",
           },
           { role: "user", content: prompt },
         ],
