@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, ListTodo, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { getDailyBriefing } from "@/lib/ai.functions";
+import { aiAction, getDailyBriefing } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { isOverdue, SOURCE_DOT } from "@/lib/sources";
 
@@ -63,15 +63,34 @@ function AIPage() {
     return { overdue, todayTasks, meetingsToday, meetingsWeek, stuck };
   }, [tasks, meetings]);
 
+  const queryClient = useQueryClient();
+
   const ask = useMutation({
-    mutationFn: async (q?: string) => getDailyBriefing({ data: { question: q } }),
+    mutationFn: async (q?: string) => {
+      // Sem texto → resumo do dia. Com texto → interpreta (pode criar tarefa/reunião).
+      if (!q) {
+        const res = await getDailyBriefing({ data: {} });
+        return { reply: res.text, created: undefined as undefined | { kind: string; title: string } };
+      }
+      const res = await aiAction({ data: { text: q } });
+      return { reply: res.reply, created: res.created };
+    },
     onSuccess: (res, variables) => {
       setMessages((m) => [
         ...m,
         ...(variables ? [{ role: "user" as const, content: variables }] : []),
-        { role: "assistant", content: res.text },
+        { role: "assistant", content: res.reply },
       ]);
       setQuestion("");
+      if (res.created) {
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["meetings"] });
+        toast.success(
+          res.created.kind === "task"
+            ? `Tarefa adicionada: ${res.created.title}`
+            : `Compromisso adicionado: ${res.created.title}`,
+        );
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -216,7 +235,7 @@ function AIPage() {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           maxLength={400}
-          placeholder="Pergunte algo à sua assistente…"
+          placeholder='Ex.: "adiciona tarefa pessoal dia 28/07 falar com dr lazaro"'
           className="flex-1 rounded-full border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <button
