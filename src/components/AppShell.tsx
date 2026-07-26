@@ -42,6 +42,20 @@ export function AppShell() {
     },
   });
 
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ["workspace_members", "pending_count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("workspace_members")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      return count ?? 0;
+    },
+    enabled: membership?.status === "active",
+    refetchInterval: 60_000,
+  });
+
+
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
