@@ -109,7 +109,7 @@ function Dashboard() {
 
       {/* Colunas por empresa */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {SOURCES.map((s) => {
+        {visibleSources.map((s) => {
           const list = tasks.filter((t) => t.source === s.key && t.status !== "done");
           const late = list.filter(isOverdue).length;
           const links = access.filter((a) => a.source === s.key && a.url);
