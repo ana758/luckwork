@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { endOfWeek, startOfWeek, useTasks } from "@/lib/queries";
+import { endOfWeek, startOfWeek, useMeetings, useTasks } from "@/lib/queries";
 import {
   isOverdue,
   PRIORITY_LABEL,
@@ -13,10 +13,12 @@ import {
   SOURCE_DOT,
   STATUS_LABEL,
   STATUS_ORDER,
+  type Meeting,
   type SourceKey,
   type Task,
   type TaskStatus,
 } from "@/lib/sources";
+
 
 export const Route = createFileRoute("/_authenticated/tarefas")({
   head: () => ({
