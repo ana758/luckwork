@@ -13,6 +13,13 @@ import {
 } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
+const SOURCE_HEX: Record<SourceKey, string> = {
+  angi: "var(--angi)",
+  devore: "var(--devore)",
+  bruna: "var(--bruna)",
+  pessoal: "var(--pessoal)",
+};
+
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
@@ -51,19 +58,36 @@ function Dashboard() {
     return { t, m };
   }, [tasks, meetings, today]);
 
-  const weekly = useMemo(() => {
-    const week = tasks.filter(inWeek);
-    const done = week.filter((t) => t.status === "done").length;
-    const doing = week.filter((t) => t.status === "doing" || t.status === "onhold").length;
-    const todo = week.filter((t) => t.status === "todo").length;
-    return [
-      { name: "Concluídas", value: done, fill: "var(--angi)" },
-      { name: "Em andamento", value: doing, fill: "var(--devore)" },
-      { name: "Não iniciadas", value: todo, fill: "var(--muted-foreground)" },
-    ];
-  }, [tasks]);
+  const weekTasks = useMemo(() => {
+    const keys = visibleSources.map((s) => s.key);
+    return tasks.filter((t) => inWeek(t) && keys.includes(t.source));
+  }, [tasks, visibleSources]);
 
-  const weekTotal = weekly.reduce((a, b) => a + b.value, 0);
+  const bySource = useMemo(() => {
+    return visibleSources
+      .map((s) => {
+        const list = weekTasks.filter((t) => t.source === s.key);
+        const done = list.filter((t) => t.status === "done").length;
+        return {
+          key: s.key,
+          name: s.label,
+          value: list.length,
+          done,
+          pending: list.length - done,
+          fill: SOURCE_HEX[s.key],
+        };
+      })
+      .filter((x) => x.value > 0);
+  }, [weekTasks, visibleSources]);
+
+  const weekStats = useMemo(() => {
+    const total = weekTasks.length;
+    const done = weekTasks.filter((t) => t.status === "done").length;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    return { total, done, pct };
+  }, [weekTasks]);
+
+  
 
   const overdueTasks = useMemo(() => {
     const keys = visibleSources.map((s) => s.key);
@@ -192,50 +216,87 @@ function Dashboard() {
         })}
       </section>
 
-      {/* Gráfico semanal */}
+      {/* Gráfico semanal por empresa */}
       <section className="rounded-xl border bg-card p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium">Tarefas da semana</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-medium">Tarefas da semana</h2>
+            <p className="text-xs text-muted-foreground">Distribuição por empresa</p>
+          </div>
           <Link to="/tarefas" className="text-xs text-muted-foreground hover:text-foreground">
             ver tudo
           </Link>
         </div>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
-        ) : weekTotal === 0 ? (
+        ) : weekStats.total === 0 ? (
           <p className="text-sm text-muted-foreground">Sem tarefas nesta semana.</p>
         ) : (
-          <div className="flex flex-col items-center gap-4 sm:flex-row">
-            <div className="h-44 w-44">
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
+            <div className="relative h-48 w-48 shrink-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={weekly}
+                    data={bySource}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={45}
-                    outerRadius={70}
-                    paddingAngle={2}
+                    innerRadius={58}
+                    outerRadius={82}
+                    paddingAngle={3}
+                    stroke="none"
                   >
-                    {weekly.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
+                    {bySource.map((entry) => (
+                      <Cell key={entry.key} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    formatter={(value: number, _n, item) => {
+                      const p = item?.payload as { done: number; pending: number } | undefined;
+                      return [`${value} (${p?.done ?? 0} feitas)`, item?.payload?.name];
+                    }}
+                    contentStyle={{
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-semibold leading-none">{weekStats.pct}%</span>
+                <span className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  concluído
+                </span>
+                <span className="mt-1 text-xs text-muted-foreground">
+                  {weekStats.done}/{weekStats.total}
+                </span>
+              </div>
             </div>
-            <ul className="space-y-2 text-sm">
-              {weekly.map((w) => (
-                <li key={w.name} className="flex items-center gap-2">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: w.fill }}
-                  />
-                  <span className="text-muted-foreground">{w.name}</span>
-                  <span className="font-medium">{w.value}</span>
-                </li>
-              ))}
+            <ul className="w-full flex-1 space-y-2 text-sm">
+              {bySource.map((w) => {
+                const pct = w.value === 0 ? 0 : Math.round((w.done / w.value) * 100);
+                return (
+                  <li key={w.key} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: w.fill }}
+                      />
+                      <span className="text-sm">{w.name}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {w.done}/{w.value} · {pct}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: w.fill }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
