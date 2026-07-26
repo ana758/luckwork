@@ -56,7 +56,8 @@ function CalendarPage() {
           kind: "meeting",
           id: m.id,
           title: m.title,
-          dot: "bg-reuniao",
+          // Reunião de verdade fica vermelho; senão usa a cor da empresa.
+          dot: m.meeting_type === "Reunião" ? "bg-reuniao" : SOURCE_DOT[m.source],
           meeting: m,
         })),
       ...visibleTasks
@@ -64,6 +65,7 @@ function CalendarPage() {
         .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source] })),
     ];
   }
+
 
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
