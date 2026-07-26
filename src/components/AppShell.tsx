@@ -150,16 +150,22 @@ export function AppShell() {
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden">
         {NAV.map((item) => {
           const active = pathname === item.to;
+          const showBadge = item.to === "/configuracoes" && pendingCount > 0;
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${
+              className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${
                 active ? "text-foreground" : "text-muted-foreground"
               }`}
             >
               <item.icon className="h-5 w-5" />
               {item.label}
+              {showBadge && (
+                <span className="absolute right-3 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold text-destructive-foreground">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}
