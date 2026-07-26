@@ -63,22 +63,37 @@ function AIPage() {
     return { overdue, todayTasks, meetingsToday, meetingsWeek, stuck };
   }, [tasks, meetings]);
 
+  const queryClient = useQueryClient();
+
   const ask = useMutation({
-    mutationFn: async (q?: string) => getDailyBriefing({ data: { question: q } }),
+    mutationFn: async (q?: string) => {
+      // Sem texto → resumo do dia. Com texto → interpreta (pode criar tarefa/reunião).
+      if (!q) {
+        const res = await getDailyBriefing({ data: {} });
+        return { reply: res.text, created: undefined as undefined | { kind: string; title: string } };
+      }
+      const res = await aiAction({ data: { text: q } });
+      return { reply: res.reply, created: res.created };
+    },
     onSuccess: (res, variables) => {
       setMessages((m) => [
         ...m,
         ...(variables ? [{ role: "user" as const, content: variables }] : []),
-        { role: "assistant", content: res.text },
+        { role: "assistant", content: res.reply },
       ]);
       setQuestion("");
+      if (res.created) {
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        queryClient.invalidateQueries({ queryKey: ["meetings"] });
+        toast.success(
+          res.created.kind === "task"
+            ? `Tarefa adicionada: ${res.created.title}`
+            : `Compromisso adicionado: ${res.created.title}`,
+        );
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, ask.isPending]);
 
   function send(q?: string) {
     const text = (q ?? question).trim();
