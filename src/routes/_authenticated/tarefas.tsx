@@ -35,14 +35,18 @@ export const Route = createFileRoute("/_authenticated/tarefas")({
   component: TasksPage,
 });
 
-function inRange(task: Task, range: "week" | "month") {
+function inRange(task: Task) {
+  const ws = startOfWeek();
+  const we = endOfWeek();
   if (task.recurrence !== "none") return true;
   const ref = task.due_date ?? task.start_date;
-  if (!ref) return true;
+  if (!ref) {
+    // sem data: considera pela criação
+    const c = new Date(task.created_at);
+    return c >= ws && c <= we;
+  }
   const d = new Date(`${ref}T12:00:00`);
-  if (range === "week") return d >= startOfWeek() && d <= endOfWeek();
-  const now = new Date();
-  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  return d >= ws && d <= we;
 }
 
 type AgendaMeta = { time: string; location: string | null };
