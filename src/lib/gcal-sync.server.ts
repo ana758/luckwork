@@ -171,7 +171,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
   // IA da Anora: reclassifica retroativamente qualquer item cujo título
   // mencione outra empresa (ex.: "Reunião Angi" marcado como Pessoal).
   // Regras aprendidas explicitamente têm precedência e não são sobrescritas.
-  const { inferSourceFromTitle } = await import("./source-rules");
+  // (inferSourceFromTitle já importado acima)
   const [{ data: mAll }, { data: tAll }] = await Promise.all([
     supabase.from("meetings").select("id, title, source").gte("starts_at", timeMin).lte("starts_at", timeMax),
     supabase.from("tasks").select("id, title, source"),
