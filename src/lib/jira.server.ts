@@ -106,8 +106,11 @@ export function mapPriority(name: string | null): "high" | "medium" | "low" {
 }
 
 export function mapStatus(category: JiraIssue["statusCategory"], name: string): "todo" | "doing" | "done" | "on_hold" {
-  if (category === "done") return "done";
-  if (/hold|paus/i.test(name)) return "on_hold";
-  if (category === "new") return "todo";
-  return "doing";
+  const n = (name ?? "").toLowerCase();
+  if (category === "done" || /done|conclu|resolv|finaliz/.test(n)) return "done";
+  // In Review / Hold / Pausado → on_hold
+  if (/review|revis|hold|paus|aguard/.test(n)) return "on_hold";
+  if (/progress|andamento|doing|working/.test(n)) return "doing";
+  if (category === "new" || /to.?do|a fazer|backlog|open|novo/.test(n)) return "todo";
+  return category === "indeterminate" ? "doing" : "todo";
 }
