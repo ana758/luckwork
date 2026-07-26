@@ -13,10 +13,14 @@ import {
   SOURCE_DOT,
   STATUS_LABEL,
   STATUS_ORDER,
+  PRIORITY_ORDER,
+  RECURRENCE_LABEL,
   type Meeting,
   type SourceKey,
   type Task,
+  type TaskPriority,
   type TaskStatus,
+  type Recurrence,
 } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
