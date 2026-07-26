@@ -56,12 +56,31 @@ export async function runJiraSync(supabase: any, userId: string) {
     updated_at: nowIso,
   }));
 
-  if (rows.length > 0) {
+  // Split inserts vs updates (partial unique index não é aceito no onConflict do PostgREST)
+  const toInsert = rows.filter((r) => !byKey.has(r.external_id));
+  const toUpdate = rows.filter((r) => byKey.has(r.external_id));
+
+  if (toInsert.length > 0) {
+    const { error } = await supabase.from("tasks").insert(toInsert);
+    if (error) throw new Error(`Falha ao inserir tarefas do Jira: ${error.message}`);
+  }
+  for (const r of toUpdate) {
+    const local = byKey.get(r.external_id);
     const { error } = await supabase
       .from("tasks")
-      .upsert(rows, { onConflict: "created_by,external_system,external_id" });
-    if (error) throw new Error(`Falha ao gravar tarefas do Jira: ${error.message}`);
+      .update({
+        title: r.title,
+        status: r.status,
+        priority: r.priority,
+        due_date: r.due_date,
+        completed_at: r.completed_at,
+        external_url: r.external_url,
+        updated_at: r.updated_at,
+      })
+      .eq("id", local.id);
+    if (error) throw new Error(`Falha ao atualizar tarefa Jira ${r.external_id}: ${error.message}`);
   }
+
 
   return { imported: rows.length, pushed };
 }
