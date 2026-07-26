@@ -97,7 +97,22 @@ function findPriority(props: Record<string, any>): "alta" | "media" | "baixa" {
   return "media";
 }
 
+/**
+ * Databases permitidos (whitelist explícita).
+ * - DAILY GESTÃO (Devore)
+ * - Calendar Content (dentro da página "Content Pipeline")
+ */
+const ALLOWED_DATABASE_IDS = [
+  "360a1b13-9721-8002-8f72-fd6d48b499aa",
+  "358a1b13-9721-819b-9122-c95a838069a9",
+];
+
+function normId(id: string) {
+  return id.replace(/-/g, "").toLowerCase();
+}
+
 async function listDatabases(): Promise<string[]> {
+  const allowed = new Set(ALLOWED_DATABASE_IDS.map(normId));
   const ids: string[] = [];
   let start: string | undefined;
   for (let i = 0; i < 5; i++) {
@@ -110,7 +125,9 @@ async function listDatabases(): Promise<string[]> {
       method: "POST",
       body: JSON.stringify(body),
     });
-    for (const r of data.results ?? []) ids.push(r.id);
+    for (const r of data.results ?? []) {
+      if (allowed.has(normId(r.id))) ids.push(r.id);
+    }
     if (!data.has_more) break;
     start = data.next_cursor;
   }
