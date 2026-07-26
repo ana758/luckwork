@@ -86,17 +86,97 @@ export async function getTransitions(issueKey: string): Promise<{ id: string; na
 
 /** Move a issue para a primeira transição que leve a statusCategory=done. */
 export async function transitionToDone(issueKey: string): Promise<boolean> {
+  return transitionToStatus(issueKey, "done");
+}
+
+/**
+ * Move a issue para uma coluna correspondente ao status do Anora.
+ * todo → statusCategory "new" (To Do), doing → "indeterminate" c/ nome ~ progress,
+ * onhold → nome ~ review/hold, done → statusCategory "done".
+ */
+export async function transitionToStatus(
+  issueKey: string,
+  target: "todo" | "doing" | "onhold" | "done",
+): Promise<boolean> {
   const transitions = await getTransitions(issueKey);
-  const done =
-    transitions.find((t) => t.toCategory === "done") ??
-    transitions.find((t) => /done|conclu|resolv|finaliz/i.test(t.name));
-  if (!done) return false;
+  const pick = (): { id: string } | undefined => {
+    if (target === "done") {
+      return (
+        transitions.find((t) => t.toCategory === "done") ??
+        transitions.find((t) => /done|conclu|resolv|finaliz/i.test(t.name))
+      );
+    }
+    if (target === "onhold") {
+      return transitions.find((t) => /review|revis|hold|paus|aguard/i.test(t.name));
+    }
+    if (target === "doing") {
+      return (
+        transitions.find((t) => /progress|andamento|doing|working/i.test(t.name)) ??
+        transitions.find((t) => t.toCategory === "indeterminate")
+      );
+    }
+    // todo
+    return (
+      transitions.find((t) => /to.?do|a fazer|backlog|open|novo/i.test(t.name)) ??
+      transitions.find((t) => t.toCategory === "new")
+    );
+  };
+  const chosen = pick();
+  if (!chosen) return false;
   await jiraFetch(`/rest/api/3/issue/${issueKey}/transitions`, {
     method: "POST",
-    body: JSON.stringify({ transition: { id: done.id } }),
+    body: JSON.stringify({ transition: { id: chosen.id } }),
   });
   return true;
 }
+
+/** Cria uma nova issue no projeto Angi | Commercial & Marketing atribuída ao dono do token. */
+export async function createIssue(input: {
+  summary: string;
+  dueDate?: string | null;
+  priority?: "alta" | "media" | "baixa" | null;
+}): Promise<{ key: string; url: string }> {
+  const priorityName =
+    input.priority === "alta" ? "High" : input.priority === "baixa" ? "Low" : "Medium";
+  const fields: Record<string, unknown> = {
+    project: { key: PROJECT_KEY },
+    summary: input.summary,
+    issuetype: { name: "Task" },
+    assignee: { accountId: "-1" }, // "-1" = currentUser (dono do token)
+    priority: { name: priorityName },
+  };
+  if (input.dueDate) fields.duedate = input.dueDate;
+  const data: any = await jiraFetch(`/rest/api/3/issue`, {
+    method: "POST",
+    body: JSON.stringify({ fields }),
+  });
+  // Fallback: se "-1" não funcionar, faz assign via endpoint dedicado.
+  try {
+    await jiraFetch(`/rest/api/3/issue/${data.key}/assignee`, {
+      method: "PUT",
+      body: JSON.stringify({ accountId: "-1" }),
+    });
+  } catch {
+    /* ignora — já pode estar atribuído */
+  }
+  return { key: data.key, url: `${BASE}/browse/${data.key}` };
+}
+
+/** Atualiza summary/duedate de uma issue existente. */
+export async function updateIssue(
+  issueKey: string,
+  patch: { summary?: string; dueDate?: string | null },
+): Promise<void> {
+  const fields: Record<string, unknown> = {};
+  if (patch.summary !== undefined) fields.summary = patch.summary;
+  if (patch.dueDate !== undefined) fields.duedate = patch.dueDate;
+  if (Object.keys(fields).length === 0) return;
+  await jiraFetch(`/rest/api/3/issue/${issueKey}`, {
+    method: "PUT",
+    body: JSON.stringify({ fields }),
+  });
+}
+
 
 export function mapPriority(name: string | null): "alta" | "media" | "baixa" {
   const n = (name ?? "").toLowerCase();
