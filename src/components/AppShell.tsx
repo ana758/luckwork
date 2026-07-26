@@ -103,6 +103,7 @@ export function AppShell() {
           <nav className="space-y-1">
             {NAV.map((item) => {
               const active = pathname === item.to;
+              const showBadge = item.to === "/configuracoes" && pendingCount > 0;
               return (
                 <Link
                   key={item.to}
@@ -114,7 +115,12 @@ export function AppShell() {
                   }`}
                 >
                   <item.icon className="h-4 w-4" />
-                  {item.label}
+                  <span>{item.label}</span>
+                  {showBadge && (
+                    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
