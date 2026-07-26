@@ -498,6 +498,20 @@ function TasksPage() {
           </table>
         </div>
       )}
+
+      {editingId &&
+        (() => {
+          const task = visible.find((t) => t.id === editingId);
+          if (!task) return null;
+          return (
+            <EditTaskModal
+              task={task}
+              onClose={() => setEditingId(null)}
+              saving={editTask.isPending}
+              onSave={(p) => editTask.mutate({ id: editingId, ...p })}
+            />
+          );
+        })()}
     </div>
   );
 }
