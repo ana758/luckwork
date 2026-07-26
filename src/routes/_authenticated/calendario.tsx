@@ -77,7 +77,7 @@ function CalendarPage() {
         })),
       ...visibleTasks
         .filter((t) => t.due_date === key)
-        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source] })),
+        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source], task: t })),
     ];
   }
 
