@@ -18,6 +18,7 @@ import {
   type Task,
   type TaskStatus,
 } from "@/lib/sources";
+import { useArchivedSources } from "@/lib/archived-sources";
 
 
 export const Route = createFileRoute("/_authenticated/tarefas")({
@@ -114,6 +115,7 @@ function saveOrder(o: Record<string, number>) {
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
   const { data: meetings = [] } = useMeetings();
+  const { visibleSources } = useArchivedSources();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
@@ -296,7 +298,7 @@ function TasksPage() {
         >
           Todas
         </button>
-        {SOURCES.map((s) => (
+        {visibleSources.map((s) => (
           <button
             key={s.key}
             onClick={() => setFilter(s.key)}
