@@ -115,6 +115,7 @@ function saveOrder(o: Record<string, number>) {
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
   const { data: meetings = [] } = useMeetings();
+  const { visibleSources } = useArchivedSources();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
