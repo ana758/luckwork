@@ -127,30 +127,14 @@ function TasksPage() {
   }, [order]);
 
   const visible = useMemo<VisibleTask[]>(() => {
-    const weekStart = startOfWeek();
-    const weekEnd = endOfWeek();
-
-    // Eventos da agenda (não-reunião) viram tarefas:
-    // - dentro da semana atual: sempre aparecem
-    // - fora da semana: só permanecem se ainda estiverem pendentes (não concluído/removido)
-    const agendaAsTasks = meetings
-      .filter((m) => m.meeting_type !== "Reunião")
-      .filter((m) => {
-        const d = new Date(m.starts_at);
-        const inWeek = d >= weekStart && d <= weekEnd;
-        const pending = (m.status ?? "todo") !== "done";
-        return inWeek || pending;
-      })
-      .map(meetingToTask);
-
+    // Página de tarefas mostra apenas tarefas criadas aqui.
+    // Sincronização é unidirecional: tarefas → calendário (não o contrário).
     const own: VisibleTask[] = tasks
       .filter((t) => inRange(t) || t.status !== "done")
       .map((t) => ({ ...t, sortAt: taskSortAt(t) }));
 
-    return [...own, ...agendaAsTasks].filter(
-      (t) => filter === "all" || t.source === filter,
-    );
-  }, [tasks, meetings, filter]);
+    return own.filter((t) => filter === "all" || t.source === filter);
+  }, [tasks, filter]);
 
   const byStatus = (status: TaskStatus) =>
     visible
