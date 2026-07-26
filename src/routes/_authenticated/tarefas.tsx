@@ -127,26 +127,28 @@ function TasksPage() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : view === "board" ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {STATUS_ORDER.map((status) => (
-            <div key={status} className="rounded-xl border bg-secondary/40 p-2">
-              <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
-                {STATUS_LABEL[status]} · {visible.filter((t) => t.status === status).length}
-              </p>
-              <div className="space-y-2">
-                {visible
-                  .filter((t) => t.status === status)
-                  .map((t) => (
-                    <TaskCard
-                      key={t.id}
-                      task={t}
-                      onMove={(s) => move.mutate({ id: t.id, status: s })}
-                      onDelete={() => remove.mutate(t.id)}
-                    />
-                  ))}
+        <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
+          <div className="flex gap-3 min-w-max">
+            {STATUS_ORDER.map((status) => (
+              <div key={status} className="w-72 shrink-0 rounded-xl border bg-secondary/40 p-2">
+                <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
+                  {STATUS_LABEL[status]} · {visible.filter((t) => t.status === status).length}
+                </p>
+                <div className="space-y-2">
+                  {visible
+                    .filter((t) => t.status === status)
+                    .map((t) => (
+                      <TaskCard
+                        key={t.id}
+                        task={t}
+                        onMove={(s) => move.mutate({ id: t.id, status: s })}
+                        onDelete={() => remove.mutate(t.id)}
+                      />
+                    ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-card">
