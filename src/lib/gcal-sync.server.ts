@@ -5,6 +5,7 @@ import {
   GOOGLE_ACCOUNTS,
   classifyCalendar,
   createEvent,
+  deleteEvent,
   eventEnd,
   eventPeople,
   eventStart,
@@ -13,6 +14,7 @@ import {
   patchEvent,
   primaryCalendarId,
 } from "./gcal.server";
+
 
 
 async function assertMember(supabase: any, userId: string) {
