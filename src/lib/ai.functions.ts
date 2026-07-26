@@ -1,6 +1,54 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export type ImportantEmail = {
+  id: string;
+  from: string;
+  fromEmail: string;
+  subject: string;
+  snippet: string;
+  date: string;
+  link: string;
+  category: string;
+  reason: string;
+};
+
+async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?: string }> {
+  try {
+    if (!process.env.GOOGLE_MAIL_API_KEY) {
+      return { emails: [], error: "Gmail não conectado." };
+    }
+    const { fetchRecentInbox, classifyImportantEmails } = await import("./gmail.server");
+    const inbox = await fetchRecentInbox(40);
+    if (inbox.length === 0) return { emails: [] };
+    const flagged = await classifyImportantEmails(inbox);
+    const byId = new Map(inbox.map((e) => [e.id, e]));
+    const out: ImportantEmail[] = [];
+    for (const f of flagged) {
+      const e = byId.get(f.id);
+      if (!e) continue;
+      out.push({
+        id: e.id,
+        from: e.from,
+        fromEmail: e.fromEmail,
+        subject: e.subject,
+        snippet: e.snippet,
+        date: e.date,
+        link: e.link,
+        category: f.category,
+        reason: f.reason,
+      });
+    }
+    return { emails: out };
+  } catch (err) {
+    return { emails: [], error: err instanceof Error ? err.message : "Falha ao ler Gmail." };
+  }
+}
+
+export const getImportantEmails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => loadImportantEmails());
+
 export const getDailyBriefing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { question?: string }) => input ?? {})
@@ -11,7 +59,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
     const today = new Date().toISOString().slice(0, 10);
     const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
-    const [{ data: tasks }, { data: meetings }] = await Promise.all([
+    const [{ data: tasks }, { data: meetings }, mails] = await Promise.all([
       context.supabase
         .from("tasks")
         .select("title, source, status, priority, start_date, due_date, updated_at, recurrence")
@@ -25,16 +73,26 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         .lte("starts_at", `${in7}T23:59:59`)
         .order("starts_at", { ascending: true })
         .limit(40),
+      loadImportantEmails(),
     ]);
+
+    const emailsForPrompt = mails.emails.map((e) => ({
+      de: e.from,
+      assunto: e.subject,
+      categoria: e.category,
+      motivo: e.reason,
+    }));
 
     const prompt = [
       `Hoje é ${today}.`,
       `Tarefas em aberto (JSON): ${JSON.stringify(tasks ?? [])}`,
       `Reuniões dos próximos 7 dias (JSON): ${JSON.stringify(meetings ?? [])}`,
+      `E-mails importantes já filtrados (JSON, ignore spam/propaganda): ${JSON.stringify(emailsForPrompt)}`,
+      mails.error ? `Observação sobre e-mails: ${mails.error}` : "",
       data.question
         ? `Pergunta específica da usuária: ${data.question}`
         : "Gere o resumo do dia.",
-    ].join("\n\n");
+    ].filter(Boolean).join("\n\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -50,9 +108,8 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
             content:
               "Você é a assistente executiva da Ana. Responda em português do Brasil, direto e curto, em markdown. " +
               "Estruture assim quando fizer o resumo do dia: '## Resumo do dia' (2 linhas), '## Atrasado' (lista), " +
-              "'## Hoje e amanhã' (lista), '## Reuniões' (lista), '## Sugestões' (2 a 4 ações práticas, " +
-              "incluindo o que fazer com tarefas que estão arrastando há muito tempo). " +
-              "As empresas são Angi, Devore, Brand.Pe e Pessoal. Não invente dados que não estejam no JSON.",
+              "'## Hoje e amanhã' (lista), '## Reuniões' (lista), '## E-mails importantes' (lista curta com remetente e por que importa, ou 'Nenhum'), '## Sugestões' (2 a 4 ações práticas). " +
+              "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
           },
           { role: "user", content: prompt },
         ],
@@ -64,7 +121,11 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
     if (!res.ok) throw new Error(`Falha na IA (${res.status})`);
 
     const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    return { text: json.choices?.[0]?.message?.content ?? "Sem resposta." };
+    return {
+      text: json.choices?.[0]?.message?.content ?? "Sem resposta.",
+      emails: mails.emails,
+      emailsError: mails.error,
+    };
   });
 
 // ---------------------------------------------------------------------------
