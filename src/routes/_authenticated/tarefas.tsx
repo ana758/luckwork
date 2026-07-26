@@ -342,24 +342,44 @@ function TaskCard({
   task,
   onMove,
   onDelete,
+  onChangeSource,
 }: {
-  task: Task;
+  task: VisibleTask;
   onMove: (s: TaskStatus) => void;
   onDelete: () => void;
+  onChangeSource: (s: SourceKey) => void;
 }) {
   return (
     <div className={`rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}>
       <p className="text-sm">{task.title}</p>
+      {task.agenda && (
+        <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+          <p>{task.agenda.time}</p>
+          {task.agenda.location && <p className="line-clamp-1">📍 {task.agenda.location}</p>}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-        {task.due_date && (
+        {task.due_date && !task.agenda && (
           <span className={isOverdue(task) ? "font-medium text-reuniao" : ""}>
             {new Date(`${task.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
           </span>
         )}
-        <span>{PRIORITY_LABEL[task.priority]}</span>
+        {!task.agenda && <span>{PRIORITY_LABEL[task.priority]}</span>}
         {task.recurrence !== "none" && <span>recorrente</span>}
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-1.5">
+        <select
+          value={task.source}
+          onChange={(e) => onChangeSource(e.target.value as SourceKey)}
+          className="rounded-md border bg-background px-1.5 py-1 text-[11px]"
+          title="Mudar empresa"
+        >
+          {SOURCES.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
         <select
           value={task.status}
           onChange={(e) => onMove(e.target.value as TaskStatus)}
