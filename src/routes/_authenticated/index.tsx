@@ -58,17 +58,34 @@ function Dashboard() {
     return { t, m };
   }, [tasks, meetings, today]);
 
-  const weekly = useMemo(() => {
-    const week = tasks.filter(inWeek);
-    const done = week.filter((t) => t.status === "done").length;
-    const doing = week.filter((t) => t.status === "doing" || t.status === "onhold").length;
-    const todo = week.filter((t) => t.status === "todo").length;
-    return [
-      { name: "Concluídas", value: done, fill: "var(--angi)" },
-      { name: "Em andamento", value: doing, fill: "var(--devore)" },
-      { name: "Não iniciadas", value: todo, fill: "var(--muted-foreground)" },
-    ];
-  }, [tasks]);
+  const weekTasks = useMemo(() => {
+    const keys = visibleSources.map((s) => s.key);
+    return tasks.filter((t) => inWeek(t) && keys.includes(t.source));
+  }, [tasks, visibleSources]);
+
+  const bySource = useMemo(() => {
+    return visibleSources
+      .map((s) => {
+        const list = weekTasks.filter((t) => t.source === s.key);
+        const done = list.filter((t) => t.status === "done").length;
+        return {
+          key: s.key,
+          name: s.label,
+          value: list.length,
+          done,
+          pending: list.length - done,
+          fill: SOURCE_HEX[s.key],
+        };
+      })
+      .filter((x) => x.value > 0);
+  }, [weekTasks, visibleSources]);
+
+  const weekStats = useMemo(() => {
+    const total = weekTasks.length;
+    const done = weekTasks.filter((t) => t.status === "done").length;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    return { total, done, pct };
+  }, [weekTasks]);
 
   const weekTotal = weekly.reduce((a, b) => a + b.value, 0);
 
