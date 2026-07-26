@@ -70,10 +70,17 @@ export async function runNotionSync(supabase: any, userId: string) {
     due_date: p.dueDate,
     completed_at: null,
     updated_at: nowIso,
+    _created: p.created,
   }));
 
-  const toInsert = rows.filter((r) => !byKey.has(r.external_id));
-  const toUpdate = rows.filter((r) => byKey.has(r.external_id));
+  // Só insere páginas criadas no Notion a partir do cutoff.
+  // Páginas antigas que não estão mais na Anora foram removidas de propósito.
+  const toInsert = rows
+    .filter((r) => !byKey.has(r.external_id) && r._created >= IMPORT_CUTOFF_ISO)
+    .map(({ _created, ...rest }) => rest);
+  const toUpdate = rows
+    .filter((r) => byKey.has(r.external_id))
+    .map(({ _created, ...rest }) => rest);
 
   if (toInsert.length > 0) {
     const { error } = await supabase.from("tasks").insert(toInsert);
