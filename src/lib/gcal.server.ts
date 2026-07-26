@@ -140,12 +140,25 @@ export function classifyCalendar(
   accountDefault: SourceKey,
   cal: GCalendar,
 ): { source: SourceKey; isMeeting: boolean } {
+  const name = (cal.summaryOverride || cal.summary || "").toLowerCase();
+  const id = (cal.id || "").toLowerCase();
+
+  // Agenda compartilhada da Devore aparece nas duas contas → sempre Devore.
+  if (id.includes("devoresnacks") || name.includes("devoresnacks") || name.includes("devore"))
+    return { source: "devore", isMeeting: false };
+
   if (accountDefault === "devore") return { source: "devore", isMeeting: false };
 
-  const name = (cal.summaryOverride || cal.summary || "").toLowerCase();
-  if (name.includes("branding pessoal") || name.includes("bruna"))
+  if (
+    name.includes("branding pessoal") ||
+    name.includes("trabalho bruna") ||
+    name.includes("bruna")
+  )
     return { source: "bruna", isMeeting: false };
+
   if (name.includes("reuni")) return { source: "pessoal", isMeeting: true };
-  // ana beatriz, pagamentos, primária e o restante caem em pessoal.
+
+  // ana beatriz, pagamentos, pessoal, urgente, feriados, primária → Pessoal.
   return { source: "pessoal", isMeeting: false };
 }
+
