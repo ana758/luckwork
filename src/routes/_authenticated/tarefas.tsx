@@ -20,12 +20,12 @@ import {
 export const Route = createFileRoute("/_authenticated/tarefas")({
   head: () => ({
     meta: [
-      { title: "Tarefas · Meu Hub" },
+      { title: "Tarefas · Anora" },
       {
         name: "description",
         content: "Board e lista das suas tarefas por empresa, com visão semanal ou mensal.",
       },
-      { property: "og:title", content: "Tarefas · Meu Hub" },
+      { property: "og:title", content: "Tarefas · Anora" },
       { property: "og:description", content: "Board e lista das suas tarefas por empresa." },
     ],
   }),

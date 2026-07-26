@@ -9,12 +9,12 @@ import { SOURCES, SOURCE_DOT, type SourceKey } from "@/lib/sources";
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Ajustes · Meu Hub" },
+      { title: "Ajustes · Anora" },
       {
         name: "description",
         content: "Aprove e-mails de acesso, cadastre caixas de e-mail e gerencie seus acessos.",
       },
-      { property: "og:title", content: "Ajustes · Meu Hub" },
+      { property: "og:title", content: "Ajustes · Anora" },
       { property: "og:description", content: "Acessos, e-mails e permissões do seu hub." },
     ],
   }),
