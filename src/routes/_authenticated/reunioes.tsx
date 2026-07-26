@@ -101,7 +101,7 @@ function Section({
               {m.notes && (
                 <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{m.notes}</p>
               )}
-            </article>
+            </button>
           ))}
         </div>
       )}
