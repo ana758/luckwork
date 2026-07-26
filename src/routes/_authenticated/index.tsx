@@ -41,6 +41,7 @@ function Dashboard() {
   const { data: meetings = [] } = useMeetings();
   const { data: access = [] } = useAccessEntries();
   const [drawer, setDrawer] = useState<SourceKey | null>(null);
+  const { visibleSources } = useArchivedSources();
 
   const today = new Date().toISOString().slice(0, 10);
 
