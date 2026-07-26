@@ -85,6 +85,7 @@ export type Database = {
           external_url: string | null
           google_account: string | null
           google_event_id: string | null
+          hidden: boolean
           id: string
           meeting_type: string | null
           notes: string | null
@@ -102,6 +103,7 @@ export type Database = {
           external_url?: string | null
           google_account?: string | null
           google_event_id?: string | null
+          hidden?: boolean
           id?: string
           meeting_type?: string | null
           notes?: string | null
@@ -119,6 +121,7 @@ export type Database = {
           external_url?: string | null
           google_account?: string | null
           google_event_id?: string | null
+          hidden?: boolean
           id?: string
           meeting_type?: string | null
           notes?: string | null
