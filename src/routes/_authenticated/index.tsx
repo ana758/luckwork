@@ -36,9 +36,8 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function inWeek(task: Task) {
-  if (task.recurrence !== "none") return true;
   const ref = task.due_date ?? task.start_date;
-  if (!ref) return true;
+  if (!ref) return false;
   const d = new Date(`${ref}T12:00:00`);
   return d >= startOfWeek() && d <= endOfWeek();
 }
