@@ -259,6 +259,48 @@ function TasksPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const editTask = useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      title: string;
+      notes: string | null;
+      due_date: string | null;
+      priority: TaskPriority;
+      recurrence: Recurrence;
+    }) => {
+      const isMeeting = payload.id.startsWith("m:");
+      const realId = isMeeting ? payload.id.slice(2) : payload.id;
+      if (isMeeting) {
+        const { error } = await supabase
+          .from("meetings")
+          .update({ title: payload.title, notes: payload.notes })
+          .eq("id", realId);
+        if (error) throw new Error(error.message);
+        return;
+      }
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: payload.title,
+          notes: payload.notes,
+          due_date: payload.due_date,
+          start_date: payload.due_date,
+          priority: payload.priority,
+          recurrence: payload.recurrence,
+        })
+        .eq("id", realId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_d, v) => {
+      toast.success("Tarefa atualizada");
+      queryClient.invalidateQueries({
+        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
+      });
+      setEditingId(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // Reordena: coloca `draggedId` imediatamente antes de `targetId` (ou no final se null),
   // dentro do status alvo. Persiste no localStorage.
   function reorder(draggedId: string, targetStatus: TaskStatus, targetId: string | null) {
