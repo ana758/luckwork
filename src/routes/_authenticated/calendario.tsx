@@ -10,7 +10,8 @@ import { TaskEditModal } from "@/components/TaskEditModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent } from "@/lib/gcal.functions";
-import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { useArchivedSources } from "@/lib/archived-sources";
 
 
 
@@ -54,6 +55,7 @@ function CalendarPage() {
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
+  const { visibleSources } = useArchivedSources();
   const qc = useQueryClient();
   const moveGoogle = useServerFn(moveGoogleEvent);
 
@@ -241,7 +243,7 @@ function CalendarPage() {
         >
           Todas
         </button>
-        {SOURCES.map((s) => (
+        {visibleSources.map((s) => (
           <button
             key={s.key}
             onClick={() => setFilter(s.key)}
