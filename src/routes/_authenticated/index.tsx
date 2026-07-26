@@ -6,12 +6,12 @@ import { AccessDrawer } from "@/components/AccessDrawer";
 import { endOfWeek, startOfWeek, useAccessEntries, useMeetings, useTasks } from "@/lib/queries";
 import {
   isOverdue,
-  SOURCES,
   SOURCE_CHIP,
   SOURCE_DOT,
   type SourceKey,
   type Task,
 } from "@/lib/sources";
+import { useArchivedSources } from "@/lib/archived-sources";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
