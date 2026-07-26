@@ -82,7 +82,7 @@ export function AppShell() {
         {/* Desktop nav */}
         <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
           <div className="mb-6 px-2">
-            <p className="text-sm font-semibold tracking-tight">Meu Hub</p>
+            <p className="text-sm font-semibold tracking-tight">Anora</p>
             <p className="text-xs text-muted-foreground">Angi · Devore · Bruna · Pessoal</p>
           </div>
           <nav className="space-y-1">

@@ -5,12 +5,12 @@ import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 export const Route = createFileRoute("/_authenticated/reunioes")({
   head: () => ({
     meta: [
-      { title: "Reuniões · Meu Hub" },
+      { title: "Reuniões · Anora" },
       {
         name: "description",
         content: "Todas as suas reuniões com tipo, participantes e anotações recebidas por e-mail.",
       },
-      { property: "og:title", content: "Reuniões · Meu Hub" },
+      { property: "og:title", content: "Reuniões · Anora" },
       { property: "og:description", content: "Reuniões com participantes e anotações." },
     ],
   }),

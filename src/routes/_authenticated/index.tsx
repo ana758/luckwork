@@ -16,12 +16,12 @@ import {
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "Início · Meu Hub" },
+      { title: "Início · Anora" },
       {
         name: "description",
         content: "Painel com pendências por empresa, reuniões do dia e progresso semanal.",
       },
-      { property: "og:title", content: "Início · Meu Hub" },
+      { property: "og:title", content: "Início · Anora" },
       { property: "og:description", content: "Pendências por empresa e progresso da semana." },
     ],
   }),

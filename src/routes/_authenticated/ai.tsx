@@ -10,12 +10,12 @@ import { isOverdue, SOURCE_DOT } from "@/lib/sources";
 export const Route = createFileRoute("/_authenticated/ai")({
   head: () => ({
     meta: [
-      { title: "IA · Meu Hub" },
+      { title: "IA · Anora" },
       {
         name: "description",
         content: "Resumo do dia, atrasos, reuniões e sugestões práticas geradas por IA.",
       },
-      { property: "og:title", content: "IA · Meu Hub" },
+      { property: "og:title", content: "IA · Anora" },
       { property: "og:description", content: "Resumo do dia e sugestões práticas." },
     ],
   }),

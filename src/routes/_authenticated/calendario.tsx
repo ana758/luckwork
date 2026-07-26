@@ -7,12 +7,12 @@ import { SOURCE_DOT } from "@/lib/sources";
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
     meta: [
-      { title: "Calendário · Meu Hub" },
+      { title: "Calendário · Anora" },
       {
         name: "description",
         content: "Visão mensal com tarefas e reuniões de todas as empresas em um só lugar.",
       },
-      { property: "og:title", content: "Calendário · Meu Hub" },
+      { property: "og:title", content: "Calendário · Anora" },
       { property: "og:description", content: "Visão mensal de tarefas e reuniões." },
     ],
   }),
