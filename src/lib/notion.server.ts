@@ -41,8 +41,10 @@ export type NotionTask = {
   priority: "alta" | "media" | "baixa";
   dueDate: string | null;
   updated: string;
+  created: string;
   databaseId: string | null;
 };
+
 
 
 function pickTitle(props: Record<string, any>): string {
@@ -190,6 +192,7 @@ export async function listMyPages(): Promise<NotionTask[]> {
       priority: findPriority(props),
       dueDate: findDate(props),
       updated: p.last_edited_time ?? new Date().toISOString(),
+      created: p.created_time ?? p.last_edited_time ?? new Date().toISOString(),
       databaseId: dbId,
     });
   }
