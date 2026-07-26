@@ -35,14 +35,18 @@ export const Route = createFileRoute("/_authenticated/tarefas")({
   component: TasksPage,
 });
 
-function inRange(task: Task, range: "week" | "month") {
+function inRange(task: Task) {
+  const ws = startOfWeek();
+  const we = endOfWeek();
   if (task.recurrence !== "none") return true;
   const ref = task.due_date ?? task.start_date;
-  if (!ref) return true;
+  if (!ref) {
+    // sem data: considera pela criação
+    const c = new Date(task.created_at);
+    return c >= ws && c <= we;
+  }
   const d = new Date(`${ref}T12:00:00`);
-  if (range === "week") return d >= startOfWeek() && d <= endOfWeek();
-  const now = new Date();
-  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  return d >= ws && d <= we;
 }
 
 type AgendaMeta = { time: string; location: string | null };
@@ -79,20 +83,13 @@ function TasksPage() {
   const { data: meetings = [] } = useMeetings();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
-  const [range, setRange] = useState<"week" | "month">("week");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
 
   const visible = useMemo(() => {
-    const now = new Date();
-    const start = range === "week" ? startOfWeek() : new Date(now.getFullYear(), now.getMonth(), 1);
-    const end =
-      range === "week"
-        ? endOfWeek()
-        : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
-    // Eventos da agenda (não-reunião) viram tarefas SEMPRE apenas da semana atual (7 dias).
     const weekStart = startOfWeek();
     const weekEnd = endOfWeek();
+
+    // Eventos da agenda (não-reunião) viram tarefas apenas da semana atual (7 dias).
     const agendaAsTasks = meetings
       .filter((m) => m.meeting_type !== "Reunião")
       .filter((m) => {
@@ -101,12 +98,12 @@ function TasksPage() {
       })
       .map(meetingToTask);
 
-    const own = tasks.filter((t) => inRange(t, range));
+    const own = tasks.filter(inRange);
 
     return [...own, ...agendaAsTasks].filter(
       (t) => filter === "all" || t.source === filter,
     );
-  }, [tasks, meetings, range, filter]);
+  }, [tasks, meetings, filter]);
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
@@ -174,15 +171,7 @@ function TasksPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold tracking-tight">Tarefas</h1>
-        
-        <Toggle
-          options={[
-            { v: "week", l: "Semana" },
-            { v: "month", l: "Mês" },
-          ]}
-          value={range}
-          onChange={(v) => setRange(v as "week" | "month")}
-        />
+        <span className="text-xs text-muted-foreground">Semana atual</span>
         <Toggle
           options={[
             { v: "board", l: "Board" },
