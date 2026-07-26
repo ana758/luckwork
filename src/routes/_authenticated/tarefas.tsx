@@ -180,7 +180,21 @@ function TasksPage() {
           console.warn("Falha ao mover issue no Jira:", e);
         }
       }
-
+      if (!isMeeting) {
+        const { data: cur2 } = await supabase
+          .from("tasks")
+          .select("external_system, external_id")
+          .eq("id", realId)
+          .maybeSingle();
+        if (cur2?.external_system === "notion" && cur2.external_id) {
+          try {
+            const { transitionNotionPage } = await import("@/lib/notion.functions");
+            await transitionNotionPage({ data: { pageId: cur2.external_id, status } });
+          } catch (e) {
+            console.warn("Falha ao mover página no Notion:", e);
+          }
+        }
+      }
     },
     onSuccess: (_d, v) => {
       queryClient.invalidateQueries({
