@@ -64,7 +64,7 @@ function AuthPage() {
       <div className="w-full max-w-sm">
         <h1 className="text-2xl font-semibold tracking-tight">Anora</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tarefas, agenda e reuniões da Angi, Devore, Bruna e Pessoal em um lugar só.
+          Tarefas, agenda e reuniões da Angi, Devore, Brand.Pe e Pessoal em um lugar só.
         </p>
 
         <button

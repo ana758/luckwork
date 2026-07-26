@@ -52,7 +52,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
               "Estruture assim quando fizer o resumo do dia: '## Resumo do dia' (2 linhas), '## Atrasado' (lista), " +
               "'## Hoje e amanhã' (lista), '## Reuniões' (lista), '## Sugestões' (2 a 4 ações práticas, " +
               "incluindo o que fazer com tarefas que estão arrastando há muito tempo). " +
-              "As empresas são Angi, Devore, Bruna e Pessoal. Não invente dados que não estejam no JSON.",
+              "As empresas são Angi, Devore, Brand.Pe e Pessoal. Não invente dados que não estejam no JSON.",
           },
           { role: "user", content: prompt },
         ],
@@ -94,7 +94,7 @@ export const aiAction = createServerFn({ method: "POST" })
     const system = [
       "Você é a assistente da Ana. Interprete a mensagem e responda APENAS um JSON válido, sem markdown.",
       `Hoje é ${todayStr} (fuso ${tz}).`,
-      "Empresas (source): 'angi', 'devore', 'bruna', 'pessoal'. Se a mensagem mencionar 'pessoal' ou nome pessoal, use 'pessoal'.",
+      "Empresas (source): 'angi', 'devore', 'bruna' (Brand.Pe), 'pessoal'. Se a mensagem mencionar 'pessoal' ou nome pessoal, use 'pessoal'. Para Brand.Pe use 'bruna'.",
       "Se o usuário pedir para ADICIONAR/CRIAR uma tarefa ou compromisso, escolha o intent apropriado:",
       "- 'add_task' para tarefa (sem horário obrigatório).",
       "- 'add_meeting' para reunião/compromisso com horário.",
