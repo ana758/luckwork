@@ -87,7 +87,7 @@ function Dashboard() {
     return { total, done, pct };
   }, [weekTasks]);
 
-  const weekTotal = weekly.reduce((a, b) => a + b.value, 0);
+  
 
   const overdueTasks = useMemo(() => {
     const keys = visibleSources.map((s) => s.key);
