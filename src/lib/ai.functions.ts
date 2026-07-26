@@ -154,6 +154,30 @@ export const aiAction = createServerFn({ method: "POST" })
         .select("id")
         .single();
       if (error) throw new Error(`Não consegui salvar a tarefa: ${error.message}`);
+      // Se marcou como Devore, cria também no DAILY GESTÃO do Notion
+      if ((t.source ?? "pessoal") === "devore" && inserted?.id) {
+        try {
+          const { createDailyGestaoPage } = await import("./notion.server");
+          const notion = await createDailyGestaoPage({
+            title: String(t.title),
+            dueDate: t.due_date ?? t.start_date ?? null,
+            status: (t.status ?? "todo") as any,
+          });
+          if (notion?.pageId) {
+            await context.supabase
+              .from("tasks")
+              .update({
+                external_system: "notion",
+                external_id: notion.pageId,
+                external_url: notion.url,
+              })
+              .eq("id", inserted.id);
+          }
+        } catch {
+          // segue mesmo se Notion falhar
+        }
+      }
+
       // Se tem data, também empurra pro Google Agenda como all-day
       if (t.due_date || t.start_date) {
         try {
