@@ -42,6 +42,20 @@ export function AppShell() {
     },
   });
 
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ["workspace_members", "pending_count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("workspace_members")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      return count ?? 0;
+    },
+    enabled: membership?.status === "active",
+    refetchInterval: 60_000,
+  });
+
+
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -89,6 +103,7 @@ export function AppShell() {
           <nav className="space-y-1">
             {NAV.map((item) => {
               const active = pathname === item.to;
+              const showBadge = item.to === "/configuracoes" && pendingCount > 0;
               return (
                 <Link
                   key={item.to}
@@ -100,7 +115,12 @@ export function AppShell() {
                   }`}
                 >
                   <item.icon className="h-4 w-4" />
-                  {item.label}
+                  <span>{item.label}</span>
+                  {showBadge && (
+                    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-semibold text-destructive-foreground">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -130,16 +150,22 @@ export function AppShell() {
       <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden">
         {NAV.map((item) => {
           const active = pathname === item.to;
+          const showBadge = item.to === "/configuracoes" && pendingCount > 0;
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${
+              className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${
                 active ? "text-foreground" : "text-muted-foreground"
               }`}
             >
               <item.icon className="h-5 w-5" />
               {item.label}
+              {showBadge && (
+                <span className="absolute right-3 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold text-destructive-foreground">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}

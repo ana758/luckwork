@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.notify_pending_member() FROM PUBLIC, anon, authenticated;
