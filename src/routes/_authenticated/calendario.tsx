@@ -6,10 +6,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
+import { TaskEditModal } from "@/components/TaskEditModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent } from "@/lib/gcal.functions";
-import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+
 
 
 export const Route = createFileRoute("/_authenticated/calendario")({
