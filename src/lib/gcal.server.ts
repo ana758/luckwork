@@ -147,9 +147,13 @@ export function classifyCalendar(
   if (
     name.includes("branding pessoal") ||
     name.includes("trabalho bruna") ||
-    name.includes("bruna")
+    name.includes("bruna bergamini") ||
+    name === "bruna"
   )
     return { source: "bruna", isMeeting: false, skip: true };
+
+  // Agenda literalmente chamada "Pessoal" no anaduquek — pedido: não puxar.
+  if (name.trim() === "pessoal") return { source: "pessoal", isMeeting: false, skip: true };
 
   // Agenda compartilhada da Devore aparece nas duas contas → sempre Devore.
   if (id.includes("devoresnacks") || name.includes("devoresnacks") || name.includes("devore"))
@@ -159,8 +163,9 @@ export function classifyCalendar(
 
   if (name.includes("reuni")) return { source: "pessoal", isMeeting: true };
 
-  // ana beatriz, pagamentos, pessoal, urgente, feriados, primária → Pessoal.
+  // ana beatriz, pagamentos, urgente, feriados, primária → Pessoal.
   return { source: "pessoal", isMeeting: false };
 }
+
 
 
