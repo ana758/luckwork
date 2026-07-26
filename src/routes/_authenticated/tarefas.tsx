@@ -443,7 +443,12 @@ function TasksPage() {
                 .map((t) => (
                   <tr key={t.id} className="border-b last:border-0">
                     <td className="p-3">
-                      <span className={isOverdue(t) ? "text-reuniao" : ""}>{t.title}</span>
+                      <button
+                        onClick={() => setEditingId(t.id)}
+                        className={`text-left hover:underline ${isOverdue(t) ? "text-reuniao" : ""}`}
+                      >
+                        {t.title}
+                      </button>
                     </td>
                     <td className="p-3">
                       <select
