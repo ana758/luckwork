@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
+import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { useMeetings, useTasks } from "@/lib/queries";
-import { SOURCE_DOT } from "@/lib/sources";
+import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -27,25 +28,40 @@ function fmtKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+type CalItem =
+  | { kind: "meeting"; id: string; title: string; dot: string; meeting: Meeting }
+  | { kind: "task"; id: string; title: string; dot: string };
+
 function CalendarPage() {
   const [view, setView] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   });
+  const [filter, setFilter] = useState<SourceKey | "all">("all");
+  const [editing, setEditing] = useState<Meeting | null>(null);
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
 
   const todayKey = fmtKey(new Date());
 
-  function itemsFor(key: string) {
+  const visibleMeetings = filter === "all" ? meetings : meetings.filter((m) => m.source === filter);
+  const visibleTasks = filter === "all" ? tasks : tasks.filter((t) => t.source === filter);
+
+  function itemsFor(key: string): CalItem[] {
     return [
-      ...meetings
+      ...visibleMeetings
         .filter((m) => m.starts_at.slice(0, 10) === key)
-        .map((m) => ({ id: m.id, title: m.title, dot: "bg-reuniao" })),
-      ...tasks
+        .map<CalItem>((m) => ({
+          kind: "meeting",
+          id: m.id,
+          title: m.title,
+          dot: "bg-reuniao",
+          meeting: m,
+        })),
+      ...visibleTasks
         .filter((t) => t.due_date === key)
-        .map((t) => ({ id: t.id, title: t.title, dot: SOURCE_DOT[t.source] })),
+        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source] })),
     ];
   }
 
@@ -91,6 +107,10 @@ function CalendarPage() {
             cursor.getDate() + 4,
           ).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`;
 
+  function openItem(item: CalItem) {
+    if (item.kind === "meeting") setEditing(item.meeting);
+  }
+
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
@@ -130,6 +150,25 @@ function CalendarPage() {
         </button>
       </header>
 
+      <div className="flex flex-wrap gap-1.5 text-xs">
+        <button
+          onClick={() => setFilter("all")}
+          className={`rounded-full border px-3 py-1 ${filter === "all" ? "border-foreground font-medium" : "text-muted-foreground"}`}
+        >
+          Todas
+        </button>
+        {SOURCES.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setFilter(s.key)}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 ${filter === s.key ? "border-foreground font-medium" : "text-muted-foreground"}`}
+          >
+            <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[s.key]}`} />
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       {view === "month" ? (
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="grid grid-cols-7 border-b text-center text-[11px] text-muted-foreground">
@@ -162,10 +201,14 @@ function CalendarPage() {
                   </span>
                   <div className="mt-1 space-y-0.5">
                     {items.slice(0, 3).map((i) => (
-                      <div key={i.id} className="flex items-center gap-1">
+                      <button
+                        key={i.id}
+                        onClick={() => openItem(i)}
+                        className="flex w-full items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
+                      >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
                         <span className="truncate text-[10px] text-muted-foreground">{i.title}</span>
-                      </div>
+                      </button>
                     ))}
                     {items.length > 3 && (
                       <span className="text-[10px] text-muted-foreground">
@@ -218,13 +261,14 @@ function CalendarPage() {
                     </div>
                   )}
                   {items.map((i) => (
-                    <div
+                    <button
                       key={i.id}
-                      className="flex items-start gap-1.5 rounded-md border bg-background p-1.5"
+                      onClick={() => openItem(i)}
+                      className="flex w-full items-start gap-1.5 rounded-md border bg-background p-1.5 text-left hover:bg-accent/60"
                     >
                       <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
                       <span className="text-xs leading-tight">{i.title}</span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               );
@@ -232,6 +276,8 @@ function CalendarPage() {
           </div>
         </div>
       )}
+
+      {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
