@@ -12,12 +12,27 @@ import {
 } from "./gcal.server";
 
 async function assertMember(supabase: any, userId: string) {
-  const { data } = await supabase
+  let { data } = await supabase
     .from("workspace_members")
     .select("status, email")
     .eq("user_id", userId)
     .maybeSingle();
-  if (!data) throw new Error("Sua conta ainda não faz parte do workspace.");
+
+  if (!data) {
+    // Auto-provisiona registro pendente para usuários criados antes do trigger.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = u?.user?.email ?? "";
+    const auto = ["ana@devoresnacks.com", "anaduquek@gmail.com"].includes(email.toLowerCase());
+    await supabaseAdmin
+      .from("workspace_members")
+      .upsert(
+        { user_id: userId, email, status: auto ? "active" : "pending" },
+        { onConflict: "user_id" },
+      );
+    data = { status: auto ? "active" : "pending", email };
+  }
+
   if (data.status !== "active") {
     throw new Error(
       `Acesso pendente para ${data.email}. Entre com ana@devoresnacks.com e aprove em Ajustes → Acessos.`,
