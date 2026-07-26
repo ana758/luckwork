@@ -65,6 +65,13 @@ function AIPage() {
 
   const queryClient = useQueryClient();
 
+  const emailsQuery = useQuery({
+    queryKey: ["important-emails"],
+    queryFn: () => getImportantEmails(),
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
   const ask = useMutation({
     mutationFn: async (q?: string) => {
       // Sem texto → resumo do dia. Com texto → interpreta (pode criar tarefa/reunião).
