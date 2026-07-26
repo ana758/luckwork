@@ -14,14 +14,64 @@ export type ImportantEmail = {
 };
 
 async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?: string }> {
-  try {
-    if (!process.env.GOOGLE_MAIL_API_KEY) {
-      return { emails: [], error: "Gmail não conectado." };
+  const errors: string[] = [];
+  const inbox: Array<{
+    id: string;
+    from: string;
+    fromEmail: string;
+    subject: string;
+    snippet: string;
+    date: string;
+    link: string;
+  }> = [];
+
+  if (process.env.GOOGLE_MAIL_API_KEY) {
+    try {
+      const { fetchRecentInbox } = await import("./gmail.server");
+      const g = await fetchRecentInbox(40);
+      for (const e of g) {
+        inbox.push({
+          id: `gmail:${e.id}`,
+          from: e.from,
+          fromEmail: e.fromEmail,
+          subject: e.subject,
+          snippet: e.snippet,
+          date: e.date,
+          link: e.link,
+        });
+      }
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : "Falha ao ler Gmail.");
     }
-    const { fetchRecentInbox, classifyImportantEmails } = await import("./gmail.server");
-    const inbox = await fetchRecentInbox(40);
-    if (inbox.length === 0) return { emails: [] };
-    const flagged = await classifyImportantEmails(inbox);
+  }
+
+  if (process.env.MICROSOFT_OUTLOOK_API_KEY) {
+    try {
+      const { fetchRecentOutlookInbox } = await import("./outlook.server");
+      const o = await fetchRecentOutlookInbox(40);
+      for (const e of o) {
+        inbox.push({
+          id: `outlook:${e.id}`,
+          from: e.from,
+          fromEmail: e.fromEmail,
+          subject: e.subject,
+          snippet: e.snippet,
+          date: e.date,
+          link: e.link,
+        });
+      }
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : "Falha ao ler Outlook.");
+    }
+  }
+
+  if (inbox.length === 0) {
+    return { emails: [], error: errors[0] ?? "Nenhuma caixa de e-mail conectada." };
+  }
+
+  try {
+    const { classifyImportantEmails } = await import("./gmail.server");
+    const flagged = await classifyImportantEmails(inbox as any);
     const byId = new Map(inbox.map((e) => [e.id, e]));
     const out: ImportantEmail[] = [];
     for (const f of flagged) {
@@ -39,9 +89,12 @@ async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?
         reason: f.reason,
       });
     }
-    return { emails: out };
+    return { emails: out, error: errors[0] };
   } catch (err) {
-    return { emails: [], error: err instanceof Error ? err.message : "Falha ao ler Gmail." };
+    return {
+      emails: [],
+      error: err instanceof Error ? err.message : "Falha ao classificar e-mails.",
+    };
   }
 }
 
