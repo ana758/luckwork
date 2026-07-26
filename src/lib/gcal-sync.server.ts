@@ -83,7 +83,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const seenPairs = new Set<string>(); // `${google_account}::${google_event_id}`
 
   // Carrega regras aprendidas (título → empresa correta).
-  const { normalizeTitleKey } = await import("./source-rules");
+  const { normalizeTitleKey, inferSourceFromTitle } = await import("./source-rules");
   const { data: rulesData } = await supabase.from("source_rules").select("title_key, source");
   const rulesMap = new Map<string, string>();
   for (const r of rulesData ?? []) rulesMap.set(r.title_key as string, r.source as string);
@@ -118,7 +118,8 @@ export async function runCalendarSync(supabase: any, userId: string) {
         .map((e) => {
           const title = e.summary?.trim() || "(sem título)";
           const learned = rulesMap.get(normalizeTitleKey(title));
-          const source = learned ?? defaultSource;
+          const inferred = inferSourceFromTitle(title);
+          const source = learned ?? inferred ?? defaultSource;
           return {
             title,
             source,
@@ -166,6 +167,25 @@ export async function runCalendarSync(supabase: any, userId: string) {
   if (orphans.length > 0) {
     await supabase.from("meetings").delete().in("id", orphans);
   }
+
+  // IA da Anora: reclassifica retroativamente qualquer item cujo título
+  // mencione outra empresa (ex.: "Reunião Angi" marcado como Pessoal).
+  // Regras aprendidas explicitamente têm precedência e não são sobrescritas.
+  // (inferSourceFromTitle já importado acima)
+  const [{ data: mAll }, { data: tAll }] = await Promise.all([
+    supabase.from("meetings").select("id, title, source").gte("starts_at", timeMin).lte("starts_at", timeMax),
+    supabase.from("tasks").select("id, title, source"),
+  ]);
+  const fix = async (table: "meetings" | "tasks", rows: any[]) => {
+    for (const r of rows ?? []) {
+      const inferred = inferSourceFromTitle(r.title ?? "");
+      if (!inferred || inferred === r.source) continue;
+      const key = (r.title ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120);
+      if (rulesMap.has(key)) continue; // usuário definiu regra manual — respeita
+      await supabase.from(table).update({ source: inferred }).eq("id", r.id);
+    }
+  };
+  await Promise.all([fix("meetings", mAll ?? []), fix("tasks", tAll ?? [])]);
 
   return { imported, accounts: perAccount };
 }
