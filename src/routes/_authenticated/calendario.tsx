@@ -123,6 +123,71 @@ function CalendarPage() {
     if (item.kind === "meeting") setEditing(item.meeting);
   }
 
+  async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
+    const oldStart = new Date(m.starts_at);
+    const [y, mo, d] = targetKey.split("-").map(Number);
+    const newStart = new Date(oldStart);
+    newStart.setFullYear(y, mo - 1, d);
+    if (fmtKey(newStart) === fmtKey(oldStart)) return;
+    let newEndIso: string | null = null;
+    if (m.ends_at) {
+      const oldEnd = new Date(m.ends_at);
+      const diff = oldEnd.getTime() - oldStart.getTime();
+      newEndIso = new Date(newStart.getTime() + diff).toISOString();
+    }
+    const newStartIso = newStart.toISOString();
+
+    // Otimista: atualiza local primeiro.
+    const { error } = await supabase
+      .from("meetings")
+      .update({ starts_at: newStartIso, ends_at: newEndIso ?? m.ends_at })
+      .eq("id", m.id);
+    if (error) {
+      toast.error("Não movi: " + error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["meetings"] });
+
+    // Se veio do Google, empurra pra lá pra próxima sync não desfazer.
+    if (m.google_event_id && m.google_account) {
+      try {
+        await moveGoogle({
+          data: {
+            googleAccount: m.google_account,
+            googleEventId: m.google_event_id,
+            startsAt: newStartIso,
+            endsAt: newEndIso,
+          },
+        });
+        toast.success("Evento movido (Anora + Google)");
+      } catch (e: any) {
+        toast.error("Movi aqui mas não no Google: " + (e?.message ?? "erro"));
+      }
+    } else {
+      toast.success("Evento movido");
+    }
+  }
+
+  function onDragStart(ev: React.DragEvent, itemId: string) {
+    ev.dataTransfer.setData("text/anora-meeting", itemId);
+    ev.dataTransfer.effectAllowed = "move";
+  }
+  function onDragOver(ev: React.DragEvent, key: string) {
+    if (ev.dataTransfer.types.includes("text/anora-meeting")) {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+      if (dragOverKey !== key) setDragOverKey(key);
+    }
+  }
+  function onDrop(ev: React.DragEvent, key: string) {
+    const id = ev.dataTransfer.getData("text/anora-meeting");
+    setDragOverKey(null);
+    if (!id) return;
+    const m = meetings.find((x) => x.id === id);
+    if (m) moveMeetingToDate(m as any, key);
+  }
+
+
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
