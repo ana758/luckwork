@@ -49,10 +49,11 @@ export function QuickAdd() {
     <>
       <button
         onClick={() => setOpen(true)}
-        aria-label="Adicionar"
-        className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 md:bottom-6 md:right-6"
+        aria-label="Adicionar tarefa ou reunião"
+        className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 md:bottom-6 md:right-6"
       >
         <Plus className="h-5 w-5" />
+        Adicionar
       </button>
 
       {open && (

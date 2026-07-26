@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { AlertTriangle, CalendarClock, ListTodo, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { getDailyBriefing } from "@/lib/ai.functions";
+import { useMeetings, useTasks } from "@/lib/queries";
+import { isOverdue, SOURCE_DOT } from "@/lib/sources";
 
 export const Route = createFileRoute("/_authenticated/ai")({
   head: () => ({
@@ -20,73 +22,242 @@ export const Route = createFileRoute("/_authenticated/ai")({
   component: AIPage,
 });
 
+type Msg = { role: "user" | "assistant"; content: string };
+
 function AIPage() {
+  const { data: tasks = [] } = useTasks();
+  const { data: meetings = [] } = useMeetings();
   const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const summary = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const in7 = new Date(today);
+    in7.setDate(in7.getDate() + 7);
+
+    const overdue = tasks.filter((t) => isOverdue(t));
+    const todayTasks = tasks.filter(
+      (t) =>
+        t.due_date &&
+        t.status !== "done" &&
+        new Date(`${t.due_date}T12:00:00`).toDateString() === today.toDateString(),
+    );
+    const meetingsToday = meetings.filter((m) => {
+      const d = new Date(m.starts_at);
+      return d >= today && d < tomorrow;
+    });
+    const meetingsWeek = meetings.filter((m) => {
+      const d = new Date(m.starts_at);
+      return d >= today && d <= in7;
+    });
+    const stuck = tasks.filter((t) => {
+      if (t.status === "done") return false;
+      const days = (Date.now() - new Date(t.updated_at).getTime()) / 86400000;
+      return days > 7;
+    });
+
+    return { overdue, todayTasks, meetingsToday, meetingsWeek, stuck };
+  }, [tasks, meetings]);
 
   const ask = useMutation({
     mutationFn: async (q?: string) => getDailyBriefing({ data: { question: q } }),
-    onSuccess: (res) => setAnswer(res.text),
+    onSuccess: (res, variables) => {
+      setMessages((m) => [
+        ...m,
+        ...(variables ? [{ role: "user" as const, content: variables }] : []),
+        { role: "assistant", content: res.text },
+      ]);
+      setQuestion("");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, ask.isPending]);
+
+  function send(q?: string) {
+    const text = (q ?? question).trim();
+    if (!text) {
+      ask.mutate(undefined);
+      return;
+    }
+    ask.mutate(text);
+  }
+
+  const suggestions = [
+    "Resumo do dia",
+    "O que priorizar hoje?",
+    "Tarefas travadas — como destravar?",
+    "Como está a semana na Angi?",
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4 md:h-[calc(100vh-4rem)]">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Espaço IA</h1>
         <p className="text-sm text-muted-foreground">
-          Resumo do dia, o que está atrasado e sugestões para destravar tarefas.
+          Converse com sua assistente. Resumo do dia, alertas e sugestões práticas.
         </p>
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => ask.mutate(undefined)}
-          disabled={ask.isPending}
-          className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-        >
-          <Sparkles className="h-4 w-4" />
-          {ask.isPending ? "Analisando…" : "Resumo do dia"}
-        </button>
-        <button
-          onClick={() => ask.mutate("Quais tarefas estão arrastando há muito tempo e como destravar?")}
-          disabled={ask.isPending}
-          className="rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-60"
-        >
-          Tarefas travadas
-        </button>
+      {/* Alert cards */}
+      <div className="grid gap-2 sm:grid-cols-3">
+        <SummaryCard
+          icon={<AlertTriangle className="h-4 w-4" />}
+          label="Atrasadas"
+          value={summary.overdue.length}
+          tone={summary.overdue.length > 0 ? "danger" : "muted"}
+        />
+        <SummaryCard
+          icon={<ListTodo className="h-4 w-4" />}
+          label="Para hoje"
+          value={summary.todayTasks.length}
+          tone="default"
+        />
+        <SummaryCard
+          icon={<CalendarClock className="h-4 w-4" />}
+          label="Reuniões hoje"
+          value={summary.meetingsToday.length}
+          tone="default"
+        />
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
-        <label className="text-xs text-muted-foreground">Pergunte algo</label>
-        <div className="mt-1 flex gap-2">
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            maxLength={400}
-            placeholder="Ex.: o que priorizar na Angi esta semana?"
-            className="flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            onClick={() => question.trim() && ask.mutate(question.trim())}
-            disabled={ask.isPending}
-            className="rounded-md border px-3 py-2 text-sm hover:bg-accent disabled:opacity-60"
-          >
-            Enviar
-          </button>
+      {(summary.overdue.length > 0 || summary.stuck.length > 0) && (
+        <div className="rounded-xl border border-reuniao/30 bg-reuniao/5 p-3 text-sm">
+          <p className="mb-2 font-medium text-reuniao">Precisam da sua atenção</p>
+          <ul className="space-y-1">
+            {summary.overdue.slice(0, 3).map((t) => (
+              <li key={t.id} className="flex items-center gap-2 text-xs">
+                <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[t.source]}`} />
+                <span className="truncate">{t.title}</span>
+                <span className="ml-auto text-muted-foreground">
+                  venceu {new Date(`${t.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                </span>
+              </li>
+            ))}
+            {summary.stuck.slice(0, 2).map((t) => (
+              <li key={t.id} className="flex items-center gap-2 text-xs">
+                <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[t.source]}`} />
+                <span className="truncate">{t.title}</span>
+                <span className="ml-auto text-muted-foreground">arrastando há dias</span>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
-
-      {answer && (
-        <article className="whitespace-pre-wrap rounded-xl border bg-card p-4 text-sm leading-relaxed">
-          {answer}
-        </article>
       )}
 
-      <p className="text-xs text-muted-foreground">
-        A leitura dos e-mails entra na próxima etapa, junto com as conexões do Google, Jira e
-        Notion.
-      </p>
+      {/* Chat area */}
+      <div
+        ref={scrollRef}
+        className="flex-1 space-y-3 overflow-y-auto rounded-xl border bg-card p-4"
+      >
+        {messages.length === 0 && !ask.isPending && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Peça um resumo do dia ou pergunte algo sobre suas tarefas e reuniões.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 pt-2">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s === "Resumo do dia" ? undefined : s)}
+                  className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-relaxed ${
+                m.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-foreground"
+              }`}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+
+        {ask.isPending && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl bg-secondary px-4 py-2 text-sm text-muted-foreground">
+              Pensando…
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Composer */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        className="flex gap-2"
+      >
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          maxLength={400}
+          placeholder="Pergunte algo à sua assistente…"
+          className="flex-1 rounded-full border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        <button
+          type="submit"
+          disabled={ask.isPending}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+          aria-label="Enviar"
+        >
+          <Send className="h-4 w-4" />
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  tone: "default" | "danger" | "muted";
+}) {
+  const toneClass =
+    tone === "danger"
+      ? "border-reuniao/40 bg-reuniao/5 text-reuniao"
+      : tone === "muted"
+        ? "border-border bg-card text-muted-foreground"
+        : "border-border bg-card text-foreground";
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border p-3 ${toneClass}`}>
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background/60">
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs opacity-80">{label}</p>
+        <p className="text-lg font-semibold">{value}</p>
+      </div>
     </div>
   );
 }
