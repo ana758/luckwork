@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, ListTodo, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { getDailyBriefing } from "@/lib/ai.functions";
+import { aiAction, getDailyBriefing } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { isOverdue, SOURCE_DOT } from "@/lib/sources";
 
