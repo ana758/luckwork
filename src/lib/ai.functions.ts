@@ -191,10 +191,15 @@ export const aiAction = createServerFn({ method: "POST" })
             source: t.source ?? "pessoal",
           });
           if (res.eventId && inserted?.id) {
-            await context.supabase
-              .from("tasks")
-              .update({ external_url: res.url, external_system: "google_calendar" })
-              .eq("id", inserted.id);
+            const src = t.source ?? "pessoal";
+            const patch: Record<string, unknown> = {};
+            if (src !== "devore" && src !== "angi") {
+              patch.external_url = res.url;
+              patch.external_system = "google_calendar";
+            }
+            if (Object.keys(patch).length > 0) {
+              await context.supabase.from("tasks").update(patch).eq("id", inserted.id);
+            }
           }
         } catch {
           // segue mesmo se Google falhar
