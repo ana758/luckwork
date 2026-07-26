@@ -337,7 +337,13 @@ function CalendarPage() {
               const key = fmtKey(d);
               const items = itemsFor(key);
               return (
-                <div key={key} className="min-h-[60vh] space-y-1 border-r p-2 last:border-r-0">
+                <div
+                  key={key}
+                  onDragOver={(e) => onDragOver(e, key)}
+                  onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
+                  onDrop={(e) => onDrop(e, key)}
+                  className={`min-h-[60vh] space-y-1 border-r p-2 last:border-r-0 ${dragOverKey === key ? "bg-accent/60" : ""}`}
+                >
                   {items.length === 0 && (
                     <div className="pt-4 text-center text-[11px] text-muted-foreground">
                       Sem itens
@@ -346,6 +352,8 @@ function CalendarPage() {
                   {items.map((i) => (
                     <button
                       key={i.id}
+                      draggable={i.kind === "meeting"}
+                      onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
                       onClick={() => openItem(i)}
                       className="flex w-full items-start gap-1.5 rounded-md border bg-background p-1.5 text-left hover:bg-accent/60"
                     >
@@ -359,6 +367,7 @@ function CalendarPage() {
           </div>
         </div>
       )}
+
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
     </div>
