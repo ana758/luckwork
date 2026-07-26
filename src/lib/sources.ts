@@ -94,6 +94,7 @@ export type Meeting = {
   ends_at: string | null;
   meeting_type: string | null;
   people: string | null;
+  location?: string | null;
   notes: string | null;
   external_url: string | null;
   status?: TaskStatus;

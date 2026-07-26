@@ -88,6 +88,7 @@ export type Database = {
           google_event_id: string | null
           hidden: boolean
           id: string
+          location: string | null
           meeting_type: string | null
           notes: string | null
           people: string | null
@@ -108,6 +109,7 @@ export type Database = {
           google_event_id?: string | null
           hidden?: boolean
           id?: string
+          location?: string | null
           meeting_type?: string | null
           notes?: string | null
           people?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           google_event_id?: string | null
           hidden?: boolean
           id?: string
+          location?: string | null
           meeting_type?: string | null
           notes?: string | null
           people?: string | null

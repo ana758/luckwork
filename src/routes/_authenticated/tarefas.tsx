@@ -45,8 +45,15 @@ function inRange(task: Task, range: "week" | "month") {
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
-function meetingToTask(m: Meeting): Task {
+type AgendaMeta = { time: string; location: string | null };
+type VisibleTask = Task & { agenda?: AgendaMeta };
+
+function meetingToTask(m: Meeting): VisibleTask {
   const dateStr = m.starts_at.slice(0, 10);
+  const time = new Date(m.starts_at).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   return {
     id: `m:${m.id}`,
     title: m.title,
@@ -62,8 +69,10 @@ function meetingToTask(m: Meeting): Task {
     completed_at: m.completed_at ?? null,
     created_at: m.starts_at,
     updated_at: m.starts_at,
+    agenda: { time, location: m.location ?? null },
   };
 }
+
 
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
@@ -142,6 +151,23 @@ function TasksPage() {
     },
   });
 
+  const changeSource = useMutation({
+    mutationFn: async ({ id, source }: { id: string; source: SourceKey }) => {
+      const isMeeting = id.startsWith("m:");
+      const realId = isMeeting ? id.slice(2) : id;
+      const table = isMeeting ? "meetings" : "tasks";
+      const { error } = await supabase.from(table).update({ source }).eq("id", realId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({
+        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
+      });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
@@ -207,6 +233,7 @@ function TasksPage() {
                         task={t}
                         onMove={(s) => move.mutate({ id: t.id, status: s })}
                         onDelete={() => remove.mutate(t.id)}
+                        onChangeSource={(s) => changeSource.mutate({ id: t.id, source: s })}
                       />
                     ))}
                 </div>
@@ -235,10 +262,19 @@ function TasksPage() {
                     <span className={isOverdue(t) ? "text-reuniao" : ""}>{t.title}</span>
                   </td>
                   <td className="p-3">
-                    <span className="flex items-center gap-1.5 text-xs">
-                      <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[t.source]}`} />
-                      {t.source}
-                    </span>
+                    <select
+                      value={t.source}
+                      onChange={(e) =>
+                        changeSource.mutate({ id: t.id, source: e.target.value as SourceKey })
+                      }
+                      className="rounded-md border bg-background px-2 py-1 text-xs"
+                    >
+                      {SOURCES.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td className="p-3 text-xs text-muted-foreground">{t.start_date ?? "—"}</td>
                   <td className="p-3 text-xs text-muted-foreground">{t.due_date ?? "—"}</td>
@@ -306,24 +342,44 @@ function TaskCard({
   task,
   onMove,
   onDelete,
+  onChangeSource,
 }: {
-  task: Task;
+  task: VisibleTask;
   onMove: (s: TaskStatus) => void;
   onDelete: () => void;
+  onChangeSource: (s: SourceKey) => void;
 }) {
   return (
     <div className={`rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}>
       <p className="text-sm">{task.title}</p>
+      {task.agenda && (
+        <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+          <p>{task.agenda.time}</p>
+          {task.agenda.location && <p className="line-clamp-1">📍 {task.agenda.location}</p>}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-        {task.due_date && (
+        {task.due_date && !task.agenda && (
           <span className={isOverdue(task) ? "font-medium text-reuniao" : ""}>
             {new Date(`${task.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
           </span>
         )}
-        <span>{PRIORITY_LABEL[task.priority]}</span>
+        {!task.agenda && <span>{PRIORITY_LABEL[task.priority]}</span>}
         {task.recurrence !== "none" && <span>recorrente</span>}
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-1.5">
+        <select
+          value={task.source}
+          onChange={(e) => onChangeSource(e.target.value as SourceKey)}
+          className="rounded-md border bg-background px-1.5 py-1 text-[11px]"
+          title="Mudar empresa"
+        >
+          {SOURCES.map((s) => (
+            <option key={s.key} value={s.key}>
+              {s.label}
+            </option>
+          ))}
+        </select>
         <select
           value={task.status}
           onChange={(e) => onMove(e.target.value as TaskStatus)}
