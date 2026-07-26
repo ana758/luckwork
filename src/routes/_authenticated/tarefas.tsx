@@ -47,6 +47,7 @@ function inRange(task: Task, range: "week" | "month") {
 
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
+  const { data: meetings = [] } = useMeetings();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [range, setRange] = useState<"week" | "month">("week");
@@ -57,6 +58,19 @@ function TasksPage() {
       tasks.filter((t) => inRange(t, range) && (filter === "all" || t.source === filter)),
     [tasks, range, filter],
   );
+
+  const visibleMeetings = useMemo(() => {
+    const now = new Date();
+    const start = range === "week" ? startOfWeek() : new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = range === "week" ? endOfWeek() : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    return meetings
+      .filter((m) => {
+        const d = new Date(m.starts_at);
+        return d >= start && d <= end && (filter === "all" || m.source === filter);
+      })
+      .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+  }, [meetings, range, filter]);
+
 
 
 
