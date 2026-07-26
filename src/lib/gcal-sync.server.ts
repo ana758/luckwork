@@ -168,6 +168,25 @@ export async function runCalendarSync(supabase: any, userId: string) {
     await supabase.from("meetings").delete().in("id", orphans);
   }
 
+  // IA da Anora: reclassifica retroativamente qualquer item cujo título
+  // mencione outra empresa (ex.: "Reunião Angi" marcado como Pessoal).
+  // Regras aprendidas explicitamente têm precedência e não são sobrescritas.
+  const { inferSourceFromTitle } = await import("./source-rules");
+  const [{ data: mAll }, { data: tAll }] = await Promise.all([
+    supabase.from("meetings").select("id, title, source").gte("starts_at", timeMin).lte("starts_at", timeMax),
+    supabase.from("tasks").select("id, title, source"),
+  ]);
+  const fix = async (table: "meetings" | "tasks", rows: any[]) => {
+    for (const r of rows ?? []) {
+      const inferred = inferSourceFromTitle(r.title ?? "");
+      if (!inferred || inferred === r.source) continue;
+      const key = (r.title ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 120);
+      if (rulesMap.has(key)) continue; // usuário definiu regra manual — respeita
+      await supabase.from(table).update({ source: inferred }).eq("id", r.id);
+    }
+  };
+  await Promise.all([fix("meetings", mAll ?? []), fix("tasks", tAll ?? [])]);
+
   return { imported, accounts: perAccount };
 }
 
