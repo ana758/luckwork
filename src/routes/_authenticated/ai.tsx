@@ -177,6 +177,15 @@ function AIPage() {
         </div>
       )}
 
+      {/* E-mails importantes filtrados pela IA */}
+      <ImportantEmailsCard
+        loading={emailsQuery.isLoading}
+        emails={emailsQuery.data?.emails ?? []}
+        error={emailsQuery.data?.error}
+      />
+
+
+
       {/* Chat area */}
       <div
         ref={scrollRef}
