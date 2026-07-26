@@ -98,19 +98,19 @@ export async function transitionToDone(issueKey: string): Promise<boolean> {
   return true;
 }
 
-export function mapPriority(name: string | null): "high" | "medium" | "low" {
+export function mapPriority(name: string | null): "alta" | "media" | "baixa" {
   const n = (name ?? "").toLowerCase();
-  if (n.includes("highest") || n === "high") return "high";
-  if (n.includes("low")) return "low";
-  return "medium";
+  if (n.includes("highest") || n === "high" || n.includes("alta")) return "alta";
+  if (n.includes("low") || n.includes("baixa")) return "baixa";
+  return "media";
 }
 
-export function mapStatus(category: JiraIssue["statusCategory"], name: string): "todo" | "doing" | "done" | "on_hold" {
+export function mapStatus(category: JiraIssue["statusCategory"], name: string): "todo" | "doing" | "done" | "onhold" {
   const n = (name ?? "").toLowerCase();
   if (category === "done" || /done|conclu|resolv|finaliz/.test(n)) return "done";
-  // In Review / Hold / Pausado → on_hold
-  if (/review|revis|hold|paus|aguard/.test(n)) return "on_hold";
+  if (/review|revis|hold|paus|aguard/.test(n)) return "onhold";
   if (/progress|andamento|doing|working/.test(n)) return "doing";
   if (category === "new" || /to.?do|a fazer|backlog|open|novo/.test(n)) return "todo";
   return category === "indeterminate" ? "doing" : "todo";
 }
+
