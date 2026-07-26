@@ -21,6 +21,7 @@ export function QuickAdd() {
   const queryClient = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
   const pushJira = useServerFn(createJiraIssue);
+  const pushNotion = useServerFn(createNotionDailyPage);
 
 
   const mutation = useMutation({
