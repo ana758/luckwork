@@ -139,9 +139,17 @@ export function eventPeople(e: GEvent): string | null {
 export function classifyCalendar(
   accountDefault: SourceKey,
   cal: GCalendar,
-): { source: SourceKey; isMeeting: boolean } {
+): { source: SourceKey; isMeeting: boolean; skip?: boolean } {
   const name = (cal.summaryOverride || cal.summary || "").toLowerCase();
   const id = (cal.id || "").toLowerCase();
+
+  // Bruna fica só manual dentro do Anora — nunca puxar agendas dela.
+  if (
+    name.includes("branding pessoal") ||
+    name.includes("trabalho bruna") ||
+    name.includes("bruna")
+  )
+    return { source: "bruna", isMeeting: false, skip: true };
 
   // Agenda compartilhada da Devore aparece nas duas contas → sempre Devore.
   if (id.includes("devoresnacks") || name.includes("devoresnacks") || name.includes("devore"))
@@ -149,16 +157,10 @@ export function classifyCalendar(
 
   if (accountDefault === "devore") return { source: "devore", isMeeting: false };
 
-  if (
-    name.includes("branding pessoal") ||
-    name.includes("trabalho bruna") ||
-    name.includes("bruna")
-  )
-    return { source: "bruna", isMeeting: false };
-
   if (name.includes("reuni")) return { source: "pessoal", isMeeting: true };
 
   // ana beatriz, pagamentos, pessoal, urgente, feriados, primária → Pessoal.
   return { source: "pessoal", isMeeting: false };
 }
+
 
