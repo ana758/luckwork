@@ -90,12 +90,14 @@ function TasksPage() {
         ? endOfWeek()
         : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    // Eventos da agenda (não-reunião) viram tarefas no período.
+    // Eventos da agenda (não-reunião) viram tarefas SEMPRE apenas da semana atual (7 dias).
+    const weekStart = startOfWeek();
+    const weekEnd = endOfWeek();
     const agendaAsTasks = meetings
       .filter((m) => m.meeting_type !== "Reunião")
       .filter((m) => {
         const d = new Date(m.starts_at);
-        return d >= start && d <= end;
+        return d >= weekStart && d <= weekEnd;
       })
       .map(meetingToTask);
 
