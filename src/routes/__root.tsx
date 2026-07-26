@@ -82,6 +82,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "author", content: "Ana" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { title: "Lovable App" },
+      { property: "og:title", content: "Lovable App" },
+      { name: "twitter:title", content: "Lovable App" },
+      { name: "description", content: "My Unified Hub centralizes personal and professional tasks, providing a unified view of all your commitments." },
+      { property: "og:description", content: "My Unified Hub centralizes personal and professional tasks, providing a unified view of all your commitments." },
+      { name: "twitter:description", content: "My Unified Hub centralizes personal and professional tasks, providing a unified view of all your commitments." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8809602b-8e7a-4503-9478-a6d06f7e4809/id-preview-b4419892--ea7974d8-df02-4763-b7b4-dd58f20661fe.lovable.app-1785088043322.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8809602b-8e7a-4503-9478-a6d06f7e4809/id-preview-b4419892--ea7974d8-df02-4763-b7b4-dd58f20661fe.lovable.app-1785088043322.png" },
     ],
     links: [
       {
