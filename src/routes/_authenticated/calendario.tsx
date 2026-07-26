@@ -377,6 +377,8 @@ function CalendarPage() {
 
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
+      {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
+
     </div>
   );
 }
