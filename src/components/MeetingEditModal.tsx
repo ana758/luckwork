@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { patchGoogleEvent } from "@/lib/gcal.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
 
 function toLocalInput(iso: string) {
@@ -14,7 +16,7 @@ export function MeetingEditModal({
   meeting,
   onClose,
 }: {
-  meeting: Meeting & { google_event_id?: string | null };
+  meeting: Meeting & { google_event_id?: string | null; google_account?: string | null };
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(meeting.title);
@@ -22,18 +24,20 @@ export function MeetingEditModal({
   const [source, setSource] = useState<SourceKey>(meeting.source);
   const [notes, setNotes] = useState(meeting.notes ?? "");
   const qc = useQueryClient();
+  const patchGoogle = useServerFn(patchGoogleEvent);
   const isFromGoogle = Boolean(meeting.google_event_id);
 
   const save = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Título é obrigatório.");
+      const newStart = new Date(when).toISOString();
       const { error } = await supabase
         .from("meetings")
         .update({
           title: title.trim(),
           source,
           notes: notes.trim() || null,
-          starts_at: new Date(when).toISOString(),
+          starts_at: newStart,
         })
         .eq("id", meeting.id);
       if (error) throw new Error(error.message);
@@ -41,15 +45,34 @@ export function MeetingEditModal({
         const { learnSourceRule } = await import("@/lib/learn-source");
         await learnSourceRule(title.trim(), source);
       }
+      // Bilateral: se está vinculado ao Google, atualiza lá também.
+      if (meeting.google_event_id && meeting.google_account) {
+        try {
+          await patchGoogle({
+            data: {
+              googleAccount: meeting.google_account,
+              googleEventId: meeting.google_event_id,
+              title: title.trim(),
+              startsAt: newStart,
+              notes: notes.trim() || null,
+            },
+          });
+          return { synced: true };
+        } catch (e) {
+          toast.error(`Salvo no Anora, mas não sincronizou com o Google: ${(e as Error).message}`);
+        }
+      }
+      return { synced: false };
     },
-    onSuccess: () => {
-      toast.success("Reunião atualizada (apenas no Anora)");
+    onSuccess: (r) => {
+      toast.success(r?.synced ? "Atualizado no Anora e no Google" : "Reunião atualizada");
       qc.invalidateQueries({ queryKey: ["meetings"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   const remove = useMutation({
     mutationFn: async () => {
