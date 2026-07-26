@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SOURCES, type SourceKey } from "@/lib/sources";
 import { pushToGoogleCalendar } from "@/lib/gcal.functions";
+import { createJiraIssue } from "@/lib/jira.functions";
+
 
 type Kind = "task" | "meeting";
 
