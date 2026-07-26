@@ -43,7 +43,12 @@ export function QuickAdd() {
             if (res.eventId) {
               await supabase
                 .from("tasks")
-                .update({ external_url: res.url, external_system: "google_calendar" })
+                .update({
+                  external_url: res.url,
+                  external_system: "google_calendar",
+                  google_event_id: res.eventId,
+                  google_account: res.calendarId,
+                })
                 .eq("id", inserted.id);
             }
             return { pushed: true };
