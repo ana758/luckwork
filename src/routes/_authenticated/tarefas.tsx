@@ -3,7 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { endOfWeek, startOfWeek, useTasks } from "@/lib/queries";
+import { endOfWeek, startOfWeek, useTasks, useMeetings } from "@/lib/queries";
+import { SyncGoogleButton } from "@/components/SyncGoogleButton";
+import type { Meeting } from "@/lib/sources";
 import {
   isOverdue,
   PRIORITY_LABEL,
