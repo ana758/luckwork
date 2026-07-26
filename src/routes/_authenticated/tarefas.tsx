@@ -531,31 +531,35 @@ function TaskCard({
   onMove,
   onDelete,
   onChangeSource,
+  onEdit,
 }: {
   task: VisibleTask;
   onMove: (s: TaskStatus) => void;
   onDelete: () => void;
   onChangeSource: (s: SourceKey) => void;
+  onEdit: () => void;
 }) {
   const when = dayLabel(new Date(task.sortAt));
   return (
     <div
       className={`cursor-grab active:cursor-grabbing rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}
     >
-      <p className="text-sm">{task.title}</p>
-      <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
-        <p>
-          {when}
-          {task.agenda ? ` · ${task.agenda.time}` : ""}
-        </p>
-        {task.agenda?.location && (
-          <p className="line-clamp-1">📍 {task.agenda.location}</p>
-        )}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-        {!task.agenda && <span>{PRIORITY_LABEL[task.priority]}</span>}
-        {task.recurrence !== "none" && <span>recorrente</span>}
-      </div>
+      <button onClick={onEdit} className="block w-full text-left">
+        <p className="text-sm hover:underline">{task.title}</p>
+        <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+          <p>
+            {when}
+            {task.agenda ? ` · ${task.agenda.time}` : ""}
+          </p>
+          {task.agenda?.location && (
+            <p className="line-clamp-1">📍 {task.agenda.location}</p>
+          )}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+          {!task.agenda && <span>{PRIORITY_LABEL[task.priority]}</span>}
+          {task.recurrence !== "none" && <span>recorrente</span>}
+        </div>
+      </button>
       <div className="mt-2 flex items-center gap-1.5">
         <select
           value={task.source}
@@ -586,6 +590,133 @@ function TaskCard({
         >
           excluir
         </button>
+      </div>
+    </div>
+  );
+}
+
+function EditTaskModal({
+  task,
+  onClose,
+  onSave,
+  saving,
+}: {
+  task: VisibleTask;
+  onClose: () => void;
+  onSave: (p: {
+    title: string;
+    notes: string | null;
+    due_date: string | null;
+    priority: TaskPriority;
+    recurrence: Recurrence;
+  }) => void;
+  saving: boolean;
+}) {
+  const isMeeting = task.id.startsWith("m:");
+  const [title, setTitle] = useState(task.title);
+  const [notes, setNotes] = useState(task.notes ?? "");
+  const [dueDate, setDueDate] = useState(task.due_date ?? task.start_date ?? "");
+  const [priority, setPriority] = useState<TaskPriority>(task.priority);
+  const [recurrence, setRecurrence] = useState<Recurrence>(task.recurrence);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md space-y-3 rounded-xl bg-card p-4 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-semibold">Editar tarefa</h3>
+        {isMeeting && (
+          <p className="rounded-md bg-secondary p-2 text-[11px] text-muted-foreground">
+            Este item veio da agenda. Data, prioridade e recorrência só podem ser alterados no Calendário.
+          </p>
+        )}
+        <label className="block text-xs">
+          <span className="text-muted-foreground">Título</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="block text-xs">
+          <span className="text-muted-foreground">Notas</span>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+          />
+        </label>
+        {!isMeeting && (
+          <>
+            <label className="block text-xs">
+              <span className="text-muted-foreground">Data</span>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-xs">
+                <span className="text-muted-foreground">Prioridade</span>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                  className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                >
+                  {(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((p) => (
+                    <option key={p} value={p}>
+                      {PRIORITY_LABEL[p]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs">
+                <span className="text-muted-foreground">Recorrência</span>
+                <select
+                  value={recurrence}
+                  onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+                  className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                >
+                  {(Object.keys(RECURRENCE_LABEL) as Recurrence[]).map((r) => (
+                    <option key={r} value={r}>
+                      {RECURRENCE_LABEL[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </>
+        )}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            onClick={onClose}
+            className="rounded-md border px-3 py-1.5 text-xs"
+          >
+            Cancelar
+          </button>
+          <button
+            disabled={saving || !title.trim()}
+            onClick={() =>
+              onSave({
+                title: title.trim(),
+                notes: notes.trim() ? notes.trim() : null,
+                due_date: dueDate || null,
+                priority,
+                recurrence,
+              })
+            }
+            className="rounded-md bg-foreground px-3 py-1.5 text-xs text-background disabled:opacity-50"
+          >
+            {saving ? "Salvando…" : "Salvar"}
+          </button>
+        </div>
       </div>
     </div>
   );
