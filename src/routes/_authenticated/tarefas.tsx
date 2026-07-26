@@ -45,7 +45,6 @@ function inRange(task: Task, range: "week" | "month") {
 
 function TasksPage() {
   const { data: tasks = [], isLoading } = useTasks();
-  const { data: meetings = [] } = useMeetings();
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [range, setRange] = useState<"week" | "month">("week");
@@ -57,16 +56,7 @@ function TasksPage() {
     [tasks, range, filter],
   );
 
-  const visibleMeetings = useMemo(() => {
-    const now = new Date();
-    const from = range === "week" ? startOfWeek() : new Date(now.getFullYear(), now.getMonth(), 1);
-    const to = range === "week" ? endOfWeek() : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    return meetings.filter((m) => {
-      const d = new Date(m.starts_at);
-      if (d < from || d > to) return false;
-      return filter === "all" || m.source === filter;
-    });
-  }, [meetings, range, filter]);
+
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
