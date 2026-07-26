@@ -9,11 +9,6 @@ import { pushToGoogleCalendar } from "@/lib/gcal.functions";
 
 type Kind = "task" | "meeting";
 
-const GOOGLE_ENV_BY_SOURCE: Partial<Record<SourceKey, string>> = {
-  devore: "GOOGLE_CALENDAR_API_KEY",
-  pessoal: "GOOGLE_CALENDAR_API_KEY_1",
-};
-
 export function QuickAdd() {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>("task");
@@ -27,31 +22,49 @@ export function QuickAdd() {
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Escreva o que precisa ser feito.");
       if (kind === "task") {
-        const { error } = await supabase.from("tasks").insert({
-          title: title.trim(),
-          source,
-          due_date: when || null,
-        });
+        // Cria tarefa no Anora
+        const { data: inserted, error } = await supabase
+          .from("tasks")
+          .insert({ title: title.trim(), source, due_date: when || null })
+          .select("id")
+          .single();
         if (error) throw new Error(error.message);
+        // Se tem data, empurra pro Google como all-day
+        if (when && inserted?.id) {
+          try {
+            const res = await pushGoogle({
+              data: {
+                title: title.trim(),
+                startsAt: `${when}T09:00:00`,
+                allDay: true,
+                source,
+              },
+            });
+            if (res.eventId) {
+              await supabase
+                .from("tasks")
+                .update({ external_url: res.url, external_system: "google_calendar" })
+                .eq("id", inserted.id);
+            }
+            return { pushed: true };
+          } catch (e) {
+            toast.error(`Google Agenda: ${(e as Error).message}`);
+          }
+        }
         return { pushed: false };
       }
       if (!when) throw new Error("Escolha a data e hora da reunião.");
       const startsAt = new Date(when).toISOString();
-      const envVar = GOOGLE_ENV_BY_SOURCE[source];
       let googleId: string | null = null;
       let googleAccount: string | null = null;
       let externalUrl: string | null = null;
-      if (envVar) {
-        try {
-          const res = await pushGoogle({
-            data: { title: title.trim(), startsAt, account: envVar },
-          });
-          googleId = res.eventId ?? null;
-          googleAccount = res.calendarId ?? null;
-          externalUrl = res.url ?? null;
-        } catch (e) {
-          toast.error(`Google Agenda: ${(e as Error).message}`);
-        }
+      try {
+        const res = await pushGoogle({ data: { title: title.trim(), startsAt, source } });
+        googleId = res.eventId ?? null;
+        googleAccount = res.calendarId ?? null;
+        externalUrl = res.url ?? null;
+      } catch (e) {
+        toast.error(`Google Agenda: ${(e as Error).message}`);
       }
       const { error } = await supabase.from("meetings").insert({
         title: title.trim(),
@@ -66,11 +79,9 @@ export function QuickAdd() {
     },
     onSuccess: (res) => {
       toast.success(
-        kind === "task"
-          ? "Tarefa criada"
-          : res?.pushed
-            ? "Reunião criada e enviada ao Google"
-            : "Reunião criada",
+        res?.pushed
+          ? `${kind === "task" ? "Tarefa" : "Reunião"} criada e enviada ao Google Agenda`
+          : `${kind === "task" ? "Tarefa" : "Reunião"} criada`,
       );
       setTitle("");
       setWhen("");
@@ -79,6 +90,7 @@ export function QuickAdd() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <>
