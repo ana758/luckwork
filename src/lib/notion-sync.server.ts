@@ -11,7 +11,9 @@ export async function runNotionSync(supabase: any, userId: string) {
     return { imported: 0, pushed: 0, skipped: "sem credenciais" };
   }
 
-  const pages = await listMyPages();
+  const allPages = await listMyPages();
+  // Nunca importar páginas concluídas do Notion — só "a fazer" / "em execução" / "on hold".
+  const pages = allPages.filter((p) => p.status !== "done");
 
   const { data: existing } = await supabase
     .from("tasks")
@@ -26,7 +28,7 @@ export async function runNotionSync(supabase: any, userId: string) {
 
   // Anora → Notion: se concluída aqui e não lá, mover
   let pushed = 0;
-  for (const p of pages) {
+  for (const p of allPages) {
     const local = byKey.get(p.pageId);
     if (!local) continue;
     if (local.status === "done" && p.status !== "done") {
@@ -39,7 +41,18 @@ export async function runNotionSync(supabase: any, userId: string) {
     }
   }
 
-  // Notion → Anora: upsert
+  // Se a página virou "concluída" no Notion, remover da Anora
+  const remoteDoneIds = allPages.filter((p) => p.status === "done").map((p) => p.pageId);
+  if (remoteDoneIds.length > 0) {
+    await supabase
+      .from("tasks")
+      .delete()
+      .eq("created_by", userId)
+      .eq("external_system", "notion")
+      .in("external_id", remoteDoneIds);
+  }
+
+  // Notion → Anora: upsert (só não-concluídas)
   const rows = pages.map((p) => ({
     created_by: userId,
     source: "devore" as const,
@@ -50,7 +63,7 @@ export async function runNotionSync(supabase: any, userId: string) {
     status: p.status,
     priority: p.priority,
     due_date: p.dueDate,
-    completed_at: p.status === "done" ? p.updated : null,
+    completed_at: null,
     updated_at: nowIso,
   }));
 
