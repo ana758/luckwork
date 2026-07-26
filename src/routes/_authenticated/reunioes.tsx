@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
+import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { useMeetings } from "@/lib/queries";
 import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/reunioes")({
 
 function MeetingsPage() {
   const { data: meetings = [], isLoading } = useMeetings();
+  const [editing, setEditing] = useState<Meeting | null>(null);
   const now = Date.now();
   const upcoming = meetings.filter((m) => new Date(m.starts_at).getTime() >= now);
   const past = meetings.filter((m) => new Date(m.starts_at).getTime() < now).reverse();
@@ -30,7 +33,7 @@ function MeetingsPage() {
         <div className="mr-auto">
           <h1 className="text-xl font-semibold tracking-tight">Reuniões</h1>
           <p className="text-sm text-muted-foreground">
-            Reuniões aparecem em vermelho no calendário e no início.
+            Toque em qualquer reunião para editar ou remover (só afeta o Anora).
           </p>
         </div>
         <SyncGoogleButton />
@@ -40,22 +43,27 @@ function MeetingsPage() {
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : (
         <>
-          <Section title="Próximas" items={upcoming} empty="Nenhuma reunião marcada." />
-          <Section title="Anteriores" items={past} empty="Nada por aqui ainda." />
+          <Section title="Próximas" items={upcoming} empty="Nenhuma reunião marcada." onOpen={setEditing} />
+          <Section title="Anteriores" items={past} empty="Nada por aqui ainda." onOpen={setEditing} />
         </>
       )}
+
+      {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
+
 
 function Section({
   title,
   items,
   empty,
+  onOpen,
 }: {
   title: string;
   items: Meeting[];
   empty: string;
+  onOpen: (m: Meeting) => void;
 }) {
   return (
     <section>
@@ -65,7 +73,11 @@ function Section({
       ) : (
         <div className="space-y-2">
           {items.map((m) => (
-            <article key={m.id} className="rounded-xl border border-l-4 border-l-reuniao bg-card p-3">
+            <button
+              key={m.id}
+              onClick={() => onOpen(m)}
+              className="block w-full rounded-xl border border-l-4 border-l-reuniao bg-card p-3 text-left hover:bg-accent/40"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium">{m.title}</p>
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -89,7 +101,7 @@ function Section({
               {m.notes && (
                 <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{m.notes}</p>
               )}
-            </article>
+            </button>
           ))}
         </div>
       )}

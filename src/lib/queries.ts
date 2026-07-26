@@ -23,6 +23,7 @@ export function useMeetings() {
       const { data, error } = await supabase
         .from("meetings")
         .select("*")
+        .eq("hidden", false)
         .order("starts_at", { ascending: true });
       if (error) throw new Error(error.message);
       return (data ?? []) as Meeting[];

@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SOURCES, type SourceKey } from "@/lib/sources";
+import { pushToGoogleCalendar } from "@/lib/gcal.functions";
 
 type Kind = "task" | "meeting";
+
+const GOOGLE_ENV_BY_SOURCE: Partial<Record<SourceKey, string>> = {
+  devore: "GOOGLE_CALENDAR_API_KEY",
+  pessoal: "GOOGLE_CALENDAR_API_KEY_1",
+};
 
 export function QuickAdd() {
   const [open, setOpen] = useState(false);
@@ -14,6 +21,7 @@ export function QuickAdd() {
   const [when, setWhen] = useState("");
   const [source, setSource] = useState<SourceKey>("pessoal");
   const queryClient = useQueryClient();
+  const pushGoogle = useServerFn(pushToGoogleCalendar);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -25,18 +33,45 @@ export function QuickAdd() {
           due_date: when || null,
         });
         if (error) throw new Error(error.message);
-      } else {
-        if (!when) throw new Error("Escolha a data e hora da reunião.");
-        const { error } = await supabase.from("meetings").insert({
-          title: title.trim(),
-          source,
-          starts_at: new Date(when).toISOString(),
-        });
-        if (error) throw new Error(error.message);
+        return { pushed: false };
       }
+      if (!when) throw new Error("Escolha a data e hora da reunião.");
+      const startsAt = new Date(when).toISOString();
+      const envVar = GOOGLE_ENV_BY_SOURCE[source];
+      let googleId: string | null = null;
+      let googleAccount: string | null = null;
+      let externalUrl: string | null = null;
+      if (envVar) {
+        try {
+          const res = await pushGoogle({
+            data: { title: title.trim(), startsAt, account: envVar },
+          });
+          googleId = res.eventId ?? null;
+          googleAccount = res.calendarId ?? null;
+          externalUrl = res.url ?? null;
+        } catch (e) {
+          toast.error(`Google Agenda: ${(e as Error).message}`);
+        }
+      }
+      const { error } = await supabase.from("meetings").insert({
+        title: title.trim(),
+        source,
+        starts_at: startsAt,
+        google_event_id: googleId,
+        google_account: googleAccount,
+        external_url: externalUrl,
+      });
+      if (error) throw new Error(error.message);
+      return { pushed: Boolean(googleId) };
     },
-    onSuccess: () => {
-      toast.success(kind === "task" ? "Tarefa criada" : "Reunião criada");
+    onSuccess: (res) => {
+      toast.success(
+        kind === "task"
+          ? "Tarefa criada"
+          : res?.pushed
+            ? "Reunião criada e enviada ao Google"
+            : "Reunião criada",
+      );
       setTitle("");
       setWhen("");
       setOpen(false);
@@ -100,7 +135,7 @@ export function QuickAdd() {
             />
 
             <label className="text-xs text-muted-foreground">Empresa</label>
-            <div className="mb-4 mt-1 grid grid-cols-4 gap-1">
+            <div className="mb-1 mt-1 grid grid-cols-4 gap-1">
               {SOURCES.map((s) => (
                 <button
                   key={s.key}
@@ -124,6 +159,13 @@ export function QuickAdd() {
                 </button>
               ))}
             </div>
+            {kind === "meeting" && (
+              <p className="mb-3 text-[11px] text-muted-foreground">
+                {GOOGLE_ENV_BY_SOURCE[source]
+                  ? "Também será criado no Google Agenda desta conta."
+                  : "Esta empresa não tem Google conectado — fica só no Anora."}
+              </p>
+            )}
 
             <div className="flex justify-end gap-2">
               <button
