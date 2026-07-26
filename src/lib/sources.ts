@@ -6,14 +6,14 @@ export type Recurrence = "none" | "daily" | "weekly" | "monthly";
 export const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "angi", label: "Angi" },
   { key: "devore", label: "Devore" },
-  { key: "bruna", label: "Bruna" },
+  { key: "bruna", label: "Brand.Pe" },
   { key: "pessoal", label: "Pessoal" },
 ];
 
 export const SOURCE_LABEL: Record<SourceKey, string> = {
   angi: "Angi",
   devore: "Devore",
-  bruna: "Bruna",
+  bruna: "Brand.Pe",
   pessoal: "Pessoal",
 };
 
