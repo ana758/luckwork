@@ -26,6 +26,7 @@ export function MeetingEditModal({
   const [notes, setNotes] = useState(meeting.notes ?? "");
   const qc = useQueryClient();
   const patchGoogle = useServerFn(patchGoogleEvent);
+  const delGoogle = useServerFn(deleteGoogleEvent);
   const isFromGoogle = Boolean(meeting.google_event_id);
 
   const save = useMutation({
@@ -46,7 +47,6 @@ export function MeetingEditModal({
         const { learnSourceRule } = await import("@/lib/learn-source");
         await learnSourceRule(title.trim(), source);
       }
-      // Bilateral: se está vinculado ao Google, atualiza lá também.
       if (meeting.google_event_id && meeting.google_account) {
         try {
           await patchGoogle({
@@ -77,25 +77,39 @@ export function MeetingEditModal({
 
   const remove = useMutation({
     mutationFn: async () => {
-      if (isFromGoogle) {
-        // Soft-delete: mantém o vínculo para não reimportar do Google.
-        const { error } = await supabase
-          .from("meetings")
-          .update({ hidden: true })
-          .eq("id", meeting.id);
-        if (error) throw new Error(error.message);
-      } else {
-        const { error } = await supabase.from("meetings").delete().eq("id", meeting.id);
-        if (error) throw new Error(error.message);
+      let googleOk = true;
+      if (meeting.google_event_id && meeting.google_account) {
+        try {
+          await delGoogle({
+            data: {
+              googleAccount: meeting.google_account,
+              googleEventId: meeting.google_event_id,
+            },
+          });
+        } catch (e) {
+          googleOk = false;
+          toast.error(`Google Agenda: ${(e as Error).message}`);
+        }
       }
+      const { error } = await supabase.from("meetings").delete().eq("id", meeting.id);
+      if (error) throw new Error(error.message);
+      return { googleOk, wasLinked: isFromGoogle };
     },
-    onSuccess: () => {
-      toast.success("Removido do Anora (Google Agenda não foi alterado)");
+    onSuccess: (r) => {
+      toast.success(
+        r.wasLinked
+          ? r.googleOk
+            ? "Removido do Anora e do Google Agenda"
+            : "Removido do Anora (Google Agenda falhou)"
+          : "Removido",
+      );
       qc.invalidateQueries({ queryKey: ["meetings"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
 
   return (
     <div
