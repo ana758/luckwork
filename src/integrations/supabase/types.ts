@@ -14,16 +14,243 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      access_entries: {
+        Row: {
+          created_at: string
+          id: string
+          is_connected: boolean
+          label: string
+          login: string | null
+          password_ciphertext: string | null
+          source: Database["public"]["Enums"]["source_key"]
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_connected?: boolean
+          label: string
+          login?: string | null
+          password_ciphertext?: string | null
+          source: Database["public"]["Enums"]["source_key"]
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_connected?: boolean
+          label?: string
+          login?: string | null
+          password_ciphertext?: string | null
+          source?: Database["public"]["Enums"]["source_key"]
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      email_accounts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_connected: boolean
+          provider: string
+          source: Database["public"]["Enums"]["source_key"]
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_connected?: boolean
+          provider?: string
+          source?: Database["public"]["Enums"]["source_key"]
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_connected?: boolean
+          provider?: string
+          source?: Database["public"]["Enums"]["source_key"]
+        }
+        Relationships: []
+      }
+      meetings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          external_url: string | null
+          id: string
+          meeting_type: string | null
+          notes: string | null
+          people: string | null
+          source: Database["public"]["Enums"]["source_key"]
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          external_url?: string | null
+          id?: string
+          meeting_type?: string | null
+          notes?: string | null
+          people?: string | null
+          source?: Database["public"]["Enums"]["source_key"]
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          external_url?: string | null
+          id?: string
+          meeting_type?: string | null
+          notes?: string | null
+          people?: string | null
+          source?: Database["public"]["Enums"]["source_key"]
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read_at: string | null
+          task_id: string | null
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          task_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          task_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          external_id: string | null
+          external_system: string | null
+          external_url: string | null
+          id: string
+          notes: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          recurrence: Database["public"]["Enums"]["recurrence_kind"]
+          source: Database["public"]["Enums"]["source_key"]
+          start_date: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          external_id?: string | null
+          external_system?: string | null
+          external_url?: string | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: Database["public"]["Enums"]["recurrence_kind"]
+          source?: Database["public"]["Enums"]["source_key"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          external_id?: string | null
+          external_system?: string | null
+          external_url?: string | null
+          id?: string
+          notes?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: Database["public"]["Enums"]["recurrence_kind"]
+          source?: Database["public"]["Enums"]["source_key"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      workspace_members: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          status: Database["public"]["Enums"]["member_status"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          status?: Database["public"]["Enums"]["member_status"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          status?: Database["public"]["Enums"]["member_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_active_member: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      member_status: "active" | "pending"
+      recurrence_kind: "none" | "daily" | "weekly" | "monthly"
+      source_key: "angi" | "devore" | "bruna" | "pessoal"
+      task_priority: "alta" | "media" | "baixa"
+      task_status: "todo" | "doing" | "onhold" | "done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +377,12 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      member_status: ["active", "pending"],
+      recurrence_kind: ["none", "daily", "weekly", "monthly"],
+      source_key: ["angi", "devore", "bruna", "pessoal"],
+      task_priority: ["alta", "media", "baixa"],
+      task_status: ["todo", "doing", "onhold", "done"],
+    },
   },
 } as const
