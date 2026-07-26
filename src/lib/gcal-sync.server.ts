@@ -82,6 +82,12 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const perAccount: { email: string; count: number }[] = [];
   const seenPairs = new Set<string>(); // `${google_account}::${google_event_id}`
 
+  // Carrega regras aprendidas (título → empresa correta).
+  const { normalizeTitleKey } = await import("./source-rules");
+  const { data: rulesData } = await supabase.from("source_rules").select("title_key, source");
+  const rulesMap = new Map<string, string>();
+  for (const r of rulesData ?? []) rulesMap.set(r.title_key as string, r.source as string);
+
   for (const acc of accounts) {
     const accountEmail = await primaryCalendarId(acc.key);
     const calendars = (await listCalendars(acc.key)).filter(
@@ -91,7 +97,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
     let accountCount = 0;
 
     for (const cal of calendars) {
-      const { source, isMeeting, skip } = classifyCalendar(acc.defaultSource, cal);
+      const { source: defaultSource, isMeeting, skip } = classifyCalendar(acc.defaultSource, cal);
       if (skip) continue;
       const events = await listEvents(acc.key, cal.id, timeMin, timeMax);
       const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
@@ -109,20 +115,25 @@ export async function runCalendarSync(supabase: any, userId: string) {
 
       const rows = candidates
         .filter((e) => !hiddenSet.has(e.id))
-        .map((e) => ({
-          title: e.summary?.trim() || "(sem título)",
-          source,
-          starts_at: eventStart(e)!,
-          ends_at: eventEnd(e),
-          meeting_type: isMeeting ? "Reunião" : e.hangoutLink ? "Online" : null,
-          people: eventPeople(e),
-          location: e.location ?? null,
-          notes: e.description?.slice(0, 4000) ?? null,
-          external_url: e.hangoutLink ?? e.htmlLink ?? null,
-          google_event_id: e.id,
-          google_account: cal.id,
-          synced_at: new Date().toISOString(),
-        }));
+        .map((e) => {
+          const title = e.summary?.trim() || "(sem título)";
+          const learned = rulesMap.get(normalizeTitleKey(title));
+          const source = learned ?? defaultSource;
+          return {
+            title,
+            source,
+            starts_at: eventStart(e)!,
+            ends_at: eventEnd(e),
+            meeting_type: isMeeting ? "Reunião" : e.hangoutLink ? "Online" : null,
+            people: eventPeople(e),
+            location: e.location ?? null,
+            notes: e.description?.slice(0, 4000) ?? null,
+            external_url: e.hangoutLink ?? e.htmlLink ?? null,
+            google_event_id: e.id,
+            google_account: cal.id,
+            synced_at: new Date().toISOString(),
+          };
+        });
 
       if (rows.length > 0) {
         const { error } = await supabase

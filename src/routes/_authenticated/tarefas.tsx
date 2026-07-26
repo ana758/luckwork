@@ -155,13 +155,23 @@ function TasksPage() {
       const isMeeting = id.startsWith("m:");
       const realId = isMeeting ? id.slice(2) : id;
       const table = isMeeting ? "meetings" : "tasks";
+      const { data: row, error: readErr } = await supabase
+        .from(table)
+        .select("title")
+        .eq("id", realId)
+        .maybeSingle();
+      if (readErr) throw new Error(readErr.message);
       const { error } = await supabase.from(table).update({ source }).eq("id", realId);
       if (error) throw new Error(error.message);
+      if (row?.title) {
+        const { learnSourceRule } = await import("@/lib/learn-source");
+        await learnSourceRule(row.title, source);
+      }
     },
-    onSuccess: (_d, v) => {
-      queryClient.invalidateQueries({
-        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Anora aprendeu: próximos iguais vão para essa empresa.");
     },
     onError: (e: Error) => toast.error(e.message),
   });

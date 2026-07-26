@@ -178,6 +178,30 @@ export type Database = {
           },
         ]
       }
+      source_rules: {
+        Row: {
+          created_at: string
+          id: string
+          source: string
+          title_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          source: string
+          title_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          source?: string
+          title_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed_at: string | null

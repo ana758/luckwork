@@ -37,10 +37,15 @@ export function MeetingEditModal({
         })
         .eq("id", meeting.id);
       if (error) throw new Error(error.message);
+      if (source !== meeting.source) {
+        const { learnSourceRule } = await import("@/lib/learn-source");
+        await learnSourceRule(title.trim(), source);
+      }
     },
     onSuccess: () => {
       toast.success("Reunião atualizada (apenas no Anora)");
       qc.invalidateQueries({ queryKey: ["meetings"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
