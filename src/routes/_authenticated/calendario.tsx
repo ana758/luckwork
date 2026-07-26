@@ -49,6 +49,8 @@ function CalendarPage() {
   });
   const [filter, setFilter] = useState<SourceKey | "all">("all");
   const [editing, setEditing] = useState<Meeting | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const { data: tasks = [] } = useTasks();
   const { data: meetings = [] } = useMeetings();
