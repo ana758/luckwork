@@ -22,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/reunioes")({
 
 function MeetingsPage() {
   const { data: meetings = [], isLoading } = useMeetings();
+  const [editing, setEditing] = useState<Meeting | null>(null);
   const now = Date.now();
   const upcoming = meetings.filter((m) => new Date(m.starts_at).getTime() >= now);
   const past = meetings.filter((m) => new Date(m.starts_at).getTime() < now).reverse();
@@ -32,7 +33,7 @@ function MeetingsPage() {
         <div className="mr-auto">
           <h1 className="text-xl font-semibold tracking-tight">Reuniões</h1>
           <p className="text-sm text-muted-foreground">
-            Reuniões aparecem em vermelho no calendário e no início.
+            Toque em qualquer reunião para editar ou remover (só afeta o Anora).
           </p>
         </div>
         <SyncGoogleButton />
@@ -42,13 +43,16 @@ function MeetingsPage() {
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : (
         <>
-          <Section title="Próximas" items={upcoming} empty="Nenhuma reunião marcada." />
-          <Section title="Anteriores" items={past} empty="Nada por aqui ainda." />
+          <Section title="Próximas" items={upcoming} empty="Nenhuma reunião marcada." onOpen={setEditing} />
+          <Section title="Anteriores" items={past} empty="Nada por aqui ainda." onOpen={setEditing} />
         </>
       )}
+
+      {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
+
 
 function Section({
   title,
