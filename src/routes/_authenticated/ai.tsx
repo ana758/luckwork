@@ -235,7 +235,7 @@ function AIPage() {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           maxLength={400}
-          placeholder="Pergunte algo à sua assistente…"
+          placeholder='Ex.: "adiciona tarefa pessoal dia 28/07 falar com dr lazaro"'
           className="flex-1 rounded-full border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <button
