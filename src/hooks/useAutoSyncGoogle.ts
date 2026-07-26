@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { syncGoogleCalendar } from "@/lib/gcal.functions";
 import { syncJira } from "@/lib/jira.functions";
+import { syncNotion } from "@/lib/notion.functions";
 
 const INTERVAL_MS = 3 * 60 * 1000; // 3 min
 let lastRun = 0;
@@ -12,7 +13,7 @@ async function runOnce(qc: ReturnType<typeof useQueryClient>) {
   if (Date.now() - lastRun < 30_000) return; // cooldown curto
   inFlight = (async () => {
     try {
-      await Promise.allSettled([syncGoogleCalendar(), syncJira()]);
+      await Promise.allSettled([syncGoogleCalendar(), syncJira(), syncNotion()]);
       lastRun = Date.now();
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["meetings"] }),
