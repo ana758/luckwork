@@ -65,10 +65,10 @@ function Dashboard() {
 
   const weekTotal = weekly.reduce((a, b) => a + b.value, 0);
 
-  const overdueTasks = useMemo(
-    () => tasks.filter((t) => isOverdue(t) && visibleSources.includes(t.source)),
-    [tasks, visibleSources],
-  );
+  const overdueTasks = useMemo(() => {
+    const keys = visibleSources.map((s) => s.key);
+    return tasks.filter((t) => isOverdue(t) && keys.includes(t.source));
+  }, [tasks, visibleSources]);
 
   return (
     <div className="space-y-6">
