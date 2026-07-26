@@ -19,6 +19,8 @@ export function QuickAdd() {
   const [source, setSource] = useState<SourceKey>("pessoal");
   const queryClient = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
+  const pushJira = useServerFn(createJiraIssue);
+
 
   const mutation = useMutation({
     mutationFn: async () => {
