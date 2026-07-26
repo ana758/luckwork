@@ -38,7 +38,8 @@ function fmtKey(d: Date) {
 
 type CalItem =
   | { kind: "meeting"; id: string; title: string; dot: string; meeting: Meeting }
-  | { kind: "task"; id: string; title: string; dot: string };
+  | { kind: "task"; id: string; title: string; dot: string; task: Task };
+
 
 function CalendarPage() {
   const [view, setView] = useState<ViewMode>("month");
