@@ -53,7 +53,8 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
           .from("tasks")
           .select("id, title, source, due_date, status")
           .lt("due_date", today)
-          .in("status", ["todo", "doing", "onhold"]);
+          .eq("status", "todo");
+
 
         if ((overdue ?? []).length > 0) {
           const bySource: Record<string, number> = {};
