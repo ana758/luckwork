@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarClock, ListTodo, Mail, Send, Sparkles, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarClock, ListTodo, Mail, Mic, MicOff, Send, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { aiAction, getDailyBriefing, getImportantEmails, type ImportantEmail } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
@@ -29,7 +29,9 @@ function AIPage() {
   const { data: meetings = [] } = useMeetings();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [listening, setListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const summary = useMemo(() => {
     const today = new Date();
@@ -113,6 +115,45 @@ function AIPage() {
       return;
     }
     ask.mutate(text);
+  }
+
+  function toggleListening() {
+    const SR =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Reconhecimento de voz não suportado neste navegador. Use Safari no iPhone.");
+      return;
+    }
+    if (listening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      setListening(false);
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "pt-BR";
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.onresult = (ev: any) => {
+      let text = "";
+      for (let i = 0; i < ev.results.length; i++) {
+        text += ev.results[i][0].transcript;
+      }
+      setQuestion(text);
+    };
+    rec.onerror = (ev: any) => {
+      toast.error(`Voz: ${ev.error ?? "erro"}`);
+      setListening(false);
+    };
+    rec.onend = () => setListening(false);
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+      setListening(true);
+    } catch (e) {
+      toast.error(`Não consegui iniciar o microfone: ${(e as Error).message}`);
+    }
   }
 
   const suggestions = [
@@ -245,23 +286,48 @@ function AIPage() {
           e.preventDefault();
           send();
         }}
-        className="flex gap-2"
+        className="flex items-end gap-2"
       >
-        <input
+        <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          maxLength={400}
-          placeholder='Ex.: "adiciona tarefa pessoal dia 28/07 falar com dr lazaro"'
-          className="flex-1 rounded-full border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          maxLength={2000}
+          rows={3}
+          placeholder={
+            listening
+              ? "Escutando… fale agora"
+              : 'Ex.: "adiciona tarefa angi dia 28/07 falar com dr lazaro". Enter envia, Shift+Enter quebra linha.'
+          }
+          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
-        <button
-          type="submit"
-          disabled={ask.isPending}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
-          aria-label="Enviar"
-        >
-          <Send className="h-4 w-4" />
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+              listening
+                ? "border-reuniao bg-reuniao text-white animate-pulse"
+                : "bg-card text-foreground hover:bg-accent"
+            }`}
+            aria-label={listening ? "Parar gravação" : "Falar"}
+          >
+            {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </button>
+          <button
+            type="submit"
+            disabled={ask.isPending}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+            aria-label="Enviar"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
       </form>
     </div>
   );
