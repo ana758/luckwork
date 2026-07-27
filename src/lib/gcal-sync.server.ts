@@ -373,10 +373,14 @@ export async function runDeleteGoogleEvent(
       await deleteEvent(acc.key, data.googleAccount, data.googleEventId);
       return { ok: true };
     } catch (e) {
+      const msg = (e as Error)?.message ?? "";
+      // Já apagado/inexistente no Google → sucesso idempotente.
+      if (/\[(404|410)\]/.test(msg)) return { ok: true, alreadyGone: true };
       lastErr = e;
     }
   }
   throw new Error(`Não consegui apagar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
 }
+
 
 
