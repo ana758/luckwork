@@ -134,6 +134,25 @@ function CalendarPage() {
     else setEditingTask(item.task);
   }
 
+  async function toggleMeetingDone(m: Meeting) {
+    const wasDone = Boolean((m as any).completed_at);
+    const nextCompleted = wasDone ? null : new Date().toISOString();
+    // Otimista
+    qc.setQueryData<Meeting[]>(["meetings"], (old) =>
+      (old ?? []).map((x) => (x.id === m.id ? ({ ...x, completed_at: nextCompleted } as Meeting) : x)),
+    );
+    const { error } = await supabase
+      .from("meetings")
+      .update({ completed_at: nextCompleted })
+      .eq("id", m.id);
+    if (error) {
+      toast.error(error.message);
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+      return;
+    }
+    toast.success(wasDone ? "Marcado como pendente" : "Marcado como concluído");
+  }
+
 
   async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
     const oldStart = new Date(m.starts_at);
