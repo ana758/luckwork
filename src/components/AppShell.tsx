@@ -12,8 +12,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { QuickAdd } from "./QuickAdd";
 import { NotificationsBell } from "./NotificationsBell";
+import { NotifPermissionButton } from "./NotifPermissionButton";
 import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
 import { useOverdueScan } from "@/hooks/useOverdueScan";
+import { useDesktopReminders } from "@/lib/desktop-notify";
+
 
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
