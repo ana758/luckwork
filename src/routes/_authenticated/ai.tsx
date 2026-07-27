@@ -286,23 +286,48 @@ function AIPage() {
           e.preventDefault();
           send();
         }}
-        className="flex gap-2"
+        className="flex items-end gap-2"
       >
-        <input
+        <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          maxLength={400}
-          placeholder='Ex.: "adiciona tarefa pessoal dia 28/07 falar com dr lazaro"'
-          className="flex-1 rounded-full border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          maxLength={2000}
+          rows={3}
+          placeholder={
+            listening
+              ? "Escutando… fale agora"
+              : 'Ex.: "adiciona tarefa angi dia 28/07 falar com dr lazaro". Enter envia, Shift+Enter quebra linha.'
+          }
+          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
-        <button
-          type="submit"
-          disabled={ask.isPending}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
-          aria-label="Enviar"
-        >
-          <Send className="h-4 w-4" />
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+              listening
+                ? "border-reuniao bg-reuniao text-white animate-pulse"
+                : "bg-card text-foreground hover:bg-accent"
+            }`}
+            aria-label={listening ? "Parar gravação" : "Falar"}
+          >
+            {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </button>
+          <button
+            type="submit"
+            disabled={ask.isPending}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+            aria-label="Enviar"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
       </form>
     </div>
   );
