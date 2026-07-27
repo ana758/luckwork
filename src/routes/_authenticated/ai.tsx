@@ -120,42 +120,82 @@ function AIPage() {
     ask.mutate(text);
   }
 
-  function toggleListening() {
-    const SR =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      toast.error("Reconhecimento de voz não suportado neste navegador. Use Safari no iPhone.");
-      return;
-    }
-    if (listening && recognitionRef.current) {
+  async function toggleListening() {
+    // Se está gravando → para, transcreve e envia
+    if (listening && recorderRef.current) {
+      const rec = recorderRef.current;
+      const stream = streamRef.current;
+      setListening(false);
       try {
-        recognitionRef.current.stop();
+        await new Promise<void>((resolve) => {
+          rec.addEventListener("stop", () => resolve(), { once: true });
+          rec.stop();
+        });
       } catch {}
-      setListening(false);
+      stream?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      recorderRef.current = null;
+
+      const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || "audio/webm" });
+      chunksRef.current = [];
+      if (blob.size < 800) {
+        toast.error("Áudio muito curto. Fale por 1 segundo ou mais.");
+        return;
+      }
+
+      setTranscribing(true);
+      try {
+        // Blob → base64
+        const buf = await blob.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let bin = "";
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+        }
+        const base64 = btoa(bin);
+        const { text } = await transcribeAudio({
+          data: { audioBase64: base64, mimeType: blob.type || "audio/webm" },
+        });
+        if (!text) {
+          toast.error("Não entendi o áudio. Tente falar novamente.");
+          return;
+        }
+        setQuestion(text);
+        // Envia direto pra IA agir
+        ask.mutate(text);
+      } catch (e) {
+        toast.error((e as Error).message);
+      } finally {
+        setTranscribing(false);
+      }
       return;
     }
-    const rec = new SR();
-    rec.lang = "pt-BR";
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.onresult = (ev: any) => {
-      let text = "";
-      for (let i = 0; i < ev.results.length; i++) {
-        text += ev.results[i][0].transcript;
-      }
-      setQuestion(text);
-    };
-    rec.onerror = (ev: any) => {
-      toast.error(`Voz: ${ev.error ?? "erro"}`);
-      setListening(false);
-    };
-    rec.onend = () => setListening(false);
-    recognitionRef.current = rec;
+
+    // Inicia gravação
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error("Microfone não disponível neste dispositivo.");
+      return;
+    }
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Prefere webm/opus; Safari cai em mp4
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "";
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunksRef.current.push(ev.data);
+      };
       rec.start();
+      recorderRef.current = rec;
+      streamRef.current = stream;
       setListening(true);
     } catch (e) {
-      toast.error(`Não consegui iniciar o microfone: ${(e as Error).message}`);
+      toast.error(`Não consegui acessar o microfone: ${(e as Error).message}`);
     }
   }
 
