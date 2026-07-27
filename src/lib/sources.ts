@@ -80,6 +80,7 @@ export type Task = {
   due_date: string | null;
   recurrence: Recurrence;
   external_system: string | null;
+  external_id?: string | null;
   external_url: string | null;
   completed_at: string | null;
   created_at: string;
