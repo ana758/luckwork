@@ -117,6 +117,45 @@ function AIPage() {
     ask.mutate(text);
   }
 
+  function toggleListening() {
+    const SR =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Reconhecimento de voz não suportado neste navegador. Use Safari no iPhone.");
+      return;
+    }
+    if (listening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      setListening(false);
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "pt-BR";
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.onresult = (ev: any) => {
+      let text = "";
+      for (let i = 0; i < ev.results.length; i++) {
+        text += ev.results[i][0].transcript;
+      }
+      setQuestion(text);
+    };
+    rec.onerror = (ev: any) => {
+      toast.error(`Voz: ${ev.error ?? "erro"}`);
+      setListening(false);
+    };
+    rec.onend = () => setListening(false);
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+      setListening(true);
+    } catch (e) {
+      toast.error(`Não consegui iniciar o microfone: ${(e as Error).message}`);
+    }
+  }
+
   const suggestions = [
     "Resumo do dia",
     "O que priorizar hoje?",
