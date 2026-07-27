@@ -437,28 +437,14 @@ function CalendarPage() {
                     </div>
                   )}
                   {items.map((i) => {
-                    const done = i.kind === "meeting" && Boolean((i.meeting as any).completed_at);
+                    const done = i.kind === "meeting"
+                      ? Boolean((i.meeting as any).completed_at)
+                      : i.task.status === "done";
                     return (
                       <div
                         key={i.id}
-                        className={`flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5 ${
-                          done ? "border-emerald-500/60 bg-emerald-500/5" : ""
-                        }`}
+                        className="flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5"
                       >
-                        {i.kind === "meeting" && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleMeetingDone(i.meeting);
-                            }}
-                            aria-label={done ? "Desmarcar" : "Marcar concluído"}
-                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                              done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40 hover:border-emerald-500"
-                            }`}
-                          >
-                            {done && <Check className="h-2.5 w-2.5" strokeWidth={4} />}
-                          </button>
-                        )}
                         <button
                           draggable={i.kind === "meeting"}
                           onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
@@ -466,9 +452,22 @@ function CalendarPage() {
                           className="flex min-w-0 flex-1 items-start gap-1.5 text-left hover:bg-accent/60 rounded"
                         >
                           <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
-                          <span className={`min-w-0 flex-1 break-words text-xs leading-tight ${done ? "text-muted-foreground line-through" : ""}`}>
+                          <span className="min-w-0 flex-1 break-words text-xs leading-tight">
                             {i.title}
                           </span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (i.kind === "meeting") toggleMeetingDone(i.meeting);
+                            else toggleTaskDone(i.task);
+                          }}
+                          aria-label={done ? "Desmarcar" : "Marcar concluído"}
+                          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                            done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40 hover:border-emerald-500"
+                          }`}
+                        >
+                          {done && <Check className="h-2.5 w-2.5" strokeWidth={4} />}
                         </button>
                       </div>
                     );
