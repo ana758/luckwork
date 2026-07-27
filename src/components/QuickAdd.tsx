@@ -148,24 +148,25 @@ export function QuickAdd() {
         void (async () => {
           try {
             const res = await pushGoogle({
-              data: { title: payload.title, startsAt, source },
+              data: { title: payload.title, startsAt, source, withMeetLink: true },
             });
             await supabase
               .from("meetings")
               .update({
                 google_event_id: res.eventId ?? null,
                 google_account: res.calendarId ?? null,
-                external_url: res.url ?? null,
+                external_url: res.meetLink ?? res.url ?? null,
               })
               .eq("id", inserted.id);
             queryClient.invalidateQueries({ queryKey: ["meetings"] });
-            toast.success("Também no Google Agenda");
+            toast.success(res.meetLink ? "Reunião no Google Agenda com link Meet" : "Também no Google Agenda");
           } catch (e) {
             toast.error(`Google Agenda: ${(e as Error).message}`);
           }
         })();
       }
       return { kind };
+
     },
     onSuccess: (res) => {
       toast.success(res.kind === "task" ? "Tarefa criada" : "Reunião criada");
