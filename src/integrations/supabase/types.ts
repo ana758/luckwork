@@ -392,6 +392,7 @@ export type Database = {
     Functions: {
       cleanup_old_logs: { Args: never; Returns: undefined }
       is_active_member: { Args: { _user_id: string }; Returns: boolean }
+      luck_meeting_title_key: { Args: { _title: string }; Returns: string }
     }
     Enums: {
       member_status: "active" | "pending"
