@@ -31,7 +31,8 @@ export const Route = createFileRoute("/_authenticated/calendario")({
 });
 
 const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-type ViewMode = "day" | "5day" | "month";
+type ViewMode = "day" | "2day" | "5day" | "month";
+
 
 function fmtKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -88,6 +89,7 @@ function CalendarPage() {
     const d = new Date(cursor);
     if (view === "month") d.setMonth(d.getMonth() + dir);
     else if (view === "5day") d.setDate(d.getDate() + dir * 5);
+    else if (view === "2day") d.setDate(d.getDate() + dir * 2);
     else d.setDate(d.getDate() + dir);
     setCursor(d);
   }
@@ -107,7 +109,7 @@ function CalendarPage() {
 
   const rangeDays = useMemo(() => {
     if (view === "month") return [];
-    const n = view === "day" ? 1 : 5;
+    const n = view === "day" ? 1 : view === "2day" ? 2 : 5;
     return Array.from({ length: n }, (_, i) => {
       const d = new Date(cursor);
       d.setDate(cursor.getDate() + i);
@@ -123,8 +125,9 @@ function CalendarPage() {
         : `${cursor.toLocaleDateString("pt-BR", { day: "numeric", month: "short" })} – ${new Date(
             cursor.getFullYear(),
             cursor.getMonth(),
-            cursor.getDate() + 4,
+            cursor.getDate() + (view === "2day" ? 1 : 4),
           ).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`;
+
 
   function openItem(item: CalItem) {
     if (item.kind === "meeting") setEditing(item.meeting);
@@ -199,42 +202,49 @@ function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-xl font-semibold tracking-tight">Calendário</h1>
-        <div className="flex rounded-md border p-0.5 text-xs">
-          {(["day", "5day", "month"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              className={`rounded px-2 py-1 ${view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-            >
-              {v === "day" ? "Dia" : v === "5day" ? "5 dias" : "Mês"}
-            </button>
-          ))}
+      <header className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="mr-auto text-xl font-semibold tracking-tight">Calendário</h1>
+          <SyncGoogleButton />
         </div>
-        <button
-          onClick={() => setCursor(new Date())}
-          className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
-        >
-          Hoje
-        </button>
-        <SyncGoogleButton />
-        <button
-          aria-label="Anterior"
-          onClick={() => shift(-1)}
-          className="rounded-md border p-1.5 hover:bg-accent"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="min-w-40 text-center text-sm font-medium capitalize">{headerLabel}</span>
-        <button
-          aria-label="Próximo"
-          onClick={() => shift(1)}
-          className="rounded-md border p-1.5 hover:bg-accent"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-1 rounded-md border p-0.5 text-xs">
+            {(["day", "2day", "5day", "month"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={`flex-1 rounded px-2 py-1.5 ${view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+              >
+                {v === "day" ? "Dia" : v === "2day" ? "2 dias" : v === "5day" ? "5 dias" : "Mês"}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCursor(new Date())}
+            className="rounded-md border px-2 py-1.5 text-xs hover:bg-accent"
+          >
+            Hoje
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            aria-label="Anterior"
+            onClick={() => shift(-1)}
+            className="rounded-md border p-2 hover:bg-accent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="flex-1 text-center text-sm font-medium capitalize">{headerLabel}</span>
+          <button
+            aria-label="Próximo"
+            onClick={() => shift(1)}
+            className="rounded-md border p-2 hover:bg-accent"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </header>
+
 
       <div className="flex flex-wrap gap-1.5 text-xs">
         <button

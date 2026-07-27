@@ -220,6 +220,7 @@ export async function runCalendarPush(
     allDay?: boolean;
     account?: string | null;
     source?: string | null;
+    withMeetLink?: boolean;
   },
 ) {
   await assertMember(supabase, userId);
@@ -250,9 +251,32 @@ export async function runCalendarPush(
     body.end = { dateTime: end.toISOString() };
   }
 
-  const created = await createEvent(acc.key, calendarId, body);
-  return { ok: true, eventId: created.id, calendarId, url: created.htmlLink ?? null };
+  if (data.withMeetLink && !data.allDay) {
+    body.conferenceData = {
+      createRequest: {
+        requestId: `anora-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    };
+  }
+
+  const created = await createEvent(acc.key, calendarId, body, {
+    conferenceDataVersion: data.withMeetLink && !data.allDay ? 1 : 0,
+  });
+  const meetLink =
+    created.hangoutLink ??
+    (created as any).conferenceData?.entryPoints?.find((p: any) => p.entryPointType === "video")
+      ?.uri ??
+    null;
+  return {
+    ok: true,
+    eventId: created.id,
+    calendarId,
+    url: created.htmlLink ?? null,
+    meetLink,
+  };
 }
+
 
 export async function runMoveGoogleEvent(
   supabase: any,

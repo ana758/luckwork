@@ -159,18 +159,20 @@ function AIPage() {
   const suggestions = [
     "Resumo do dia",
     "O que priorizar hoje?",
-    "Tarefas travadas — como destravar?",
+    "Apagar tarefa teste 4",
     "Como está a semana na Angi?",
   ];
 
+
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4 md:h-[calc(100vh-4rem)]">
+    <div className="flex min-h-[calc(100dvh-14rem)] flex-col gap-4 pb-6 md:min-h-[calc(100vh-6rem)]">
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Espaço IA</h1>
         <p className="text-sm text-muted-foreground">
-          Converse com sua assistente. Resumo do dia, alertas e sugestões práticas.
+          Converse, peça resumo, adicione tarefas ou apague o que não precisa mais.
         </p>
       </header>
+
 
       {/* Alert cards */}
       <div className="grid gap-2 sm:grid-cols-3">
@@ -227,10 +229,60 @@ function AIPage() {
 
 
 
+      {/* Composer FIRST (perto do teclado no mobile) */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+        className="flex items-end gap-2"
+      >
+        <textarea
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          maxLength={2000}
+          rows={3}
+          placeholder={
+            listening
+              ? "Escutando… fale agora"
+              : 'Ex.: "apagar reunião com Dr Lazaro" ou "adiciona tarefa angi dia 28/07"'
+          }
+          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+              listening
+                ? "border-reuniao bg-reuniao text-white animate-pulse"
+                : "bg-card text-foreground hover:bg-accent"
+            }`}
+            aria-label={listening ? "Parar gravação" : "Falar"}
+          >
+            {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </button>
+          <button
+            type="submit"
+            disabled={ask.isPending}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+            aria-label="Enviar"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+      </form>
+
       {/* Chat area */}
       <div
         ref={scrollRef}
-        className="flex-1 space-y-3 overflow-y-auto rounded-xl border bg-card p-4"
+        className="min-h-[40vh] flex-1 space-y-3 overflow-y-auto rounded-xl border bg-card p-4"
       >
         {messages.length === 0 && !ask.isPending && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
@@ -238,7 +290,7 @@ function AIPage() {
               <Sparkles className="h-5 w-5" />
             </div>
             <p className="text-sm text-muted-foreground">
-              Peça um resumo do dia ou pergunte algo sobre suas tarefas e reuniões.
+              Peça resumo, adicione ou apague tarefas/reuniões por texto ou voz.
             </p>
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               {suggestions.map((s) => (
@@ -279,59 +331,10 @@ function AIPage() {
           </div>
         )}
       </div>
-
-      {/* Composer */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-        className="flex items-end gap-2"
-      >
-        <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          maxLength={2000}
-          rows={3}
-          placeholder={
-            listening
-              ? "Escutando… fale agora"
-              : 'Ex.: "adiciona tarefa angi dia 28/07 falar com dr lazaro". Enter envia, Shift+Enter quebra linha.'
-          }
-          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={toggleListening}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
-              listening
-                ? "border-reuniao bg-reuniao text-white animate-pulse"
-                : "bg-card text-foreground hover:bg-accent"
-            }`}
-            aria-label={listening ? "Parar gravação" : "Falar"}
-          >
-            {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-          </button>
-          <button
-            type="submit"
-            disabled={ask.isPending}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
-            aria-label="Enviar"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
-      </form>
     </div>
   );
 }
+
 
 function SummaryCard({
   icon,

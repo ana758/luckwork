@@ -22,12 +22,14 @@ export const pushToGoogleCalendar = createServerFn({ method: "POST" })
       allDay?: boolean;
       account?: string | null;
       source?: string | null;
+      withMeetLink?: boolean;
     }) => input,
   )
   .handler(async ({ data, context }) => {
     const { runCalendarPush } = await import("./gcal-sync.server");
     return runCalendarPush(context.supabase, context.userId, data);
   });
+
 
 /** Move um evento do Google (arrastar no calendário → nova data/hora). */
 export const moveGoogleEvent = createServerFn({ method: "POST" })

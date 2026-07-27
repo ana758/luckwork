@@ -182,14 +182,24 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// aiAction: interpreta linguagem natural e cria tarefa ou reunião
+// aiAction: interpreta linguagem natural e cria/apaga tarefa ou reunião
 // ---------------------------------------------------------------------------
 
 type ActionResult = {
-  intent: "add_task" | "add_meeting" | "chat";
+  intent: "add_task" | "add_meeting" | "delete" | "chat";
   reply: string;
   created?: { kind: "task" | "meeting"; title: string; when?: string };
+  deleted?: { kind: "task" | "meeting"; title: string };
 };
+
+function norm(s: string): string {
+  return (s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export const aiAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -214,17 +224,19 @@ export const aiAction = createServerFn({ method: "POST" })
       "2. Se mencionar 'devore' / 'na devore' → source='devore'.",
       "3. Se mencionar 'brand.pe' / 'brandpe' / 'bruna' / 'branding da bruna' → source='bruna'.",
       "4. Se mencionar 'pessoal' / 'minha vida' → source='pessoal'.",
-      "⚠️ ATENÇÃO: A palavra 'pessoal' pode aparecer como parte do texto da tarefa (ex: 'branding pessoal Mariana') e NÃO como empresa. Só use source='pessoal' quando ela referir claramente à empresa/categoria, não quando for parte do título da atividade. Se o usuário disse 'na angi: fazer branding pessoal', a empresa é ANGI.",
+      "⚠️ 'pessoal' pode aparecer no texto da tarefa (ex: 'branding pessoal Mariana') e NÃO como empresa. Só use source='pessoal' quando referir claramente à empresa.",
       "5. Se não houver menção clara de empresa, use 'pessoal'.",
       "Intents:",
       "- 'add_task' para tarefa (sem horário obrigatório).",
       "- 'add_meeting' para reunião/compromisso com horário.",
+      "- 'delete' quando a usuária pede para APAGAR/REMOVER/EXCLUIR/CANCELAR algo (tarefa, reunião, compromisso, evento).",
       "- 'chat' para qualquer outra pergunta.",
       "Formato de resposta (JSON):",
-      `{"intent":"add_task","reply":"texto curto de confirmação em pt-BR","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","notes":"opcional","location":"opcional"}}`,
+      `{"intent":"add_task","reply":"...","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","notes":"opcional","location":"opcional"}}`,
       `{"intent":"add_meeting","reply":"...","meeting":{"title":"...","source":"pessoal","starts_at":"YYYY-MM-DDTHH:mm:00-03:00","ends_at":"YYYY-MM-DDTHH:mm:00-03:00 ou null","location":"opcional","people":"opcional","notes":"opcional","meeting_type":"Compromisso"}}`,
+      `{"intent":"delete","reply":"...","target":{"kind":"task"|"meeting"|"auto","match":"palavras-chave do título","when":"YYYY-MM-DD opcional"}}`,
       `{"intent":"chat","reply":"resposta curta"}`,
-      "Se falar 'falar com X' sem horário, use add_task. Se disser 'reunião' ou horário explícito, add_meeting.",
+      "Para delete: use kind='auto' se não estiver claro se é tarefa ou reunião; 'match' deve conter as palavras mais distintivas do título.",
       "Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base na data de hoje.",
     ].join("\n");
 
@@ -243,6 +255,7 @@ export const aiAction = createServerFn({ method: "POST" })
         ],
       }),
     });
+
 
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
@@ -345,10 +358,11 @@ export const aiAction = createServerFn({ method: "POST" })
           notes: m.notes ?? null,
           location: m.location ?? null,
           source: m.source ?? "pessoal",
+          withMeetLink: true,
         });
         googleId = res.eventId ?? null;
         googleAccount = res.calendarId ?? null;
-        externalUrl = res.url ?? null;
+        externalUrl = res.meetLink ?? res.url ?? null;
       } catch {
         // segue mesmo se falhar
       }
@@ -361,7 +375,7 @@ export const aiAction = createServerFn({ method: "POST" })
         location: m.location ?? null,
         people: m.people ?? null,
         notes: m.notes ?? null,
-        meeting_type: m.meeting_type ?? "Compromisso",
+        meeting_type: m.meeting_type ?? "Reunião",
         status: "todo",
         google_event_id: googleId,
         google_account: googleAccount,
@@ -375,6 +389,80 @@ export const aiAction = createServerFn({ method: "POST" })
       };
     }
 
+    if (parsed.intent === "delete" && parsed.target?.match) {
+      const target = parsed.target as { kind?: string; match: string; when?: string };
+      const matchN = norm(target.match);
+      const tables: ("tasks" | "meetings")[] =
+        target.kind === "task"
+          ? ["tasks"]
+          : target.kind === "meeting"
+            ? ["meetings"]
+            : ["tasks", "meetings"];
+
+      type Hit = {
+        table: "tasks" | "meetings";
+        id: string;
+        title: string;
+        google_event_id?: string | null;
+        google_account?: string | null;
+      };
+      const hits: Hit[] = [];
+      for (const table of tables) {
+        const { data: rows } = await context.supabase
+          .from(table)
+          .select("id, title, google_event_id, google_account")
+          .limit(500);
+        for (const r of rows ?? []) {
+          const t = norm((r as any).title ?? "");
+          if (t.includes(matchN) || matchN.split(" ").every((w) => w && t.includes(w))) {
+            hits.push({ table, ...(r as any) });
+          }
+        }
+      }
+
+      if (hits.length === 0) {
+        return {
+          intent: "chat",
+          reply: `Não achei nada com "${target.match}". Tente com mais palavras do título.`,
+        };
+      }
+      if (hits.length > 3) {
+        return {
+          intent: "chat",
+          reply: `Encontrei ${hits.length} itens com "${target.match}". Seja mais específica — cite mais palavras do título.`,
+        };
+      }
+
+      // Apaga do Google se vinculado, depois do banco.
+      const { runDeleteGoogleEvent } = await import("./gcal-sync.server");
+      const deleted: string[] = [];
+      for (const h of hits) {
+        if (h.google_event_id && h.google_account) {
+          try {
+            await runDeleteGoogleEvent(context.supabase, context.userId, {
+              googleAccount: h.google_account,
+              googleEventId: h.google_event_id,
+            });
+          } catch {
+            // segue mesmo se Google falhar
+          }
+        }
+        await context.supabase.from(h.table).delete().eq("id", h.id);
+        deleted.push(h.title);
+      }
+      const first = hits[0];
+      return {
+        intent: "delete",
+        reply:
+          parsed.reply ??
+          (deleted.length === 1
+            ? `Apagado: "${deleted[0]}".`
+            : `Apagados ${deleted.length} itens: ${deleted.join(", ")}.`),
+        deleted: { kind: first.table === "tasks" ? "task" : "meeting", title: first.title },
+      };
+    }
+
     return { intent: "chat", reply: parsed.reply ?? "Ok." };
   });
+
 
