@@ -30,7 +30,19 @@ export function MeetingEditModal({
   const qc = useQueryClient();
   const patchGoogle = useServerFn(patchGoogleEvent);
   const delGoogle = useServerFn(deleteGoogleEvent);
+  const aiSummarize = useServerFn(summarizeMeeting);
   const isFromGoogle = Boolean(meeting.google_event_id);
+
+  const summarize = useMutation({
+    mutationFn: async () => aiSummarize({ data: { meetingId: meeting.id } }),
+    onSuccess: (r) => {
+      setNotes(r.notes);
+      toast.success("Resumo gerado pela IA.");
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const save = useMutation({
     mutationFn: async () => {
