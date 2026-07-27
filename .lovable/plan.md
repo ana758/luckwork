@@ -1,102 +1,78 @@
-## Objetivo
+# Auditoria da Anora — o que falta e o que melhorar
 
-Um hub único, clean e intuitivo (bom no celular e no computador) para gerenciar pendências da Angi, Devore, Bruna e Pessoal, com cores fixas por origem.
+Sua plataforma já tem todas as áreas que você pediu (Dashboard, Tarefas, Calendário, Reuniões, IA, Ajustes), sincroniza com Jira/Notion/Google e a IA cria/apaga/classifica. Mas a promessa central — **"me lembre sempre de tudo"** — hoje só funciona com o app aberto. Segue o diagnóstico e o que proponho fazer.
 
-Fase 1 = app completo funcionando com dados reais salvos na nuvem do Lovable. Fase 2 = ligar Google Agenda/Gmail, Outlook, Notion (Devore), Jira e CRM Angi.
+---
 
-## Código de cores (global)
+## O que já está OK ✅
 
-- Angi — verde
-- Devore — azul
-- Bruna — roxo
-- Pessoal — rosa
-- Reunião — vermelho (tipo de item, sobrepõe)
+- Dashboard por empresa, gráfico redondo semanal, tarefas atrasadas.
+- Jira ↔ Anora (filtrado por Ana Duque).
+- Notion ↔ Anora (só DAILY GESTÃO + Content Pipeline).
+- Google Agenda bilateral (multi-conta, com Google Meet automático).
+- Brand.Pe manual (sem sync — como pedido).
+- IA: cria/apaga tarefas por texto, resume reuniões, aprende classificação por título.
+- Reuniões com convidados, recorrência, seleção em massa.
 
-Resto neutro/clean: fundo claro, tipografia simples, cor só em marcadores, bordas e badges.
+---
 
-## Login e contas de e-mail
+## O que falta ou está frágil ⚠️
 
-**1. Entrar no sistema** — e-mail/senha + entrar com Google.
-- Contas iniciais: ana@devoresnacks.com e anaduquek@gmail.com — as duas caem no mesmo espaço de trabalho.
-- Um e-mail novo entra como "aguardando aprovação" e você libera em Configurações → Acessos.
+### 1. Lembretes só funcionam com o app aberto (crítico)
+Hoje tudo (sync, notificação 30min antes, lembrete de tarefa atrasada, resumo do dia) roda **no navegador** via `setInterval`. Se o iPhone bloqueia, se o Safari fecha, se você não abriu hoje — **nada dispara**.
 
-**2. Caixas de e-mail conectadas (leitura para IA e reuniões)**
-- ana@devoresnacks.com (Google), anaduquek@gmail.com (Google), biduque@hotmail.com (Outlook), + botão "Adicionar outra conta".
+### 2. Sem e-mail nem WhatsApp
+Você pediu alerta por e-mail/WhatsApp de atraso — não existe. Só existe notificação in-app.
 
-## Páginas
+### 3. Resumo diário não é automático
+Só aparece quando você entra na aba IA e pede. Não chega de manhã sozinho.
 
-### 1. Início (Dashboard)
+### 4. Risco de apagar reunião válida
+Se o Google Agenda falhar por segundos durante o sync, a rotina de limpeza pode marcar reuniões reais como "órfãs" e apagá-las.
 
-**Barra "Hoje"** no topo: tudo do dia numa lista só (tarefas que vencem, atrasadas e reuniões), com cor por empresa.
+### 5. IA apaga sem confirmar
+Se você disser "apaga a reunião com X" e houver 2-3 candidatas, ela apaga direto a primeira sem confirmar.
 
-**4 cartões pequenos** (Angi, Devore, Bruna, Pessoal), cada um com:
-- número de pendências e de atrasados;
-- atalhos clicáveis com o nome do sistema (Jira, CRM Angi, Notion, Google Agenda) — clicou, abre direto;
-- botão "Acessos" que abre uma gaveta lateral com a lista de links, login e senha daquele grupo, com botão de copiar e olhinho para revelar a senha. Você adiciona/edita quantos quiser ali mesmo;
-- quando a integração real estiver ligada, o atalho ganha uma marca "Conectado" e não precisa mais de senha.
+### 6. Falhas silenciosas
+Quando o push para Jira/Notion/Google falha, a Anora não avisa — parece que salvou, mas o outro sistema ficou sem.
 
-**Gráfico redondo (donut)** da semana: concluídas, em andamento, não iniciadas.
+### 7. Duas abas abertas = tudo em dobro
+Sem trava global; múltiplas abas duplicam chamadas às APIs (custo e risco de corrida).
 
-### 2. Tarefas
-- Alternador Lista / Board (kanban) e Semanal / Mensal.
-- Colunas: A fazer, Em andamento, On hold, Concluída.
-- Cada tarefa: título, empresa (cor), data início, data fim, última atualização, prioridade (alta/média/baixa), origem e link para o item original.
-- Recorrentes (diária/semanal/mensal): regra cadastrada uma vez; na visão semanal aparece só a ocorrência da semana.
-- Só aparecem tarefas atribuídas a você.
+---
 
-### 3. Calendário
-- Visão mensal com tarefas e reuniões coloridas por empresa.
-- Na fase 2, espelha para o Google Agenda.
+## Plano de melhorias (por prioridade)
 
-### 4. Reuniões
-- Lista das reuniões (vermelho) com tipo, participantes e anotações.
-- Na fase 2, notas recebidas por e-mail entram automaticamente vinculadas.
+### Fase A — Lembretes que funcionam de verdade (P0)
+1. **Cron no servidor** (`pg_cron` + rota `/api/public/hooks/*`) rodando a cada 5 min mesmo com app fechado:
+   - Sincroniza Jira/Notion/Google.
+   - Detecta reuniões nos próximos 30 min e tarefas vencidas.
+2. **Web Push real** (Service Worker + VAPID): notificação chega no iPhone/desktop mesmo com Safari fechado (requer PWA instalada — já está).
+3. **Resumo diário automático** às 8h da manhã via cron, gerado pela mesma IA e entregue por push.
 
-### 5. Espaço AI
-- Resumo do dia: atrasados, vencimentos, reuniões.
-- Sugestões quando uma tarefa está arrastando.
-- Na fase 2, análise dos e-mails para gerar pendências e avisos.
+### Fase B — E-mail e WhatsApp (P0)
+4. **E-mail via Resend** (connector Lovable): resumo diário + alerta de reunião + tarefas atrasadas para ana@devoresnacks.com.
+5. **WhatsApp**: preciso saber sua preferência — Twilio (pago, imediato) ou WhatsApp Business API oficial (mais barato, requer aprovação Meta).
 
-### 6. Configurações
-- Acessos de login (aprovar e-mails), contas conectadas, todos os links e senhas em um só lugar, preferências de alerta.
+### Fase C — Robustez (P1)
+6. Isolar erro por conta no sync do Google (não apaga órfão se a conta falhou).
+7. Trava distribuída no Postgres para evitar sync duplicado entre abas/dispositivos.
+8. Tabela `sync_log` para você ver na aba Ajustes quando algo falhou.
+9. Feedback visível quando push para Jira/Notion falha (toast + badge no card).
 
-## Facilitadores (novos)
+### Fase D — Polimento (P2)
+10. IA pede confirmação quando delete tem múltiplos candidatos.
+11. Otimizar reclassificação retroativa (hoje escaneia tudo a cada 3 min).
+12. Monitor de expiração dos tokens (Jira, Notion, Google) com aviso no app antes de quebrar.
 
-- **Botão "+" fixo** em todas as páginas: cria tarefa ou reunião com 3 campos (o quê, quando, qual empresa). O resto é opcional.
-- **Barra "Hoje"** no dashboard, descrita acima.
+---
 
-## Alertas de atraso
+## Perguntas antes de eu começar
 
-- Notificação dentro do sistema (sempre).
-- E-mail (precisa de um domínio seu para envio — configuramos junto).
-- WhatsApp fica de fora por enquanto (não há caminho gratuito confiável).
+Para eu não implementar tudo de uma vez (fica caro em créditos e demora), me diga:
 
-Verificação automática algumas vezes ao dia.
+1. **Começo pela Fase A?** (é a que resolve "me lembre sempre" — sem ela, o resto pouco importa).
+2. **WhatsApp: Twilio ou pulo por enquanto** e faço só e-mail?
+3. **Alguma das outras fases é urgente** ou faço em ordem?
 
-## Regras de sincronização (fase 2)
-
-- Empresa → seu app: só entra se seu nome estiver marcado.
-- Seu app → empresa: só sai se você marcar a empresa na tarefa.
-- Marcado como Pessoal → só o Google Agenda.
-- Bilateral: concluir aqui conclui lá, com aviso visível se a atualização falhar.
-
-## Ordem das integrações (fase 2)
-
-1. Google Agenda + Gmail
-2. Outlook/Hotmail
-3. Notion (Devore)
-4. Jira (Angi)
-5. CRM Angi (depende de API; se não houver, atalho + tarefas manuais)
-
-## Detalhes técnicos
-
-- Lovable Cloud (banco + login + funções de servidor) com RLS.
-- `workspace_members` com status active/pending para o fluxo de aprovação.
-- Tabelas: `profiles`, `workspace_members`, `sources`, `tasks`, `task_recurrences`, `task_occurrences`, `meetings`, `meeting_notes`, `email_accounts`, `integration_accounts`, `sync_log`, `notifications`, `alerts_sent`, `access_entries` (link + login + senha, senha criptografada no servidor e só revelada sob demanda).
-- Rotas: `/` (dashboard), `/tarefas`, `/calendario`, `/reunioes`, `/ai`, `/auth`, `/configuracoes`.
-- Cores como tokens semânticos em `src/styles.css`.
-- Donut com Recharts; kanban com drag-and-drop leve; IA via Lovable AI.
-
-## Fora do escopo agora
-
-WhatsApp, relatórios avançados, equipes com permissões diferentes.
+Assim que você responder, transformo isto em execução.
