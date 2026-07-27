@@ -118,12 +118,6 @@ export function MeetingEditModal({
       }
 
       if (linked.length > 0) {
-        void delGoogle({
-          data: {
-            googleAccount: meeting.google_account,
-            googleEventId: meeting.google_event_id,
-          },
-        }).catch((e) => toast.error(`Google Agenda: ${(e as Error).message}`));
         for (const item of linked) {
           void delGoogle({
             data: {
