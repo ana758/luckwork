@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
+import { NewMeetingModal } from "@/components/NewMeetingModal";
 import { useMeetings } from "@/lib/queries";
 import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 
@@ -23,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/reunioes")({
 function MeetingsPage() {
   const { data: meetings = [], isLoading } = useMeetings();
   const [editing, setEditing] = useState<Meeting | null>(null);
+  const [creating, setCreating] = useState(false);
   const now = Date.now();
   const upcoming = meetings.filter((m) => new Date(m.starts_at).getTime() >= now);
   const past = meetings.filter((m) => new Date(m.starts_at).getTime() < now).reverse();
@@ -33,9 +36,15 @@ function MeetingsPage() {
         <div className="mr-auto">
           <h1 className="text-xl font-semibold tracking-tight">Reuniões</h1>
           <p className="text-sm text-muted-foreground">
-            Toque em qualquer reunião para editar ou remover (só afeta o Anora).
+            Toque em qualquer reunião para editar ou remover.
           </p>
         </div>
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          <Plus className="h-4 w-4" /> Nova reunião
+        </button>
         <SyncGoogleButton />
       </header>
 
@@ -49,9 +58,11 @@ function MeetingsPage() {
       )}
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
+      {creating && <NewMeetingModal onClose={() => setCreating(false)} />}
     </div>
   );
 }
+
 
 
 function Section({
