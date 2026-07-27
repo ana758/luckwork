@@ -538,3 +538,56 @@ export const aiAction = createServerFn({ method: "POST" })
   });
 
 
+
+// ---------------------------------------------------------------------------
+// transcribeAudio: converte áudio (base64) em texto via Lovable AI STT
+// ---------------------------------------------------------------------------
+export const transcribeAudio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { audioBase64: string; mimeType: string }) => {
+    if (!input?.audioBase64) throw new Error("Áudio vazio.");
+    return {
+      audioBase64: input.audioBase64,
+      mimeType: input.mimeType || "audio/webm",
+    };
+  })
+  .handler(async ({ data }): Promise<{ text: string }> => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("IA indisponível.");
+
+    const bin = atob(data.audioBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    const mime = data.mimeType.split(";")[0].toLowerCase();
+    const ext =
+      mime.includes("mp4") || mime.includes("m4a")
+        ? "mp4"
+        : mime.includes("wav")
+          ? "wav"
+          : mime.includes("mpeg") || mime.includes("mp3")
+            ? "mp3"
+            : mime.includes("ogg")
+              ? "ogg"
+              : "webm";
+
+    const form = new FormData();
+    form.append("file", new Blob([bytes], { type: mime }), `voice.${ext}`);
+    form.append("model", "openai/gpt-4o-mini-transcribe");
+    form.append("language", "pt");
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+
+    if (res.status === 429) throw new Error("Muitas solicitações. Aguarde um instante.");
+    if (res.status === 402) throw new Error("Créditos de IA esgotados.");
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      throw new Error(`Não consegui transcrever (${res.status}): ${err.slice(0, 200)}`);
+    }
+    const json = (await res.json()) as { text?: string };
+    return { text: (json.text ?? "").trim() };
+  });
