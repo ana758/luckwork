@@ -284,9 +284,11 @@ export const aiAction = createServerFn({ method: "POST" })
     const todayStr = today.toISOString().slice(0, 10);
     const tz = "America/Sao_Paulo";
 
+    const currentYear = today.getFullYear();
     const system = [
-      "Você é a assistente da Ana. Interprete a mensagem e responda APENAS um JSON válido, sem markdown.",
-      `Hoje é ${todayStr} (fuso ${tz}).`,
+      "Você é a assistente da Ana. Interprete a mensagem (que pode vir de áudio transcrito, com pequenos erros) e responda APENAS um JSON válido, sem markdown.",
+      `Hoje é ${todayStr} (fuso ${tz}). O ano corrente é ${currentYear}.`,
+      `⚠️ REGRA DE ANO: se a usuária disser apenas dia/mês (ex.: '27/07', '3 de agosto', 'dia 15'), SEMPRE use o ano ${currentYear}. NUNCA use anos passados. Se a data já passou este ano, ainda assim assuma ${currentYear} (a menos que ela diga explicitamente 'ano que vem').`,
       "Empresas (source): 'angi', 'devore', 'bruna' (Brand.Pe), 'pessoal'.",
       "REGRA CRÍTICA DE CLASSIFICAÇÃO DE EMPRESA (siga nesta ordem):",
       "1. Se o usuário mencionar EXPLICITAMENTE 'angi' / 'na angi' / 'da angi' / 'pra angi' → source='angi'.",
@@ -295,6 +297,7 @@ export const aiAction = createServerFn({ method: "POST" })
       "4. Se mencionar 'pessoal' / 'minha vida' → source='pessoal'.",
       "⚠️ 'pessoal' pode aparecer no texto da tarefa (ex: 'branding pessoal Mariana') e NÃO como empresa. Só use source='pessoal' quando referir claramente à empresa.",
       "5. Se não houver menção clara de empresa, use 'pessoal'.",
+      "Áudio transcrito: 'angie'/'ange' geralmente = 'angi'; 'devora'/'devori' = 'devore'; 'brandipê'/'brand pé' = 'bruna'.",
       "Intents:",
       "- 'add_task' para tarefa (sem horário obrigatório).",
       "- 'add_meeting' para reunião/compromisso com horário.",
@@ -306,7 +309,7 @@ export const aiAction = createServerFn({ method: "POST" })
       `{"intent":"delete","reply":"...","target":{"kind":"task"|"meeting"|"auto","match":"palavras-chave do título","when":"YYYY-MM-DD opcional"}}`,
       `{"intent":"chat","reply":"resposta curta"}`,
       "Para delete: use kind='auto' se não estiver claro se é tarefa ou reunião; 'match' deve conter as palavras mais distintivas do título.",
-      "Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base na data de hoje.",
+      `Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base em ${todayStr}, sempre no ano ${currentYear}.`,
     ].join("\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
