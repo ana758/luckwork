@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
+import { summarizeMeeting } from "@/lib/ai.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+
 
 
 function toLocalInput(iso: string) {
