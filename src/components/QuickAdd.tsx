@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +13,11 @@ import { createNotionDailyPage } from "@/lib/notion.functions";
 
 type Kind = "task" | "meeting";
 
+// Só aparece nestas rotas — no /ai e outras atrapalha o composer.
+const VISIBLE_ROUTES = ["/", "/tarefas", "/calendario"];
+
 export function QuickAdd() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>("task");
   const [title, setTitle] = useState("");
@@ -23,143 +28,165 @@ export function QuickAdd() {
   const pushJira = useServerFn(createJiraIssue);
   const pushNotion = useServerFn(createNotionDailyPage);
 
+  const isVisible = VISIBLE_ROUTES.includes(pathname);
+
+  // Roda integrações em background sem bloquear a UI.
+  async function syncTaskIntegrations(
+    id: string,
+    payload: { title: string; source: SourceKey; when: string },
+  ) {
+    // Jira (Angi)
+    if (payload.source === "angi") {
+      try {
+        const jira = await pushJira({
+          data: { summary: payload.title, dueDate: payload.when || null },
+        });
+        await supabase
+          .from("tasks")
+          .update({
+            external_system: "jira",
+            external_id: jira.key,
+            external_url: jira.url,
+          })
+          .eq("id", id);
+        toast.success("Também criada no Jira");
+      } catch (e) {
+        toast.error(`Jira: ${(e as Error).message}`);
+      }
+    }
+    // Notion (Devore)
+    if (payload.source === "devore") {
+      try {
+        const notion = await pushNotion({
+          data: {
+            title: payload.title,
+            dueDate: payload.when || null,
+            status: "todo",
+          },
+        });
+        if (notion?.pageId) {
+          await supabase
+            .from("tasks")
+            .update({
+              external_system: "notion",
+              external_id: notion.pageId,
+              external_url: notion.url,
+            })
+            .eq("id", id);
+          toast.success("Também criada no Notion");
+        }
+      } catch (e) {
+        toast.error(`Notion: ${(e as Error).message}`);
+      }
+    }
+    // Google Agenda (sempre que houver data)
+    if (payload.when) {
+      try {
+        const res = await pushGoogle({
+          data: {
+            title: payload.title,
+            startsAt: `${payload.when}T09:00:00`,
+            allDay: true,
+            source: payload.source,
+          },
+        });
+        if (res.eventId) {
+          const patch: {
+            google_event_id: string;
+            google_account: string | null;
+            external_url?: string | null;
+            external_system?: string | null;
+          } = {
+            google_event_id: res.eventId,
+            google_account: res.calendarId ?? null,
+          };
+          if (payload.source !== "angi" && payload.source !== "devore") {
+            patch.external_url = res.url;
+            patch.external_system = "google_calendar";
+          }
+          await supabase.from("tasks").update(patch).eq("id", id);
+          toast.success("Também no Google Agenda");
+        }
+      } catch (e) {
+        toast.error(`Google Agenda: ${(e as Error).message}`);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  }
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Escreva o que precisa ser feito.");
+      const payload = { title: title.trim(), source, when };
+
       if (kind === "task") {
-        // Cria tarefa no Anora
         const { data: inserted, error } = await supabase
           .from("tasks")
-          .insert({ title: title.trim(), source, due_date: when || null })
+          .insert({ title: payload.title, source, due_date: when || null })
           .select("id")
           .single();
         if (error) throw new Error(error.message);
-        // Se marcou como Angi, cria também no board Angi | Commercial & Marketing (Jira)
-        if (source === "angi" && inserted?.id) {
-          try {
-            const jira = await pushJira({
-              data: { summary: title.trim(), dueDate: when || null },
-            });
-            await supabase
-              .from("tasks")
-              .update({
-                external_system: "jira",
-                external_id: jira.key,
-                external_url: jira.url,
-              })
-              .eq("id", inserted.id);
-          } catch (e) {
-            toast.error(`Jira: ${(e as Error).message}`);
-          }
+        // Roda integrações em background — não bloqueia o fechamento.
+        if (inserted?.id) {
+          void syncTaskIntegrations(inserted.id, payload);
         }
-        // Se marcou como Devore, cria também no DAILY GESTÃO (Notion)
-        if (source === "devore" && inserted?.id) {
-          try {
-            const notion = await pushNotion({
-              data: {
-                title: title.trim(),
-                dueDate: when || null,
-                status: "todo",
-              },
-            });
-            if (notion?.pageId) {
-              await supabase
-                .from("tasks")
-                .update({
-                  external_system: "notion",
-                  external_id: notion.pageId,
-                  external_url: notion.url,
-                })
-                .eq("id", inserted.id);
-            }
-          } catch (e) {
-            toast.error(`Notion: ${(e as Error).message}`);
-          }
-        }
+        return { kind };
+      }
 
-        if (when && inserted?.id) {
+      // meeting
+      if (!when) throw new Error("Escolha a data e hora da reunião.");
+      const startsAt = new Date(when).toISOString();
+      const { data: inserted, error } = await supabase
+        .from("meetings")
+        .insert({ title: payload.title, source, starts_at: startsAt })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+
+      // Google em background
+      if (inserted?.id) {
+        void (async () => {
           try {
             const res = await pushGoogle({
-              data: {
-                title: title.trim(),
-                startsAt: `${when}T09:00:00`,
-                allDay: true,
-                source,
-              },
+              data: { title: payload.title, startsAt, source },
             });
-            if (res.eventId) {
-              // Se a tarefa é Angi, external_system/external_url já apontam pro Jira; só guardamos os campos do Google.
-              const patch: {
-                google_event_id: string;
-                google_account: string | null;
-                external_url?: string | null;
-                external_system?: string | null;
-              } = {
-                google_event_id: res.eventId,
+            await supabase
+              .from("meetings")
+              .update({
+                google_event_id: res.eventId ?? null,
                 google_account: res.calendarId ?? null,
-              };
-              if (source !== "angi" && source !== "devore") {
-                patch.external_url = res.url;
-                patch.external_system = "google_calendar";
-              }
-              await supabase.from("tasks").update(patch).eq("id", inserted.id);
-
-            }
-
-            return { pushed: true };
+                external_url: res.url ?? null,
+              })
+              .eq("id", inserted.id);
+            queryClient.invalidateQueries({ queryKey: ["meetings"] });
+            toast.success("Também no Google Agenda");
           } catch (e) {
             toast.error(`Google Agenda: ${(e as Error).message}`);
           }
-        }
-        return { pushed: false };
-
+        })();
       }
-      if (!when) throw new Error("Escolha a data e hora da reunião.");
-      const startsAt = new Date(when).toISOString();
-      let googleId: string | null = null;
-      let googleAccount: string | null = null;
-      let externalUrl: string | null = null;
-      try {
-        const res = await pushGoogle({ data: { title: title.trim(), startsAt, source } });
-        googleId = res.eventId ?? null;
-        googleAccount = res.calendarId ?? null;
-        externalUrl = res.url ?? null;
-      } catch (e) {
-        toast.error(`Google Agenda: ${(e as Error).message}`);
-      }
-      const { error } = await supabase.from("meetings").insert({
-        title: title.trim(),
-        source,
-        starts_at: startsAt,
-        google_event_id: googleId,
-        google_account: googleAccount,
-        external_url: externalUrl,
-      });
-      if (error) throw new Error(error.message);
-      return { pushed: Boolean(googleId) };
+      return { kind };
     },
     onSuccess: (res) => {
-      toast.success(
-        res?.pushed
-          ? `${kind === "task" ? "Tarefa" : "Reunião"} criada e enviada ao Google Agenda`
-          : `${kind === "task" ? "Tarefa" : "Reunião"} criada`,
-      );
+      toast.success(res.kind === "task" ? "Tarefa criada" : "Reunião criada");
       setTitle("");
       setWhen("");
       setOpen(false);
-      queryClient.invalidateQueries();
+      // Invalida só o necessário — antes invalidava TUDO e travava a UI.
+      queryClient.invalidateQueries({ queryKey: [res.kind === "task" ? "tasks" : "meetings"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  if (!isVisible) return null;
 
   return (
     <>
       <button
         onClick={() => setOpen(true)}
         aria-label="Adicionar tarefa ou reunião"
-        className="fixed bottom-20 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 md:bottom-6 md:right-6"
+        className="fixed bottom-24 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 md:bottom-6 md:right-6"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
       >
         <Plus className="h-5 w-5" />
         Adicionar
@@ -252,7 +279,7 @@ export function QuickAdd() {
                 disabled={mutation.isPending}
                 className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
               >
-                Adicionar
+                {mutation.isPending ? "Adicionando…" : "Adicionar"}
               </button>
             </div>
           </div>
