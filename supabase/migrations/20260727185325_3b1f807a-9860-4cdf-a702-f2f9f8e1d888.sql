@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.luck_apply_meeting_tombstone() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.luck_propagate_meeting_tombstone() FROM PUBLIC, anon, authenticated;
