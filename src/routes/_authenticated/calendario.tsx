@@ -318,18 +318,38 @@ function CalendarPage() {
                     {d.getDate()}
                   </span>
                   <div className="mt-1 space-y-0.5">
-                    {items.slice(0, 3).map((i) => (
-                      <button
-                        key={i.id}
-                        draggable={i.kind === "meeting"}
-                        onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
-                        onClick={() => openItem(i)}
-                        className="flex w-full items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
-                      >
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
-                        <span className="truncate text-[10px] text-muted-foreground">{i.title}</span>
-                      </button>
-                    ))}
+                    {items.slice(0, 3).map((i) => {
+                      const done = i.kind === "meeting" && Boolean((i.meeting as any).completed_at);
+                      return (
+                        <div key={i.id} className="flex items-center gap-1">
+                          {i.kind === "meeting" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleMeetingDone(i.meeting);
+                              }}
+                              aria-label={done ? "Desmarcar" : "Marcar concluído"}
+                              className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
+                                done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40"
+                              }`}
+                            >
+                              {done && <Check className="h-2 w-2" strokeWidth={4} />}
+                            </button>
+                          )}
+                          <button
+                            draggable={i.kind === "meeting"}
+                            onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
+                            onClick={() => openItem(i)}
+                            className="flex min-w-0 flex-1 items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
+                          >
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
+                            <span className={`truncate text-[10px] ${done ? "text-muted-foreground line-through" : "text-muted-foreground"}`}>
+                              {i.title}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
                     {items.length > 3 && (
                       <span className="text-[10px] text-muted-foreground">
                         +{items.length - 3}
