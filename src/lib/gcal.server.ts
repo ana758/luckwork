@@ -99,12 +99,17 @@ export async function createEvent(
   connectionKey: string,
   calendarId: string,
   body: Record<string, unknown>,
+  opts?: { conferenceDataVersion?: number },
 ): Promise<GEvent> {
-  return gcal(connectionKey, `/calendars/${encodeURIComponent(calendarId)}/events`, {
+  const qs = opts?.conferenceDataVersion
+    ? `?conferenceDataVersion=${opts.conferenceDataVersion}`
+    : "";
+  return gcal(connectionKey, `/calendars/${encodeURIComponent(calendarId)}/events${qs}`, {
     method: "POST",
     body: JSON.stringify(body),
   });
 }
+
 
 /** Patch an event on a calendar (usado ao arrastar no calendário). */
 export async function patchEvent(
