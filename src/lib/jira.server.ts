@@ -148,7 +148,7 @@ export async function transitionToStatus(
   return true;
 }
 
-/** Cria uma nova issue no projeto Angi | Commercial & Marketing atribuída ao dono do token. */
+/** Cria uma nova issue no projeto Angi | Commercial & Marketing atribuída à Ana (ana@devoresnacks.com). */
 export async function createIssue(input: {
   summary: string;
   dueDate?: string | null;
@@ -156,11 +156,12 @@ export async function createIssue(input: {
 }): Promise<{ key: string; url: string }> {
   const priorityName =
     input.priority === "alta" ? "High" : input.priority === "baixa" ? "Low" : "Medium";
+  const accountId = (await getAssigneeAccountId()) ?? "-1";
   const fields: Record<string, unknown> = {
     project: { key: PROJECT_KEY },
     summary: input.summary,
     issuetype: { name: "Task" },
-    assignee: { accountId: "-1" }, // "-1" = currentUser (dono do token)
+    assignee: { accountId },
     priority: { name: priorityName },
   };
   if (input.dueDate) fields.duedate = input.dueDate;
@@ -168,16 +169,30 @@ export async function createIssue(input: {
     method: "POST",
     body: JSON.stringify({ fields }),
   });
-  // Fallback: se "-1" não funcionar, faz assign via endpoint dedicado.
+  // Garante o assignee mesmo que o create tenha ignorado (fluxos que exigem PUT).
   try {
     await jiraFetch(`/rest/api/3/issue/${data.key}/assignee`, {
       method: "PUT",
-      body: JSON.stringify({ accountId: "-1" }),
+      body: JSON.stringify({ accountId }),
     });
   } catch {
     /* ignora — já pode estar atribuído */
   }
   return { key: data.key, url: `${BASE}/browse/${data.key}` };
+}
+
+/** Reatribui uma issue existente para Ana (usada quando updates saem do Anora). */
+export async function ensureAssignee(issueKey: string): Promise<void> {
+  const accountId = await getAssigneeAccountId();
+  if (!accountId) return;
+  try {
+    await jiraFetch(`/rest/api/3/issue/${issueKey}/assignee`, {
+      method: "PUT",
+      body: JSON.stringify({ accountId }),
+    });
+  } catch {
+    /* silencioso — não bloqueia o update principal */
+  }
 }
 
 /** Atualiza summary/duedate de uma issue existente. */
