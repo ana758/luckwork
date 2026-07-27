@@ -175,15 +175,14 @@ export async function listMyPages(): Promise<NotionTask[]> {
     const dbId = p.parent?.database_id ? normId(p.parent.database_id) : null;
     // Regras por database:
     // - Content Pipeline: sempre "done" na Anora
-    // - DAILY GESTÃO: "done" apenas se Concluída no Notion, senão "todo"
+    // - DAILY GESTÃO e demais: usa o status real da página (todo/doing/onhold/done)
     let status: NotionTask["status"];
     if (dbId === normId(CONTENT_PIPELINE_DB)) {
       status = "done";
-    } else if (dbId === normId(DAILY_GESTAO_DB)) {
-      status = st && mapStatus(st.name) === "done" ? "done" : "todo";
     } else {
       status = st ? mapStatus(st.name) : "todo";
     }
+
     out.push({
       pageId: p.id,
       url: p.url,
