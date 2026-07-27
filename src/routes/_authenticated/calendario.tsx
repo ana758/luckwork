@@ -364,10 +364,10 @@ function CalendarPage() {
                       draggable={i.kind === "meeting"}
                       onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
                       onClick={() => openItem(i)}
-                      className="flex w-full items-start gap-1.5 rounded-md border bg-background p-1.5 text-left hover:bg-accent/60"
+                      className="flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5 text-left hover:bg-accent/60"
                     >
                       <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
-                      <span className="text-xs leading-tight">{i.title}</span>
+                      <span className="min-w-0 flex-1 break-words text-xs leading-tight">{i.title}</span>
                     </button>
                   ))}
                 </div>
