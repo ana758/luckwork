@@ -99,16 +99,18 @@ export async function createEvent(
   connectionKey: string,
   calendarId: string,
   body: Record<string, unknown>,
-  opts?: { conferenceDataVersion?: number },
+  opts?: { conferenceDataVersion?: number; sendUpdates?: "all" | "externalOnly" | "none" },
 ): Promise<GEvent> {
-  const qs = opts?.conferenceDataVersion
-    ? `?conferenceDataVersion=${opts.conferenceDataVersion}`
-    : "";
+  const params = new URLSearchParams();
+  if (opts?.conferenceDataVersion) params.set("conferenceDataVersion", String(opts.conferenceDataVersion));
+  if (opts?.sendUpdates) params.set("sendUpdates", opts.sendUpdates);
+  const qs = params.toString() ? `?${params.toString()}` : "";
   return gcal(connectionKey, `/calendars/${encodeURIComponent(calendarId)}/events${qs}`, {
     method: "POST",
     body: JSON.stringify(body),
   });
 }
+
 
 
 /** Patch an event on a calendar (usado ao arrastar no calendário). */
