@@ -182,14 +182,24 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// aiAction: interpreta linguagem natural e cria tarefa ou reunião
+// aiAction: interpreta linguagem natural e cria/apaga tarefa ou reunião
 // ---------------------------------------------------------------------------
 
 type ActionResult = {
-  intent: "add_task" | "add_meeting" | "chat";
+  intent: "add_task" | "add_meeting" | "delete" | "chat";
   reply: string;
   created?: { kind: "task" | "meeting"; title: string; when?: string };
+  deleted?: { kind: "task" | "meeting"; title: string };
 };
+
+function norm(s: string): string {
+  return (s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export const aiAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -214,17 +224,19 @@ export const aiAction = createServerFn({ method: "POST" })
       "2. Se mencionar 'devore' / 'na devore' → source='devore'.",
       "3. Se mencionar 'brand.pe' / 'brandpe' / 'bruna' / 'branding da bruna' → source='bruna'.",
       "4. Se mencionar 'pessoal' / 'minha vida' → source='pessoal'.",
-      "⚠️ ATENÇÃO: A palavra 'pessoal' pode aparecer como parte do texto da tarefa (ex: 'branding pessoal Mariana') e NÃO como empresa. Só use source='pessoal' quando ela referir claramente à empresa/categoria, não quando for parte do título da atividade. Se o usuário disse 'na angi: fazer branding pessoal', a empresa é ANGI.",
+      "⚠️ 'pessoal' pode aparecer no texto da tarefa (ex: 'branding pessoal Mariana') e NÃO como empresa. Só use source='pessoal' quando referir claramente à empresa.",
       "5. Se não houver menção clara de empresa, use 'pessoal'.",
       "Intents:",
       "- 'add_task' para tarefa (sem horário obrigatório).",
       "- 'add_meeting' para reunião/compromisso com horário.",
+      "- 'delete' quando a usuária pede para APAGAR/REMOVER/EXCLUIR/CANCELAR algo (tarefa, reunião, compromisso, evento).",
       "- 'chat' para qualquer outra pergunta.",
       "Formato de resposta (JSON):",
-      `{"intent":"add_task","reply":"texto curto de confirmação em pt-BR","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","notes":"opcional","location":"opcional"}}`,
+      `{"intent":"add_task","reply":"...","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","notes":"opcional","location":"opcional"}}`,
       `{"intent":"add_meeting","reply":"...","meeting":{"title":"...","source":"pessoal","starts_at":"YYYY-MM-DDTHH:mm:00-03:00","ends_at":"YYYY-MM-DDTHH:mm:00-03:00 ou null","location":"opcional","people":"opcional","notes":"opcional","meeting_type":"Compromisso"}}`,
+      `{"intent":"delete","reply":"...","target":{"kind":"task"|"meeting"|"auto","match":"palavras-chave do título","when":"YYYY-MM-DD opcional"}}`,
       `{"intent":"chat","reply":"resposta curta"}`,
-      "Se falar 'falar com X' sem horário, use add_task. Se disser 'reunião' ou horário explícito, add_meeting.",
+      "Para delete: use kind='auto' se não estiver claro se é tarefa ou reunião; 'match' deve conter as palavras mais distintivas do título.",
       "Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base na data de hoje.",
     ].join("\n");
 
@@ -243,6 +255,7 @@ export const aiAction = createServerFn({ method: "POST" })
         ],
       }),
     });
+
 
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
