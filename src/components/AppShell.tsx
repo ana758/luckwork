@@ -150,9 +150,11 @@ export function AppShell() {
               ANORA
             </p>
             <div className="ml-auto flex items-center gap-2">
+              <NotifPermissionButton />
               <NotificationsBell />
             </div>
           </header>
+
           <Outlet />
         </main>
       </div>
