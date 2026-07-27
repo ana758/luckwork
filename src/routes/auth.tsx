@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,12 +12,38 @@ export const Route = createFileRoute("/auth")({
     meta: [
       { title: "Entrar · LUCK" },
       { name: "description", content: "Acesse seu hub de tarefas, reuniões e agenda das suas empresas." },
+      { property: "og:type", content: "website" },
       { property: "og:title", content: "Entrar · LUCK" },
       { property: "og:description", content: "Acesse seu hub de tarefas, reuniões e agenda." },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Entrar · LUCK" },
+      { name: "twitter:description", content: "Acesse seu hub de tarefas, reuniões e agenda." },
     ],
   }),
   component: AuthPage,
 });
+
+function isIosStandalonePwa() {
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  const isIos =
+    /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
+    (/Macintosh/.test(window.navigator.userAgent) && window.navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
+  return isIos && isStandalone;
+}
+
+function redirectToGoogleLogin() {
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  const state = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const params = new URLSearchParams({
+    provider: "google",
+    redirect_uri: `${window.location.origin}/auth`,
+    state,
+  });
+  window.location.assign(`/~oauth/initiate?${params.toString()}`);
+}
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -25,6 +51,20 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) navigate({ to: "/", replace: true });
+    });
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) navigate({ to: "/", replace: true });
+    });
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,11 +90,18 @@ function AuthPage() {
   }
 
   async function google() {
+    setLoading(true);
+    if (isIosStandalonePwa()) {
+      redirectToGoogleLogin();
+      return;
+    }
+
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: `${window.location.origin}/auth`,
     });
     if (result.error) {
       toast.error("Não foi possível entrar com o Google.");
+      setLoading(false);
       return;
     }
     if (result.redirected) return;
@@ -79,12 +126,13 @@ function AuthPage() {
 
         <button
           onClick={google}
-          className="mt-6 w-full rounded-md border bg-card px-3 py-2.5 text-sm font-medium hover:bg-accent"
+          disabled={loading}
+          className="mt-6 w-full rounded-md border bg-card px-3 py-2.5 text-sm font-medium hover:bg-accent disabled:opacity-60"
         >
           Entrar com Google
         </button>
         <p className="mt-2 text-[11px] text-muted-foreground">
-          No iPhone/PWA, se o teclado não aparecer na tela do Google, use e-mail e senha abaixo — depois vincule o Google em Configurações.
+          No app instalado no iPhone, o Google abre em tela inteira para o teclado funcionar melhor.
         </p>
 
         <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
