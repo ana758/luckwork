@@ -296,6 +296,11 @@ function TasksPage() {
         if (error) throw new Error(error.message);
         return;
       }
+      const { data: prev } = await supabase
+        .from("tasks")
+        .select("external_system, external_id, title, due_date")
+        .eq("id", realId)
+        .maybeSingle();
       const { error } = await supabase
         .from("tasks")
         .update({
@@ -308,6 +313,28 @@ function TasksPage() {
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);
+
+      // Push bilateral → Jira quando título/data mudam em issues sincronizadas
+      if (prev?.external_system === "jira" && prev.external_id) {
+        const summaryChanged = payload.title !== prev.title;
+        const dueChanged = (payload.due_date ?? null) !== (prev.due_date ?? null);
+        if (summaryChanged || dueChanged) {
+          void import("@/lib/jira.functions")
+            .then(({ updateJiraIssue }) =>
+              updateJiraIssue({
+                data: {
+                  issueKey: prev.external_id!,
+                  ...(summaryChanged ? { summary: payload.title } : {}),
+                  ...(dueChanged ? { dueDate: payload.due_date } : {}),
+                },
+              }),
+            )
+            .catch((e) => {
+              console.warn("Falha ao atualizar issue no Jira:", e);
+              toast.error(`Jira: ${(e as Error).message}`);
+            });
+        }
+      }
     },
     onSuccess: (_d, v) => {
       toast.success("Tarefa atualizada");
