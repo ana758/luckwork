@@ -293,21 +293,25 @@ function AIPage() {
           rows={3}
           placeholder={
             listening
-              ? "Escutando… fale agora"
-              : 'Ex.: "apagar reunião com Dr Lazaro" ou "adiciona tarefa angi dia 28/07"'
+              ? "🔴 Gravando… toque no microfone para parar e enviar"
+              : transcribing
+                ? "Transcrevendo áudio…"
+                : 'Fale ou escreva. Ex.: "adiciona tarefa angi entrega branding pessoal 27/07"'
           }
-          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+          disabled={transcribing}
+          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
         />
         <div className="flex flex-col gap-2">
           <button
             type="button"
             onClick={toggleListening}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+            disabled={transcribing || ask.isPending}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors disabled:opacity-60 ${
               listening
                 ? "border-reuniao bg-reuniao text-white animate-pulse"
                 : "bg-card text-foreground hover:bg-accent"
             }`}
-            aria-label={listening ? "Parar gravação" : "Falar"}
+            aria-label={listening ? "Parar e enviar" : "Falar"}
           >
             {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
           </button>
