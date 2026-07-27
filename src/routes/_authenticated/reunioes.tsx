@@ -59,7 +59,9 @@ function MeetingsPage() {
   const bulkDelete = useMutation({
     mutationFn: async () => {
       const ids = Array.from(selected);
-      const chosen = meetings.filter((m) => ids.includes(m.id));
+      const chosen = meetings.filter((m) => ids.includes(m.id)) as Array<
+        Meeting & { google_event_id?: string | null; google_account?: string | null }
+      >;
       let googleFails = 0;
       for (const m of chosen) {
         if (m.google_event_id && m.google_account) {
