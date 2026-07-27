@@ -109,13 +109,21 @@ export function MeetingEditModal({
         .in("id", idsToHide);
       if (error) throw new Error(error.message);
 
-      const linked = (matches ?? []).filter((m) => m.google_event_id && m.google_account) as Array<{
-        google_event_id: string;
-        google_account: string;
-      }>;
-      if (meeting.google_event_id && meeting.google_account) {
-        linked.push({ google_event_id: meeting.google_event_id, google_account: meeting.google_account });
+      const linkedMap = new Map<string, { google_event_id: string; google_account: string }>();
+      for (const item of matches ?? []) {
+        if (!item.google_event_id || !item.google_account) continue;
+        linkedMap.set(`${item.google_account}::${item.google_event_id}`, {
+          google_event_id: item.google_event_id,
+          google_account: item.google_account,
+        });
       }
+      if (meeting.google_event_id && meeting.google_account) {
+        linkedMap.set(`${meeting.google_account}::${meeting.google_event_id}`, {
+          google_event_id: meeting.google_event_id,
+          google_account: meeting.google_account,
+        });
+      }
+      const linked = Array.from(linkedMap.values());
 
       if (linked.length > 0) {
         for (const item of linked) {
