@@ -155,21 +155,20 @@ function TasksPage() {
       });
 
   const move = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
+    mutationFn: async ({
+      id,
+      status,
+      externalSystem,
+      externalId,
+    }: {
+      id: string;
+      status: TaskStatus;
+      externalSystem?: string | null;
+      externalId?: string | null;
+    }) => {
       const isMeeting = id.startsWith("m:");
       const realId = isMeeting ? id.slice(2) : id;
       const table = isMeeting ? "meetings" : "tasks";
-      let jiraKey: string | null = null;
-      if (!isMeeting) {
-        const { data: current } = await supabase
-          .from("tasks")
-          .select("external_system, external_id")
-          .eq("id", realId)
-          .maybeSingle();
-        if (current?.external_system === "jira" && current.external_id) {
-          jiraKey = current.external_id;
-        }
-      }
       const { error } = await supabase
         .from(table)
         .update({
@@ -178,36 +177,55 @@ function TasksPage() {
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);
-      if (jiraKey) {
-        try {
-          const { transitionJiraIssue } = await import("@/lib/jira.functions");
-          await transitionJiraIssue({ data: { issueKey: jiraKey, status } });
-        } catch (e) {
-          console.warn("Falha ao mover issue no Jira:", e);
-        }
+
+      if (!isMeeting && externalSystem === "jira" && externalId) {
+        void import("@/lib/jira.functions")
+          .then(({ transitionJiraIssue }) =>
+            transitionJiraIssue({ data: { issueKey: externalId, status } }),
+          )
+          .catch((e) => {
+            console.warn("Falha ao mover issue no Jira:", e);
+            toast.error(`Jira: ${(e as Error).message}`);
+          });
       }
-      if (!isMeeting) {
-        const { data: cur2 } = await supabase
-          .from("tasks")
-          .select("external_system, external_id")
-          .eq("id", realId)
-          .maybeSingle();
-        if (cur2?.external_system === "notion" && cur2.external_id) {
-          try {
-            const { transitionNotionPage } = await import("@/lib/notion.functions");
-            await transitionNotionPage({ data: { pageId: cur2.external_id, status } });
-          } catch (e) {
+
+      if (!isMeeting && externalSystem === "notion" && externalId) {
+        void import("@/lib/notion.functions")
+          .then(({ transitionNotionPage }) =>
+            transitionNotionPage({ data: { pageId: externalId, status } }),
+          )
+          .catch((e) => {
             console.warn("Falha ao mover página no Notion:", e);
-          }
-        }
+            toast.error(`Notion: ${(e as Error).message}`);
+          });
       }
+    },
+    onMutate: async (v) => {
+      const isMeeting = v.id.startsWith("m:");
+      const key = isMeeting ? ["meetings"] : ["tasks"];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Task[] | Meeting[]>(key);
+      const realId = isMeeting ? v.id.slice(2) : v.id;
+      const completedAt = v.status === "done" ? new Date().toISOString() : null;
+
+      queryClient.setQueryData<Task[] | Meeting[]>(key, (old) => {
+        if (!old) return old;
+        return old.map((item) =>
+          item.id === realId ? { ...item, status: v.status, completed_at: completedAt } : item,
+        ) as Task[] | Meeting[];
+      });
+
+      return { previous, key };
     },
     onSuccess: (_d, v) => {
       queryClient.invalidateQueries({
         queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
       });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _v, context) => {
+      if (context?.previous) queryClient.setQueryData(context.key, context.previous);
+      toast.error(e.message);
+    },
   });
 
   const remove = useMutation({
@@ -318,7 +336,12 @@ function TasksPage() {
     });
     setOrder(next);
     if (dragged.status !== targetStatus) {
-      move.mutate({ id: draggedId, status: targetStatus });
+      move.mutate({
+        id: draggedId,
+        status: targetStatus,
+        externalSystem: dragged.external_system,
+        externalId: dragged.external_id,
+      });
     }
   }
 
@@ -410,7 +433,14 @@ function TasksPage() {
                       >
                         <TaskCard
                           task={t}
-                          onMove={(s) => move.mutate({ id: t.id, status: s })}
+                          onMove={(s) =>
+                            move.mutate({
+                              id: t.id,
+                              status: s,
+                              externalSystem: t.external_system,
+                              externalId: t.external_id,
+                            })
+                          }
                           onDelete={() => remove.mutate(t.id)}
                           onChangeSource={(s) =>
                             changeSource.mutate({ id: t.id, source: s })
@@ -474,7 +504,12 @@ function TasksPage() {
                       <select
                         value={t.status}
                         onChange={(e) =>
-                          move.mutate({ id: t.id, status: e.target.value as TaskStatus })
+                          move.mutate({
+                            id: t.id,
+                            status: e.target.value as TaskStatus,
+                            externalSystem: t.external_system,
+                            externalId: t.external_id,
+                          })
                         }
                         className="rounded-md border bg-background px-2 py-1 text-xs"
                       >
