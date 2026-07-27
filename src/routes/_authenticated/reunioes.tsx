@@ -71,15 +71,19 @@ function MeetingsPage() {
       const ops: Promise<any>[] = [];
       if (googleLinked.length) {
         ops.push(
-          supabase
-            .from("meetings")
-            .update({ hidden: true })
-            .in("id", googleLinked.map((m) => m.id)),
+          Promise.resolve(
+            supabase
+              .from("meetings")
+              .update({ hidden: true })
+              .in("id", googleLinked.map((m) => m.id)),
+          ),
         );
       }
       if (localOnly.length) {
         ops.push(
-          supabase.from("meetings").delete().in("id", localOnly.map((m) => m.id)),
+          Promise.resolve(
+            supabase.from("meetings").delete().in("id", localOnly.map((m) => m.id)),
+          ),
         );
       }
       const results = await Promise.all(ops);
