@@ -26,15 +26,22 @@ export function useMeetings() {
         .order("starts_at", { ascending: true });
       if (error) throw new Error(error.message);
       const rows = data ?? [];
+      const signature = (m: { title: unknown; starts_at: string }) =>
+        `${String(m.title)
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim()}::${new Date(m.starts_at).toISOString()}`;
       const deletedGoogleSignatures = new Set(
         rows
           .filter((m) => m.hidden && m.google_event_id)
-          .map((m) => `${String(m.title).toLowerCase().trim()}::${m.starts_at}`),
+          .map((m) => signature(m)),
       );
       return rows.filter((m) => {
         if (m.hidden) return false;
         if (!m.google_event_id) return true;
-        return !deletedGoogleSignatures.has(`${String(m.title).toLowerCase().trim()}::${m.starts_at}`);
+        return !deletedGoogleSignatures.has(signature(m));
       }) as Meeting[];
     },
   });

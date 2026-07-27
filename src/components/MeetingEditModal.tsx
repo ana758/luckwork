@@ -16,6 +16,15 @@ function toLocalInput(iso: string) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function meetingSignature(titleValue: string, startsAt: string) {
+  return `${titleValue
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()}::${new Date(startsAt).toISOString()}`;
+}
+
 export function MeetingEditModal({
   meeting,
   onClose,
@@ -98,11 +107,14 @@ export function MeetingEditModal({
       const { data: matches, error: readError } = await supabase
         .from("meetings")
         .select("id, google_event_id, google_account")
-        .eq("title", meeting.title)
         .eq("starts_at", meeting.starts_at);
       if (readError) throw new Error(readError.message);
 
-      const idsToHide = Array.from(new Set([meeting.id, ...((matches ?? []).map((m) => m.id))]));
+      const sig = meetingSignature(meeting.title, meeting.starts_at);
+      const normalizedMatches = (matches ?? []).filter((m) =>
+        meetingSignature((m as any).title ?? meeting.title, meeting.starts_at) === sig,
+      );
+      const idsToHide = Array.from(new Set([meeting.id, ...normalizedMatches.map((m) => m.id)]));
       const { error } = await supabase
         .from("meetings")
         .update({ hidden: true })
@@ -110,7 +122,7 @@ export function MeetingEditModal({
       if (error) throw new Error(error.message);
 
       const linkedMap = new Map<string, { google_event_id: string; google_account: string }>();
-      for (const item of matches ?? []) {
+      for (const item of normalizedMatches) {
         if (!item.google_event_id || !item.google_account) continue;
         linkedMap.set(`${item.google_account}::${item.google_event_id}`, {
           google_event_id: item.google_event_id,
