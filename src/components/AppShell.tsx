@@ -152,7 +152,10 @@ export function AppShell() {
       </div>
 
       {/* Mobile nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         {NAV.map((item) => {
           const active = pathname === item.to;
           const showBadge = item.to === "/configuracoes" && pendingCount > 0;
@@ -160,14 +163,14 @@ export function AppShell() {
             <Link
               key={item.to}
               to={item.to}
-              className={`relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${
+              className={`relative flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[12px] font-medium ${
                 active ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              <item.icon className="h-5 w-5" />
-              {item.label}
+              <item.icon className="h-6 w-6" />
+              <span>{item.label}</span>
               {showBadge && (
-                <span className="absolute right-3 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-semibold text-destructive-foreground">
+                <span className="absolute right-2 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                   {pendingCount}
                 </span>
               )}
