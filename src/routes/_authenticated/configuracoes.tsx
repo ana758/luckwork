@@ -10,12 +10,12 @@ import { useArchivedSources } from "@/lib/archived-sources";
 export const Route = createFileRoute("/_authenticated/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Ajustes · Anora" },
+      { title: "Ajustes · LUCK" },
       {
         name: "description",
         content: "Aprove e-mails de acesso, cadastre caixas de e-mail e gerencie seus acessos.",
       },
-      { property: "og:title", content: "Ajustes · Anora" },
+      { property: "og:title", content: "Ajustes · LUCK" },
       { property: "og:description", content: "Acessos, e-mails e permissões do seu hub." },
     ],
   }),

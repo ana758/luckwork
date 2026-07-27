@@ -42,7 +42,7 @@ export function NotifPermissionButton() {
           });
         } else if (r.reason === "denied") {
           toast.error("Permissão negada", {
-            description: "Vá em Ajustes do navegador e libere notificações para a Anora.",
+            description: "Vá em Ajustes do navegador e libere notificações para a LUCK.",
           });
         } else {
           toast.error("Não foi possível ativar", { description: r.reason });

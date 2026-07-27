@@ -8,9 +8,9 @@ export const Route = createFileRoute("/auth")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Entrar · Anora" },
+      { title: "Entrar · LUCK" },
       { name: "description", content: "Acesse seu hub de tarefas, reuniões e agenda das suas empresas." },
-      { property: "og:title", content: "Entrar · Anora" },
+      { property: "og:title", content: "Entrar · LUCK" },
       { property: "og:description", content: "Acesse seu hub de tarefas, reuniões e agenda." },
     ],
   }),
@@ -62,7 +62,7 @@ function AuthPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">Anora</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">LUCK</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Tarefas, agenda e reuniões da Angi, Devore, Brand.Pe e Pessoal em um lugar só.
         </p>

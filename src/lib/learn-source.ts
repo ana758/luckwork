@@ -3,7 +3,7 @@ import { normalizeTitleKey } from "@/lib/source-rules";
 import type { SourceKey } from "@/lib/sources";
 
 /**
- * A IA da Anora aprende: salva a regra "título → empresa" e aplica
+ * A IA da LUCK aprende: salva a regra "título → empresa" e aplica
  * retroativamente a todos os compromissos e tarefas com o mesmo título.
  */
 export async function learnSourceRule(title: string, source: SourceKey) {

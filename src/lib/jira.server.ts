@@ -108,7 +108,7 @@ export async function transitionToDone(issueKey: string): Promise<boolean> {
 }
 
 /**
- * Move a issue para uma coluna correspondente ao status do Anora.
+ * Move a issue para uma coluna correspondente ao status do LUCK.
  * todo → statusCategory "new" (To Do), doing → "indeterminate" c/ nome ~ progress,
  * onhold → nome ~ review/hold, done → statusCategory "done".
  */
@@ -182,7 +182,7 @@ export async function createIssue(input: {
   return { key: data.key, url: `${BASE}/browse/${data.key}` };
 }
 
-/** Reatribui uma issue existente para Ana (usada quando updates saem do Anora). */
+/** Reatribui uma issue existente para Ana (usada quando updates saem do LUCK). */
 export async function ensureAssignee(issueKey: string): Promise<void> {
   const accountId = await getAssigneeAccountId();
   if (!accountId) return;

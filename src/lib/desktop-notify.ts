@@ -1,15 +1,15 @@
 /**
  * Notificações nativas do sistema (Windows/macOS/Android/iOS PWA).
  * Funciona enquanto o app está aberto (ou instalado em segundo plano em
- * Android/desktop). No iPhone só dispara com a Anora instalada na tela de início.
+ * Android/desktop). No iPhone só dispara com a LUCK instalada na tela de início.
  */
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SOURCE_LABEL } from "@/lib/sources";
 
-const FIRED_KEY = "anora.fired.v1";
-const REMINDER_KEY = "anora.reminded.v1";
+const FIRED_KEY = "luck.fired.v1";
+const REMINDER_KEY = "luck.reminded.v1";
 
 function firedSet(): Set<string> {
   try {

@@ -94,7 +94,7 @@ export async function listEvents(
   return (data.items ?? []) as GEvent[];
 }
 
-/** Create an event on a calendar (Anora → Google). */
+/** Create an event on a calendar (LUCK → Google). */
 export async function createEvent(
   connectionKey: string,
   calendarId: string,
@@ -161,7 +161,7 @@ export function eventPeople(e: GEvent): string | null {
 }
 
 /**
- * Map a calendar (account + calendar name) to the Anora source colour and
+ * Map a calendar (account + calendar name) to the LUCK source colour and
  * whether it's specifically a "Reunião" bucket.
  *
  * Rules:
@@ -180,7 +180,7 @@ export function classifyCalendar(
   const name = (cal.summaryOverride || cal.summary || "").toLowerCase();
   const id = (cal.id || "").toLowerCase();
 
-  // Bruna fica só manual dentro do Anora — nunca puxar agendas dela.
+  // Bruna fica só manual dentro do LUCK — nunca puxar agendas dela.
   if (
     name.includes("branding pessoal") ||
     name.includes("trabalho bruna") ||

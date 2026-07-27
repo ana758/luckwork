@@ -76,8 +76,8 @@ export function TaskEditModal({
       toast.success(
         r.wasLinked
           ? r.googleOk
-            ? "Apagada no Anora e no Google Agenda"
-            : "Apagada no Anora (Google falhou)"
+            ? "Apagada no LUCK e no Google Agenda"
+            : "Apagada no LUCK (Google falhou)"
           : "Tarefa apagada",
       );
       qc.invalidateQueries({ queryKey: ["tasks"] });

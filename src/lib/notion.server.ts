@@ -3,7 +3,7 @@
  * Traz páginas de todos os databases compartilhados com a integração
  * e considera tudo como Devore (source='devore', external_system='notion').
  *
- * Bilateral: mover a tarefa no Anora → PATCH nas propriedades da página
+ * Bilateral: mover a tarefa no LUCK → PATCH nas propriedades da página
  * para o Status equivalente. Se a página tiver pessoas em "Proprietário"
  * (ou property similar), filtra por Ana quando possível.
  */
@@ -174,7 +174,7 @@ export async function listMyPages(): Promise<NotionTask[]> {
     const st = findStatus(props);
     const dbId = p.parent?.database_id ? normId(p.parent.database_id) : null;
     // Regras por database:
-    // - Content Pipeline: sempre "done" na Anora
+    // - Content Pipeline: sempre "done" na LUCK
     // - DAILY GESTÃO e demais: usa o status real da página (todo/doing/onhold/done)
     let status: NotionTask["status"];
     if (dbId === normId(CONTENT_PIPELINE_DB)) {

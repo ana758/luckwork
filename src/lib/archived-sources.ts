@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { SOURCES, type SourceKey } from "./sources";
 
-const KEY = "anora:archived-sources";
+const KEY = "luck:archived-sources";
 
 function read(): SourceKey[] {
   if (typeof window === "undefined") return [];
@@ -17,7 +17,7 @@ function read(): SourceKey[] {
 
 function write(next: SourceKey[]) {
   window.localStorage.setItem(KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent("anora:archived-sources-changed"));
+  window.dispatchEvent(new CustomEvent("luck:archived-sources-changed"));
 }
 
 export function useArchivedSources() {
@@ -26,10 +26,10 @@ export function useArchivedSources() {
   useEffect(() => {
     setArchived(read());
     const onChange = () => setArchived(read());
-    window.addEventListener("anora:archived-sources-changed", onChange);
+    window.addEventListener("luck:archived-sources-changed", onChange);
     window.addEventListener("storage", onChange);
     return () => {
-      window.removeEventListener("anora:archived-sources-changed", onChange);
+      window.removeEventListener("luck:archived-sources-changed", onChange);
       window.removeEventListener("storage", onChange);
     };
   }, []);

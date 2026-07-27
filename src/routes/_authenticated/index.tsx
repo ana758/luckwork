@@ -23,12 +23,12 @@ const SOURCE_HEX: Record<SourceKey, string> = {
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "Início · Anora" },
+      { title: "Início · LUCK" },
       {
         name: "description",
         content: "Painel com pendências por empresa, reuniões do dia e progresso semanal.",
       },
-      { property: "og:title", content: "Início · Anora" },
+      { property: "og:title", content: "Início · LUCK" },
       { property: "og:description", content: "Pendências por empresa e progresso da semana." },
     ],
   }),

@@ -1,8 +1,8 @@
 /**
- * Sync bilateral Notion (Devore) ↔ Anora.
+ * Sync bilateral Notion (Devore) ↔ LUCK.
  * - Traz páginas de todos os databases compartilhados com a integração Notion.
  * - Insere/atualiza em public.tasks (source='devore', external_system='notion').
- * - Anora concluída → Notion Concluída.
+ * - LUCK concluída → Notion Concluída.
  */
 import { listMyPages, transitionPage } from "./notion.server";
 
@@ -16,7 +16,7 @@ export async function runNotionSync(supabase: any, userId: string) {
   const pages = allPages.filter((p) => p.status !== "done");
 
   // Cutoff: só importa páginas do Notion CRIADAS a partir daqui.
-  // Páginas antigas que foram apagadas manualmente na Anora não devem voltar.
+  // Páginas antigas que foram apagadas manualmente na LUCK não devem voltar.
   const IMPORT_CUTOFF_ISO = "2026-07-26T22:00:00.000Z";
 
 
@@ -31,7 +31,7 @@ export async function runNotionSync(supabase: any, userId: string) {
 
   const nowIso = new Date().toISOString();
 
-  // Anora → Notion: Anora é a fonte da verdade de STATUS.
+  // LUCK → Notion: LUCK é a fonte da verdade de STATUS.
   // Se o status local diverge do Notion, empurra o local para o Notion.
   let pushed = 0;
   for (const p of allPages) {
@@ -47,7 +47,7 @@ export async function runNotionSync(supabase: any, userId: string) {
     }
   }
 
-  // Se a página virou "concluída" no Notion, remover da Anora
+  // Se a página virou "concluída" no Notion, remover da LUCK
   const remoteDoneIds = allPages
     .filter((p) => p.status === "done")
     .filter((p) => {
@@ -65,7 +65,7 @@ export async function runNotionSync(supabase: any, userId: string) {
       .in("external_id", remoteDoneIds);
   }
 
-  // Notion → Anora: upsert (só não-concluídas)
+  // Notion → LUCK: upsert (só não-concluídas)
   const rows = pages.map((p) => ({
     created_by: userId,
     source: "devore" as const,
@@ -95,7 +95,7 @@ export async function runNotionSync(supabase: any, userId: string) {
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
-    // Não sobrescreve status local — Anora manda no status.
+    // Não sobrescreve status local — LUCK manda no status.
     const { error } = await supabase
       .from("tasks")
       .update({
