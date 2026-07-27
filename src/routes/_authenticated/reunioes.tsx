@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Plus, Trash2, X, CheckSquare } from "lucide-react";
+import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { NewMeetingModal } from "@/components/NewMeetingModal";
 import { useMeetings } from "@/lib/queries";
+import { supabase } from "@/integrations/supabase/client";
+import { deleteGoogleEvent } from "@/lib/gcal.functions";
 import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 
 export const Route = createFileRoute("/_authenticated/reunioes")({
@@ -26,9 +31,68 @@ function MeetingsPage() {
   const { data: meetings = [], isLoading } = useMeetings();
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [creating, setCreating] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const qc = useQueryClient();
+  const delGoogle = useServerFn(deleteGoogleEvent);
+
   const now = Date.now();
   const upcoming = meetings.filter((m) => new Date(m.starts_at).getTime() >= now);
   const past = meetings.filter((m) => new Date(m.starts_at).getTime() < now).reverse();
+  const allIds = useMemo(() => meetings.map((m) => m.id), [meetings]);
+  const allSelected = selected.size > 0 && selected.size === allIds.length;
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelect = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+
+  const bulkDelete = useMutation({
+    mutationFn: async () => {
+      const ids = Array.from(selected);
+      const chosen = meetings.filter((m) => ids.includes(m.id));
+      let googleFails = 0;
+      for (const m of chosen) {
+        if (m.google_event_id && m.google_account) {
+          try {
+            await delGoogle({
+              data: { googleAccount: m.google_account, googleEventId: m.google_event_id },
+            });
+          } catch {
+            googleFails++;
+          }
+        }
+      }
+      const { error } = await supabase.from("meetings").delete().in("id", ids);
+      if (error) throw new Error(error.message);
+      return { count: ids.length, googleFails };
+    },
+    onSuccess: (r) => {
+      toast.success(
+        r.googleFails
+          ? `${r.count} removidas (${r.googleFails} falharam no Google Agenda)`
+          : `${r.count} reuniões removidas`,
+      );
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      exitSelect();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const onCardClick = (m: Meeting) => {
+    if (selectMode) toggle(m.id);
+    else setEditing(m);
+  };
 
   return (
     <div className="space-y-6">
@@ -36,24 +100,75 @@ function MeetingsPage() {
         <div className="mr-auto">
           <h1 className="text-xl font-semibold tracking-tight">Reuniões</h1>
           <p className="text-sm text-muted-foreground">
-            Toque em qualquer reunião para editar ou remover.
+            {selectMode
+              ? "Toque para selecionar. Use apagar para remover em massa."
+              : "Toque em qualquer reunião para editar ou remover."}
           </p>
         </div>
-        <button
-          onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" /> Nova reunião
-        </button>
-        <SyncGoogleButton />
+        {!selectMode ? (
+          <>
+            <button
+              onClick={() => setSelectMode(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
+            >
+              <CheckSquare className="h-4 w-4" /> Selecionar
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" /> Nova reunião
+            </button>
+            <SyncGoogleButton />
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setSelected(new Set(allSelected ? [] : allIds))}
+              className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
+            >
+              {allSelected ? "Desmarcar tudo" : "Selecionar tudo"}
+            </button>
+            <button
+              disabled={selected.size === 0 || bulkDelete.isPending}
+              onClick={() => {
+                if (confirm(`Apagar ${selected.size} reunião(ões)?`)) bulkDelete.mutate();
+              }}
+              className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              {bulkDelete.isPending ? "Apagando…" : `Apagar (${selected.size})`}
+            </button>
+            <button
+              onClick={exitSelect}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-accent"
+            >
+              <X className="h-4 w-4" /> Cancelar
+            </button>
+          </>
+        )}
       </header>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : (
         <>
-          <Section title="Próximas" items={upcoming} empty="Nenhuma reunião marcada." onOpen={setEditing} />
-          <Section title="Anteriores" items={past} empty="Nada por aqui ainda." onOpen={setEditing} />
+          <Section
+            title="Próximas"
+            items={upcoming}
+            empty="Nenhuma reunião marcada."
+            onOpen={onCardClick}
+            selectMode={selectMode}
+            selected={selected}
+          />
+          <Section
+            title="Anteriores"
+            items={past}
+            empty="Nada por aqui ainda."
+            onOpen={onCardClick}
+            selectMode={selectMode}
+            selected={selected}
+          />
         </>
       )}
 
@@ -63,18 +178,20 @@ function MeetingsPage() {
   );
 }
 
-
-
 function Section({
   title,
   items,
   empty,
   onOpen,
+  selectMode,
+  selected,
 }: {
   title: string;
   items: Meeting[];
   empty: string;
   onOpen: (m: Meeting) => void;
+  selectMode: boolean;
+  selected: Set<string>;
 }) {
   return (
     <section>
@@ -83,37 +200,53 @@ function Section({
         <p className="text-sm text-muted-foreground">{empty}</p>
       ) : (
         <div className="space-y-2">
-          {items.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => onOpen(m)}
-              className="block w-full rounded-xl border border-l-4 border-l-reuniao bg-card p-3 text-left hover:bg-accent/40"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium">{m.title}</p>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[m.source]}`} />
-                  {SOURCE_LABEL[m.source]}
-                </span>
-                <span className="ml-auto text-xs text-muted-foreground">
-                  {new Date(m.starts_at).toLocaleString("pt-BR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </div>
-              {(m.meeting_type || m.people) && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {[m.meeting_type, m.people].filter(Boolean).join(" · ")}
-                </p>
-              )}
-              {m.notes && (
-                <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{m.notes}</p>
-              )}
-            </button>
-          ))}
+          {items.map((m) => {
+            const isSel = selected.has(m.id);
+            return (
+              <button
+                key={m.id}
+                onClick={() => onOpen(m)}
+                className={`flex w-full items-start gap-3 rounded-xl border border-l-4 border-l-reuniao bg-card p-3 text-left hover:bg-accent/40 ${
+                  selectMode && isSel ? "ring-2 ring-primary" : ""
+                }`}
+              >
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={isSel}
+                    onChange={() => onOpen(m)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1 h-4 w-4 accent-primary"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">{m.title}</p>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[m.source]}`} />
+                      {SOURCE_LABEL[m.source]}
+                    </span>
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {new Date(m.starts_at).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                  {(m.meeting_type || m.people) && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {[m.meeting_type, m.people].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                  {m.notes && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{m.notes}</p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </section>
