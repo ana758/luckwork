@@ -30,8 +30,11 @@ function AIPage() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const summary = useMemo(() => {
     const today = new Date();
