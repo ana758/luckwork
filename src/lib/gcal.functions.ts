@@ -23,8 +23,12 @@ export const pushToGoogleCalendar = createServerFn({ method: "POST" })
       account?: string | null;
       source?: string | null;
       withMeetLink?: boolean;
+      meetLink?: string | null;
+      attendees?: string[] | null;
+      recurrence?: string[] | null;
     }) => input,
   )
+
   .handler(async ({ data, context }) => {
     const { runCalendarPush } = await import("./gcal-sync.server");
     return runCalendarPush(context.supabase, context.userId, data);

@@ -221,6 +221,9 @@ export async function runCalendarPush(
     account?: string | null;
     source?: string | null;
     withMeetLink?: boolean;
+    meetLink?: string | null;
+    attendees?: string[] | null;
+    recurrence?: string[] | null;
   },
 ) {
   await assertMember(supabase, userId);
@@ -258,15 +261,28 @@ export async function runCalendarPush(
         conferenceSolutionKey: { type: "hangoutsMeet" },
       },
     };
+  } else if (data.meetLink) {
+    // usuário colou um link (Meet/Zoom/etc): salva como local secundário no corpo
+    body.description = [data.notes ?? "", `Link: ${data.meetLink}`].filter(Boolean).join("\n\n");
+  }
+
+  if (data.attendees && data.attendees.length) {
+    body.attendees = data.attendees.map((email) => ({ email }));
+  }
+
+  if (data.recurrence && data.recurrence.length) {
+    body.recurrence = data.recurrence;
   }
 
   const created = await createEvent(acc.key, calendarId, body, {
     conferenceDataVersion: data.withMeetLink && !data.allDay ? 1 : 0,
+    sendUpdates: data.attendees && data.attendees.length ? "all" : undefined,
   });
   const meetLink =
     created.hangoutLink ??
     (created as any).conferenceData?.entryPoints?.find((p: any) => p.entryPointType === "video")
       ?.uri ??
+    data.meetLink ??
     null;
   return {
     ok: true,
@@ -276,6 +292,7 @@ export async function runCalendarPush(
     meetLink,
   };
 }
+
 
 
 export async function runMoveGoogleEvent(
