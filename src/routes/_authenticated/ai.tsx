@@ -29,7 +29,9 @@ function AIPage() {
   const { data: meetings = [] } = useMeetings();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [listening, setListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const summary = useMemo(() => {
     const today = new Date();
