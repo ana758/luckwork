@@ -182,6 +182,75 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// summarizeMeeting: gera resumo/notas estruturadas da reunião via IA
+// ---------------------------------------------------------------------------
+export const summarizeMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { meetingId: string }) => {
+    if (!input?.meetingId) throw new Error("meetingId obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("IA indisponível.");
+
+    const { data: m, error } = await context.supabase
+      .from("meetings")
+      .select("id, title, source, starts_at, ends_at, location, people, notes, meeting_type")
+      .eq("id", data.meetingId)
+      .maybeSingle();
+    if (error || !m) throw new Error("Reunião não encontrada.");
+
+    const prompt = [
+      `Título: ${m.title}`,
+      `Empresa: ${m.source}`,
+      `Tipo: ${m.meeting_type ?? "Reunião"}`,
+      `Início: ${m.starts_at}`,
+      m.ends_at ? `Fim: ${m.ends_at}` : "",
+      m.location ? `Local: ${m.location}` : "",
+      m.people ? `Participantes: ${m.people}` : "",
+      m.notes ? `Notas existentes:\n${m.notes}` : "Sem notas ainda.",
+    ].filter(Boolean).join("\n");
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-3.5-flash",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você organiza reuniões. Gere em pt-BR e markdown curto: '## Contexto' (1-2 linhas), " +
+              "'## Pauta sugerida' (3-5 bullets), '## Próximos passos' (checklist com [ ]). " +
+              "Se houver notas, use-as como base — não invente decisões que não estejam ali.",
+          },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo.");
+    if (res.status === 402) throw new Error("Créditos de IA esgotados.");
+    if (!res.ok) throw new Error(`Falha na IA (${res.status})`);
+    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const summary = json.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!summary) throw new Error("IA não retornou resumo.");
+
+    // Anexa/atualiza no campo notes
+    const newNotes = m.notes
+      ? `${m.notes}\n\n---\n${summary}`
+      : summary;
+    const { error: upErr } = await context.supabase
+      .from("meetings")
+      .update({ notes: newNotes, updated_at: new Date().toISOString() })
+      .eq("id", m.id);
+    if (upErr) throw new Error(upErr.message);
+    return { summary, notes: newNotes };
+  });
+
+
+
+// ---------------------------------------------------------------------------
 // aiAction: interpreta linguagem natural e cria/apaga tarefa ou reunião
 // ---------------------------------------------------------------------------
 

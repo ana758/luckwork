@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
+import { summarizeMeeting } from "@/lib/ai.functions";
 import { SOURCES, SOURCE_DOT, type Meeting, type SourceKey } from "@/lib/sources";
+
 
 
 function toLocalInput(iso: string) {
@@ -27,7 +30,19 @@ export function MeetingEditModal({
   const qc = useQueryClient();
   const patchGoogle = useServerFn(patchGoogleEvent);
   const delGoogle = useServerFn(deleteGoogleEvent);
+  const aiSummarize = useServerFn(summarizeMeeting);
   const isFromGoogle = Boolean(meeting.google_event_id);
+
+  const summarize = useMutation({
+    mutationFn: async () => aiSummarize({ data: { meetingId: meeting.id } }),
+    onSuccess: (r) => {
+      setNotes(r.notes);
+      toast.success("Resumo gerado pela IA.");
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const save = useMutation({
     mutationFn: async () => {
@@ -160,8 +175,18 @@ export function MeetingEditModal({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={6}
-          className="mb-3 mt-1 min-h-[10rem] w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"
+          className="mb-2 mt-1 min-h-[10rem] w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"
         />
+        <button
+          onClick={() => summarize.mutate()}
+          disabled={summarize.isPending}
+          className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 disabled:opacity-60"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          {summarize.isPending ? "Gerando resumo…" : "Resumir com IA"}
+        </button>
+
+
 
 
         <p className="mb-3 text-[11px] text-muted-foreground">

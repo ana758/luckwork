@@ -12,8 +12,11 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { QuickAdd } from "./QuickAdd";
 import { NotificationsBell } from "./NotificationsBell";
+import { NotifPermissionButton } from "./NotifPermissionButton";
 import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
 import { useOverdueScan } from "@/hooks/useOverdueScan";
+import { useDesktopReminders } from "@/lib/desktop-notify";
+
 
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
@@ -59,6 +62,8 @@ export function AppShell() {
 
   useAutoSyncGoogle();
   useOverdueScan();
+  useDesktopReminders();
+
 
 
   async function signOut() {
@@ -145,9 +150,11 @@ export function AppShell() {
               ANORA
             </p>
             <div className="ml-auto flex items-center gap-2">
+              <NotifPermissionButton />
               <NotificationsBell />
             </div>
           </header>
+
           <Outlet />
         </main>
       </div>
