@@ -178,6 +178,69 @@ export type Database = {
           },
         ]
       }
+      pending_pushes: {
+        Row: {
+          body: string | null
+          created_at: string
+          delivered_at: string | null
+          id: string
+          tag: string | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          tag?: string | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          tag?: string | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          last_used_at?: string | null
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          last_used_at?: string | null
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       source_rules: {
         Row: {
           created_at: string
@@ -199,6 +262,39 @@ export type Database = {
           source?: string
           title_key?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_log: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          imported: number | null
+          pushed: number | null
+          source: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          imported?: number | null
+          pushed?: number | null
+          source: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          imported?: number | null
+          pushed?: number | null
+          source?: string
+          status?: string
         }
         Relationships: []
       }
@@ -294,6 +390,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_logs: { Args: never; Returns: undefined }
       is_active_member: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

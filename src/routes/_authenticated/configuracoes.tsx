@@ -195,7 +195,73 @@ function SettingsPage() {
         )}
       </section>
 
+      <SyncStatusSection />
+
       {drawer && <AccessDrawer source={drawer} onClose={() => setDrawer(null)} />}
     </div>
   );
 }
+
+function SyncStatusSection() {
+  const { data: logs = [] } = useQuery({
+    queryKey: ["sync_log"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sync_log")
+        .select("id, source, status, imported, pushed, error, duration_ms, created_at")
+        .order("created_at", { ascending: false })
+        .limit(15);
+      return data ?? [];
+    },
+    refetchInterval: 60_000,
+  });
+
+  const bySource = new Map<string, (typeof logs)[number]>();
+  for (const l of logs) if (!bySource.has(l.source)) bySource.set(l.source, l);
+
+  return (
+    <section className="rounded-lg border bg-card p-4">
+      <h2 className="text-sm font-semibold">Status das sincronizações</h2>
+      <p className="mt-1 text-xs text-muted-foreground">
+        O servidor sincroniza Jira, Notion e Google Agenda a cada 5 minutos, mesmo com o app fechado.
+      </p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {["jira", "notion", "gcal"].map((src) => {
+          const last = bySource.get(src);
+          const ok = last?.status === "ok";
+          return (
+            <div key={src} className="rounded-md border p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-medium capitalize">
+                  {src === "gcal" ? "Google Agenda" : src}
+                </span>
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    !last ? "bg-muted-foreground/30" : ok ? "bg-emerald-500" : "bg-red-500"
+                  }`}
+                />
+              </div>
+              {last ? (
+                <div className="mt-1 space-y-0.5 text-muted-foreground">
+                  <div>{new Date(last.created_at).toLocaleString("pt-BR")}</div>
+                  {ok ? (
+                    <div>
+                      {last.imported ?? 0} recebidas · {last.pushed ?? 0} enviadas
+                    </div>
+                  ) : (
+                    <div className="text-red-600 truncate" title={last.error ?? undefined}>
+                      {last.error}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-1 text-muted-foreground">Sem execuções ainda.</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
