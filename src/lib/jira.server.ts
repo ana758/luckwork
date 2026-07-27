@@ -8,6 +8,24 @@
 
 const BASE = "https://angisaude.atlassian.net";
 const PROJECT_KEY = "TASK";
+const ASSIGNEE_EMAIL = "ana@devoresnacks.com";
+
+let cachedAssigneeId: string | null = null;
+async function getAssigneeAccountId(): Promise<string | null> {
+  if (cachedAssigneeId) return cachedAssigneeId;
+  try {
+    const data: any = await jiraFetch(
+      `/rest/api/3/user/search?query=${encodeURIComponent(ASSIGNEE_EMAIL)}`,
+    );
+    const match = (data ?? []).find(
+      (u: any) => (u.emailAddress ?? "").toLowerCase() === ASSIGNEE_EMAIL,
+    ) ?? data?.[0];
+    cachedAssigneeId = match?.accountId ?? null;
+  } catch {
+    cachedAssigneeId = null;
+  }
+  return cachedAssigneeId;
+}
 
 function authHeader() {
   const email = process.env.JIRA_EMAIL;
