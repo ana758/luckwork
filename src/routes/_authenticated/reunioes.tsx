@@ -67,22 +67,17 @@ function MeetingsPage() {
       const localOnly = chosen.filter((m) => !m.google_event_id);
 
       // Soft-delete (hidden=true) itens vindos do Google para impedir
-      // reimportação na próxima sync, e hard-delete os locais.
+      // reimportação na próxima sync. Também esconde clones do mesmo evento
+      // que aparecem por agendas compartilhadas diferentes.
       const ops: Promise<any>[] = [];
-      if (googleLinked.length) {
+      for (const m of chosen) {
         ops.push(
           Promise.resolve(
             supabase
               .from("meetings")
               .update({ hidden: true })
-              .in("id", googleLinked.map((m) => m.id)),
-          ),
-        );
-      }
-      if (localOnly.length) {
-        ops.push(
-          Promise.resolve(
-            supabase.from("meetings").delete().in("id", localOnly.map((m) => m.id)),
+              .eq("title", m.title)
+              .eq("starts_at", m.starts_at),
           ),
         );
       }
@@ -91,11 +86,14 @@ function MeetingsPage() {
       if (err) throw new Error(err.message);
 
       const googlePromise = Promise.allSettled(
-        googleLinked.map((m) =>
-          delGoogle({
-            data: { googleAccount: m.google_account!, googleEventId: m.google_event_id! },
-          }),
-        ),
+        googleLinked.flatMap((m) => {
+          if (!m.google_account || !m.google_event_id) return [];
+          return [
+            delGoogle({
+              data: { googleAccount: m.google_account, googleEventId: m.google_event_id },
+            }),
+          ];
+        }),
       ).then((r) => r.filter((x) => x.status === "rejected").length);
       return { count: ids.length, googlePromise };
     },
