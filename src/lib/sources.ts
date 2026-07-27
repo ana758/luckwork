@@ -113,8 +113,12 @@ export type AccessEntry = {
 };
 
 export function isOverdue(task: Task) {
-  if (!task.due_date || task.status === "done") return false;
+  if (!task.due_date) return false;
+  // Só conta como atrasada se ainda estiver "a fazer" (todo).
+  // Em andamento, em espera ou concluída não contam.
+  if (task.status !== "todo") return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return new Date(`${task.due_date}T00:00:00`) < today;
 }
+
