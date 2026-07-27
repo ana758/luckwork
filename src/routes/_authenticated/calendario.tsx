@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
@@ -132,6 +132,25 @@ function CalendarPage() {
   function openItem(item: CalItem) {
     if (item.kind === "meeting") setEditing(item.meeting);
     else setEditingTask(item.task);
+  }
+
+  async function toggleMeetingDone(m: Meeting) {
+    const wasDone = Boolean((m as any).completed_at);
+    const nextCompleted = wasDone ? null : new Date().toISOString();
+    // Otimista
+    qc.setQueryData<Meeting[]>(["meetings"], (old) =>
+      (old ?? []).map((x) => (x.id === m.id ? ({ ...x, completed_at: nextCompleted } as Meeting) : x)),
+    );
+    const { error } = await supabase
+      .from("meetings")
+      .update({ completed_at: nextCompleted })
+      .eq("id", m.id);
+    if (error) {
+      toast.error(error.message);
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+      return;
+    }
+    toast.success(wasDone ? "Marcado como pendente" : "Marcado como concluído");
   }
 
 
@@ -299,18 +318,38 @@ function CalendarPage() {
                     {d.getDate()}
                   </span>
                   <div className="mt-1 space-y-0.5">
-                    {items.slice(0, 3).map((i) => (
-                      <button
-                        key={i.id}
-                        draggable={i.kind === "meeting"}
-                        onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
-                        onClick={() => openItem(i)}
-                        className="flex w-full items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
-                      >
-                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
-                        <span className="truncate text-[10px] text-muted-foreground">{i.title}</span>
-                      </button>
-                    ))}
+                    {items.slice(0, 3).map((i) => {
+                      const done = i.kind === "meeting" && Boolean((i.meeting as any).completed_at);
+                      return (
+                        <div key={i.id} className="flex items-center gap-1">
+                          {i.kind === "meeting" && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleMeetingDone(i.meeting);
+                              }}
+                              aria-label={done ? "Desmarcar" : "Marcar concluído"}
+                              className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
+                                done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40"
+                              }`}
+                            >
+                              {done && <Check className="h-2 w-2" strokeWidth={4} />}
+                            </button>
+                          )}
+                          <button
+                            draggable={i.kind === "meeting"}
+                            onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
+                            onClick={() => openItem(i)}
+                            className="flex min-w-0 flex-1 items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
+                          >
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
+                            <span className={`truncate text-[10px] ${done ? "text-muted-foreground line-through" : "text-muted-foreground"}`}>
+                              {i.title}
+                            </span>
+                          </button>
+                        </div>
+                      );
+                    })}
                     {items.length > 3 && (
                       <span className="text-[10px] text-muted-foreground">
                         +{items.length - 3}
@@ -368,18 +407,43 @@ function CalendarPage() {
                       Sem itens
                     </div>
                   )}
-                  {items.map((i) => (
-                    <button
-                      key={i.id}
-                      draggable={i.kind === "meeting"}
-                      onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
-                      onClick={() => openItem(i)}
-                      className="flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5 text-left hover:bg-accent/60"
-                    >
-                      <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
-                      <span className="min-w-0 flex-1 break-words text-xs leading-tight">{i.title}</span>
-                    </button>
-                  ))}
+                  {items.map((i) => {
+                    const done = i.kind === "meeting" && Boolean((i.meeting as any).completed_at);
+                    return (
+                      <div
+                        key={i.id}
+                        className={`flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5 ${
+                          done ? "border-emerald-500/60 bg-emerald-500/5" : ""
+                        }`}
+                      >
+                        {i.kind === "meeting" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleMeetingDone(i.meeting);
+                            }}
+                            aria-label={done ? "Desmarcar" : "Marcar concluído"}
+                            className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                              done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40 hover:border-emerald-500"
+                            }`}
+                          >
+                            {done && <Check className="h-2.5 w-2.5" strokeWidth={4} />}
+                          </button>
+                        )}
+                        <button
+                          draggable={i.kind === "meeting"}
+                          onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
+                          onClick={() => openItem(i)}
+                          className="flex min-w-0 flex-1 items-start gap-1.5 text-left hover:bg-accent/60 rounded"
+                        >
+                          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
+                          <span className={`min-w-0 flex-1 break-words text-xs leading-tight ${done ? "text-muted-foreground line-through" : ""}`}>
+                            {i.title}
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}

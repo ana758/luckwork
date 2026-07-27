@@ -73,6 +73,9 @@ function AuthPage() {
         >
           Entrar com Google
         </button>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          No iPhone/PWA, se o teclado não aparecer na tela do Google, use e-mail e senha abaixo — depois vincule o Google em Configurações.
+        </p>
 
         <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
