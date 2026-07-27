@@ -137,7 +137,6 @@ function CalendarPage() {
   async function toggleMeetingDone(m: Meeting) {
     const wasDone = Boolean((m as any).completed_at);
     const nextCompleted = wasDone ? null : new Date().toISOString();
-    // Otimista
     qc.setQueryData<Meeting[]>(["meetings"], (old) =>
       (old ?? []).map((x) => (x.id === m.id ? ({ ...x, completed_at: nextCompleted } as Meeting) : x)),
     );
@@ -148,9 +147,38 @@ function CalendarPage() {
     if (error) {
       toast.error(error.message);
       qc.invalidateQueries({ queryKey: ["meetings"] });
+    }
+  }
+
+  async function toggleTaskDone(t: Task) {
+    const wasDone = t.status === "done";
+    const nextStatus = wasDone ? "todo" : "done";
+    const nextCompleted = wasDone ? null : new Date().toISOString();
+    qc.setQueryData<Task[]>(["tasks"], (old) =>
+      (old ?? []).map((x) => (x.id === t.id ? ({ ...x, status: nextStatus, completed_at: nextCompleted } as Task) : x)),
+    );
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: nextStatus, completed_at: nextCompleted })
+      .eq("id", t.id);
+    if (error) {
+      toast.error(error.message);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
       return;
     }
-    toast.success(wasDone ? "Marcado como pendente" : "Marcado como concluído");
+    // Sincroniza com Jira/Notion se aplicável
+    const externalSystem = (t as any).external_system as string | null | undefined;
+    const externalId = (t as any).external_id as string | null | undefined;
+    if (externalSystem === "jira" && externalId) {
+      void import("@/lib/jira.functions")
+        .then(({ transitionJiraIssue }) => transitionJiraIssue({ data: { issueKey: externalId, status: nextStatus } }))
+        .catch((e) => console.warn("Jira:", e));
+    }
+    if (externalSystem === "notion" && externalId) {
+      void import("@/lib/notion.functions")
+        .then(({ transitionNotionPage }) => transitionNotionPage({ data: { pageId: externalId, status: nextStatus } }))
+        .catch((e) => console.warn("Notion:", e));
+    }
   }
 
 
