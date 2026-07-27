@@ -106,7 +106,7 @@ export function MeetingEditModal({
       // outra agenda compartilhada com outro ID do Google.
       const { data: matches, error: readError } = await supabase
         .from("meetings")
-        .select("id, google_event_id, google_account")
+        .select("id, title, google_event_id, google_account")
         .eq("starts_at", meeting.starts_at);
       if (readError) throw new Error(readError.message);
 
