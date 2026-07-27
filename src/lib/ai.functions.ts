@@ -519,7 +519,11 @@ export const aiAction = createServerFn({ method: "POST" })
             // segue mesmo se Google falhar
           }
         }
-        await context.supabase.from(h.table).delete().eq("id", h.id);
+        if (h.table === "meetings") {
+          await context.supabase.from("meetings").update({ hidden: true }).eq("id", h.id);
+        } else {
+          await context.supabase.from(h.table).delete().eq("id", h.id);
+        }
         deleted.push(h.title);
       }
       const first = hits[0];

@@ -233,10 +233,13 @@ function TasksPage() {
       const isMeeting = id.startsWith("m:");
       const realId = isMeeting ? id.slice(2) : id;
       if (isMeeting) {
+        const target = meetings.find((m) => m.id === realId);
+        if (!target) throw new Error("Reunião não encontrada.");
         const { error } = await supabase
           .from("meetings")
           .update({ hidden: true })
-          .eq("id", realId);
+          .eq("title", target.title)
+          .eq("starts_at", target.starts_at);
         if (error) throw new Error(error.message);
       } else {
         const { error } = await supabase.from("tasks").delete().eq("id", realId);
