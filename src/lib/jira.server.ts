@@ -195,7 +195,7 @@ export async function ensureAssignee(issueKey: string): Promise<void> {
   }
 }
 
-/** Atualiza summary/duedate de uma issue existente. */
+/** Atualiza summary/duedate de uma issue existente e garante Ana como assignee. */
 export async function updateIssue(
   issueKey: string,
   patch: { summary?: string; dueDate?: string | null },
@@ -203,11 +203,13 @@ export async function updateIssue(
   const fields: Record<string, unknown> = {};
   if (patch.summary !== undefined) fields.summary = patch.summary;
   if (patch.dueDate !== undefined) fields.duedate = patch.dueDate;
-  if (Object.keys(fields).length === 0) return;
-  await jiraFetch(`/rest/api/3/issue/${issueKey}`, {
-    method: "PUT",
-    body: JSON.stringify({ fields }),
-  });
+  if (Object.keys(fields).length > 0) {
+    await jiraFetch(`/rest/api/3/issue/${issueKey}`, {
+      method: "PUT",
+      body: JSON.stringify({ fields }),
+    });
+  }
+  await ensureAssignee(issueKey);
 }
 
 
