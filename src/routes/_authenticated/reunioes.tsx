@@ -64,7 +64,6 @@ function MeetingsPage() {
         Meeting & { google_event_id?: string | null; google_account?: string | null }
       >;
       const googleLinked = chosen.filter((m) => m.google_event_id && m.google_account);
-      const localOnly = chosen.filter((m) => !m.google_event_id);
 
       // Soft-delete (hidden=true) itens vindos do Google para impedir
       // reimportação na próxima sync. Também esconde clones do mesmo evento
