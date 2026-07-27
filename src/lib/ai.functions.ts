@@ -358,10 +358,11 @@ export const aiAction = createServerFn({ method: "POST" })
           notes: m.notes ?? null,
           location: m.location ?? null,
           source: m.source ?? "pessoal",
+          withMeetLink: true,
         });
         googleId = res.eventId ?? null;
         googleAccount = res.calendarId ?? null;
-        externalUrl = res.url ?? null;
+        externalUrl = res.meetLink ?? res.url ?? null;
       } catch {
         // segue mesmo se falhar
       }
@@ -374,7 +375,7 @@ export const aiAction = createServerFn({ method: "POST" })
         location: m.location ?? null,
         people: m.people ?? null,
         notes: m.notes ?? null,
-        meeting_type: m.meeting_type ?? "Compromisso",
+        meeting_type: m.meeting_type ?? "Reunião",
         status: "todo",
         google_event_id: googleId,
         google_account: googleAccount,
@@ -388,6 +389,80 @@ export const aiAction = createServerFn({ method: "POST" })
       };
     }
 
+    if (parsed.intent === "delete" && parsed.target?.match) {
+      const target = parsed.target as { kind?: string; match: string; when?: string };
+      const matchN = norm(target.match);
+      const tables: ("tasks" | "meetings")[] =
+        target.kind === "task"
+          ? ["tasks"]
+          : target.kind === "meeting"
+            ? ["meetings"]
+            : ["tasks", "meetings"];
+
+      type Hit = {
+        table: "tasks" | "meetings";
+        id: string;
+        title: string;
+        google_event_id?: string | null;
+        google_account?: string | null;
+      };
+      const hits: Hit[] = [];
+      for (const table of tables) {
+        const { data: rows } = await context.supabase
+          .from(table)
+          .select("id, title, google_event_id, google_account")
+          .limit(500);
+        for (const r of rows ?? []) {
+          const t = norm((r as any).title ?? "");
+          if (t.includes(matchN) || matchN.split(" ").every((w) => w && t.includes(w))) {
+            hits.push({ table, ...(r as any) });
+          }
+        }
+      }
+
+      if (hits.length === 0) {
+        return {
+          intent: "chat",
+          reply: `Não achei nada com "${target.match}". Tente com mais palavras do título.`,
+        };
+      }
+      if (hits.length > 3) {
+        return {
+          intent: "chat",
+          reply: `Encontrei ${hits.length} itens com "${target.match}". Seja mais específica — cite mais palavras do título.`,
+        };
+      }
+
+      // Apaga do Google se vinculado, depois do banco.
+      const { runDeleteGoogleEvent } = await import("./gcal-sync.server");
+      const deleted: string[] = [];
+      for (const h of hits) {
+        if (h.google_event_id && h.google_account) {
+          try {
+            await runDeleteGoogleEvent(context.supabase, context.userId, {
+              googleAccount: h.google_account,
+              googleEventId: h.google_event_id,
+            });
+          } catch {
+            // segue mesmo se Google falhar
+          }
+        }
+        await context.supabase.from(h.table).delete().eq("id", h.id);
+        deleted.push(h.title);
+      }
+      const first = hits[0];
+      return {
+        intent: "delete",
+        reply:
+          parsed.reply ??
+          (deleted.length === 1
+            ? `Apagado: "${deleted[0]}".`
+            : `Apagados ${deleted.length} itens: ${deleted.join(", ")}.`),
+        deleted: { kind: first.table === "tasks" ? "task" : "meeting", title: first.title },
+      };
+    }
+
     return { intent: "chat", reply: parsed.reply ?? "Ok." };
   });
+
 
