@@ -153,8 +153,9 @@ export function MeetingEditModal({
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["meetings"] });
       const prev = qc.getQueryData<Meeting[]>(["meetings"]);
+      const sig = meetingSignature(meeting.title, meeting.starts_at);
       qc.setQueryData<Meeting[]>(["meetings"], (old) =>
-        (old ?? []).filter((m) => m.id !== meeting.id),
+        (old ?? []).filter((m) => meetingSignature(m.title, m.starts_at) !== sig),
       );
       onClose();
       return { prev };
