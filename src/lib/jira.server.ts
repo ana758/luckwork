@@ -145,6 +145,7 @@ export async function transitionToStatus(
     method: "POST",
     body: JSON.stringify({ transition: { id: chosen.id } }),
   });
+  await ensureAssignee(issueKey);
   return true;
 }
 
