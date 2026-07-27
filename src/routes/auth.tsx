@@ -62,12 +62,20 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">LUCK</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <img
+          src={luckHand}
+          alt="LUCK"
+          width={768}
+          height={1024}
+          className="mx-auto mb-4 h-32 w-auto rounded-lg object-contain"
+        />
+        <h1 className="text-center text-3xl font-semibold tracking-tight">LUCK</h1>
+        <p className="mt-1 text-center text-sm text-muted-foreground">
           Tarefas, agenda e reuniões da Angi, Devore, Brand.Pe e Pessoal em um lugar só.
         </p>
+
 
         <button
           onClick={google}
