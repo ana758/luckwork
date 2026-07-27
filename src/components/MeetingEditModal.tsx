@@ -92,24 +92,50 @@ export function MeetingEditModal({
 
   const remove = useMutation({
     mutationFn: async () => {
-      // Google-linked: soft-delete (hidden=true) + fire Google delete em background.
-      // Evita reimportação na próxima sync se o Google demorar/falhar.
+      // Soft-delete sempre: mantém um "tombstone" local para impedir que a
+      // sync traga de volta o mesmo evento, inclusive quando ele aparece em
+      // outra agenda compartilhada com outro ID do Google.
+      const { data: matches, error: readError } = await supabase
+        .from("meetings")
+        .select("id, google_event_id, google_account")
+        .eq("title", meeting.title)
+        .eq("starts_at", meeting.starts_at);
+      if (readError) throw new Error(readError.message);
+
+      const idsToHide = Array.from(new Set([meeting.id, ...((matches ?? []).map((m) => m.id))]));
+      const { error } = await supabase
+        .from("meetings")
+        .update({ hidden: true })
+        .in("id", idsToHide);
+      if (error) throw new Error(error.message);
+
+      const linkedMap = new Map<string, { google_event_id: string; google_account: string }>();
+      for (const item of matches ?? []) {
+        if (!item.google_event_id || !item.google_account) continue;
+        linkedMap.set(`${item.google_account}::${item.google_event_id}`, {
+          google_event_id: item.google_event_id,
+          google_account: item.google_account,
+        });
+      }
       if (meeting.google_event_id && meeting.google_account) {
-        const { error } = await supabase
-          .from("meetings")
-          .update({ hidden: true })
-          .eq("id", meeting.id);
-        if (error) throw new Error(error.message);
-        void delGoogle({
-          data: {
-            googleAccount: meeting.google_account,
-            googleEventId: meeting.google_event_id,
-          },
-        }).catch((e) => toast.error(`Google Agenda: ${(e as Error).message}`));
+        linkedMap.set(`${meeting.google_account}::${meeting.google_event_id}`, {
+          google_event_id: meeting.google_event_id,
+          google_account: meeting.google_account,
+        });
+      }
+      const linked = Array.from(linkedMap.values());
+
+      if (linked.length > 0) {
+        for (const item of linked) {
+          void delGoogle({
+            data: {
+              googleAccount: item.google_account,
+              googleEventId: item.google_event_id,
+            },
+          }).catch((e) => toast.error(`Google Agenda: ${(e as Error).message}`));
+        }
         return { wasLinked: true };
       }
-      const { error } = await supabase.from("meetings").delete().eq("id", meeting.id);
-      if (error) throw new Error(error.message);
       return { wasLinked: false };
     },
     onMutate: async () => {

@@ -23,10 +23,19 @@ export function useMeetings() {
       const { data, error } = await supabase
         .from("meetings")
         .select("*")
-        .eq("hidden", false)
         .order("starts_at", { ascending: true });
       if (error) throw new Error(error.message);
-      return (data ?? []) as Meeting[];
+      const rows = data ?? [];
+      const deletedGoogleSignatures = new Set(
+        rows
+          .filter((m) => m.hidden && m.google_event_id)
+          .map((m) => `${String(m.title).toLowerCase().trim()}::${m.starts_at}`),
+      );
+      return rows.filter((m) => {
+        if (m.hidden) return false;
+        if (!m.google_event_id) return true;
+        return !deletedGoogleSignatures.has(`${String(m.title).toLowerCase().trim()}::${m.starts_at}`);
+      }) as Meeting[];
     },
   });
 }

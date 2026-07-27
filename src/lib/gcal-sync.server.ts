@@ -52,6 +52,19 @@ function connectedAccounts() {
   );
 }
 
+function normalizedMeetingTitle(title: string) {
+  return title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function meetingSignature(title: string, startsAt: string) {
+  return `${normalizedMeetingTitle(title)}::${new Date(startsAt).toISOString()}`;
+}
+
 export async function runListAccounts() {
   const out: { email: string; source: string; envVar: string }[] = [];
   for (const acc of connectedAccounts()) {
@@ -84,6 +97,25 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const perAccount: { email: string; count: number }[] = [];
   const seenPairs = new Set<string>(); // `${google_account}::${google_event_id}`
 
+  // Tombstones locais: quando a Ana apaga no LUCK, mantemos hidden=true para
+  // impedir que o mesmo compromisso volte de outra agenda compartilhada.
+  const { data: hiddenTombstones } = await supabase
+    .from("meetings")
+    .select("title, starts_at, google_account, google_event_id")
+    .eq("hidden", true)
+    .gte("starts_at", timeMin)
+    .lte("starts_at", timeMax);
+  const hiddenExactPairs = new Set(
+    (hiddenTombstones ?? [])
+      .filter((r: any) => r.google_account && r.google_event_id)
+      .map((r: any) => `${r.google_account}::${r.google_event_id}`),
+  );
+  const hiddenSignatures = new Set(
+    (hiddenTombstones ?? [])
+      .filter((r: any) => r.title && r.starts_at)
+      .map((r: any) => meetingSignature(r.title, r.starts_at)),
+  );
+
   // Carrega regras aprendidas (título → empresa correta).
   const { normalizeTitleKey, inferSourceFromTitle } = await import("./source-rules");
   const { data: rulesData } = await supabase.from("source_rules").select("title_key, source");
@@ -105,27 +137,24 @@ export async function runCalendarSync(supabase: any, userId: string) {
       const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
 
 
-      // Respeita eventos escondidos localmente (soft-delete): não reimportar.
-      const ids = candidates.map((e) => e.id);
-      const { data: hiddenRows } = await supabase
-        .from("meetings")
-        .select("google_event_id")
-        .eq("google_account", cal.id)
-        .eq("hidden", true)
-        .in("google_event_id", ids.length ? ids : ["__none__"]);
-      const hiddenSet = new Set((hiddenRows ?? []).map((r: any) => r.google_event_id));
-
       const rows = candidates
-        .filter((e) => !hiddenSet.has(e.id))
-        .map((e) => {
+        .flatMap((e) => {
+          const startsAt = eventStart(e);
+          if (!startsAt) return [];
           const title = e.summary?.trim() || "(sem título)";
+          if (
+            hiddenExactPairs.has(`${cal.id}::${e.id}`) ||
+            hiddenSignatures.has(meetingSignature(title, startsAt))
+          ) {
+            return [];
+          }
           const learned = rulesMap.get(normalizeTitleKey(title));
           const inferred = inferSourceFromTitle(title);
           const source = learned ?? inferred ?? defaultSource;
-          return {
+          return [{
             title,
             source,
-            starts_at: eventStart(e)!,
+            starts_at: startsAt,
             ends_at: eventEnd(e),
             meeting_type: isMeeting ? "Reunião" : e.hangoutLink ? "Online" : null,
             people: eventPeople(e),
@@ -135,7 +164,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             google_event_id: e.id,
             google_account: cal.id,
             synced_at: new Date().toISOString(),
-          };
+          }];
         });
 
       if (rows.length > 0) {
@@ -161,6 +190,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
     .from("meetings")
     .select("id, google_account, google_event_id")
     .not("google_event_id", "is", null)
+    .eq("hidden", false)
     .gte("starts_at", timeMin)
     .lte("starts_at", timeMax);
   const orphans = (allSynced ?? [])
@@ -168,6 +198,23 @@ export async function runCalendarSync(supabase: any, userId: string) {
     .map((r: any) => r.id);
   if (orphans.length > 0) {
     await supabase.from("meetings").delete().in("id", orphans);
+  }
+
+  // Se o mesmo compromisso já tinha sido importado por outra agenda antes do
+  // apagamento, esconde também esses clones locais na próxima sync.
+  if (hiddenSignatures.size > 0) {
+    const { data: visibleRows } = await supabase
+      .from("meetings")
+      .select("id, title, starts_at")
+      .eq("hidden", false)
+      .gte("starts_at", timeMin)
+      .lte("starts_at", timeMax);
+    const clones = (visibleRows ?? [])
+      .filter((r: any) => hiddenSignatures.has(meetingSignature(r.title ?? "", r.starts_at)))
+      .map((r: any) => r.id);
+    if (clones.length > 0) {
+      await supabase.from("meetings").update({ hidden: true }).in("id", clones);
+    }
   }
 
   // IA da LUCK: reclassifica retroativamente qualquer item cujo título

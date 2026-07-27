@@ -98,6 +98,9 @@ export type Meeting = {
   location?: string | null;
   notes: string | null;
   external_url: string | null;
+  google_event_id?: string | null;
+  google_account?: string | null;
+  hidden?: boolean;
   status?: TaskStatus;
   completed_at?: string | null;
 };

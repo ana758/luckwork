@@ -477,12 +477,13 @@ export const aiAction = createServerFn({ method: "POST" })
         title: string;
         google_event_id?: string | null;
         google_account?: string | null;
+        starts_at?: string | null;
       };
       const hits: Hit[] = [];
       for (const table of tables) {
         const { data: rows } = await context.supabase
           .from(table)
-          .select("id, title, google_event_id, google_account")
+          .select(table === "meetings" ? "id, title, starts_at, google_event_id, google_account" : "id, title, google_event_id, google_account")
           .limit(500);
         for (const r of rows ?? []) {
           const t = norm((r as any).title ?? "");
@@ -519,7 +520,14 @@ export const aiAction = createServerFn({ method: "POST" })
             // segue mesmo se Google falhar
           }
         }
-        await context.supabase.from(h.table).delete().eq("id", h.id);
+        if (h.table === "meetings") {
+          let q = context.supabase.from("meetings").update({ hidden: true });
+          if (h.starts_at) q = q.eq("title", h.title).eq("starts_at", h.starts_at);
+          else q = q.eq("id", h.id);
+          await q;
+        } else {
+          await context.supabase.from(h.table).delete().eq("id", h.id);
+        }
         deleted.push(h.title);
       }
       const first = hits[0];
