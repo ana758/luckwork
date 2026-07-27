@@ -59,21 +59,44 @@ function MeetingsPage() {
   const bulkDelete = useMutation({
     mutationFn: async () => {
       const ids = Array.from(selected);
+      if (ids.length === 0) return { count: 0, googlePromise: Promise.resolve(0) };
       const chosen = meetings.filter((m) => ids.includes(m.id)) as Array<
         Meeting & { google_event_id?: string | null; google_account?: string | null }
       >;
-      // Apaga localmente primeiro (rápido); Google roda em paralelo em background.
-      const { error } = await supabase.from("meetings").delete().in("id", ids);
-      if (error) throw new Error(error.message);
-      const googlePromise = Promise.allSettled(
-        chosen
-          .filter((m) => m.google_event_id && m.google_account)
-          .map((m) =>
-            delGoogle({
-              data: { googleAccount: m.google_account!, googleEventId: m.google_event_id! },
-            }),
+      const googleLinked = chosen.filter((m) => m.google_event_id && m.google_account);
+      const localOnly = chosen.filter((m) => !m.google_event_id);
+
+      // Soft-delete (hidden=true) itens vindos do Google para impedir
+      // reimportação na próxima sync, e hard-delete os locais.
+      const ops: Promise<any>[] = [];
+      if (googleLinked.length) {
+        ops.push(
+          Promise.resolve(
+            supabase
+              .from("meetings")
+              .update({ hidden: true })
+              .in("id", googleLinked.map((m) => m.id)),
           ),
-      ).then((results) => results.filter((r) => r.status === "rejected").length);
+        );
+      }
+      if (localOnly.length) {
+        ops.push(
+          Promise.resolve(
+            supabase.from("meetings").delete().in("id", localOnly.map((m) => m.id)),
+          ),
+        );
+      }
+      const results = await Promise.all(ops);
+      const err = results.find((r: any) => r?.error)?.error;
+      if (err) throw new Error(err.message);
+
+      const googlePromise = Promise.allSettled(
+        googleLinked.map((m) =>
+          delGoogle({
+            data: { googleAccount: m.google_account!, googleEventId: m.google_event_id! },
+          }),
+        ),
+      ).then((r) => r.filter((x) => x.status === "rejected").length);
       return { count: ids.length, googlePromise };
     },
     onMutate: async () => {
@@ -87,9 +110,10 @@ function MeetingsPage() {
       return { prev };
     },
     onSuccess: async (r) => {
+      if (r.count === 0) return;
       toast.success(`${r.count} reuniões removidas`);
       const fails = await r.googlePromise;
-      if (fails) toast.warning(`${fails} não removidas no Google Agenda`);
+      if (fails) toast.warning(`${fails} não removidas no Google Agenda (removidas do Anora)`);
       qc.invalidateQueries({ queryKey: ["meetings"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
     },
