@@ -17,6 +17,7 @@ import { Route as AuthenticatedReunioesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
 import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
+import { Route as ApiPublicHooksTaskNudgesRouteImport } from './routes/api/public/hooks/task-nudges'
 import { Route as ApiPublicHooksSyncAllRouteImport } from './routes/api/public/hooks/sync-all'
 import { Route as ApiPublicHooksRemindersRouteImport } from './routes/api/public/hooks/reminders'
 import { Route as ApiPublicHooksPendingPushesRouteImport } from './routes/api/public/hooks/pending-pushes'
@@ -62,6 +63,12 @@ const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
   path: '/ai',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicHooksTaskNudgesRoute =
+  ApiPublicHooksTaskNudgesRouteImport.update({
+    id: '/api/public/hooks/task-nudges',
+    path: '/api/public/hooks/task-nudges',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSyncAllRoute = ApiPublicHooksSyncAllRouteImport.update({
   id: '/api/public/hooks/sync-all',
   path: '/api/public/hooks/sync-all',
@@ -97,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
   '/api/public/hooks/sync-all': typeof ApiPublicHooksSyncAllRoute
+  '/api/public/hooks/task-nudges': typeof ApiPublicHooksTaskNudgesRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -110,6 +118,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
   '/api/public/hooks/sync-all': typeof ApiPublicHooksSyncAllRoute
+  '/api/public/hooks/task-nudges': typeof ApiPublicHooksTaskNudgesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +134,7 @@ export interface FileRoutesById {
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
   '/api/public/hooks/sync-all': typeof ApiPublicHooksSyncAllRoute
+  '/api/public/hooks/task-nudges': typeof ApiPublicHooksTaskNudgesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
     | '/api/public/hooks/sync-all'
+    | '/api/public/hooks/task-nudges'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
     | '/api/public/hooks/sync-all'
+    | '/api/public/hooks/task-nudges'
   id:
     | '__root__'
     | '/_authenticated'
@@ -167,6 +179,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
     | '/api/public/hooks/sync-all'
+    | '/api/public/hooks/task-nudges'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -176,6 +189,7 @@ export interface RootRouteChildren {
   ApiPublicHooksPendingPushesRoute: typeof ApiPublicHooksPendingPushesRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
   ApiPublicHooksSyncAllRoute: typeof ApiPublicHooksSyncAllRoute
+  ApiPublicHooksTaskNudgesRoute: typeof ApiPublicHooksTaskNudgesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -236,6 +250,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAiRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/task-nudges': {
+      id: '/api/public/hooks/task-nudges'
+      path: '/api/public/hooks/task-nudges'
+      fullPath: '/api/public/hooks/task-nudges'
+      preLoaderRoute: typeof ApiPublicHooksTaskNudgesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sync-all': {
       id: '/api/public/hooks/sync-all'
       path: '/api/public/hooks/sync-all'
@@ -295,6 +316,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksPendingPushesRoute: ApiPublicHooksPendingPushesRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
   ApiPublicHooksSyncAllRoute: ApiPublicHooksSyncAllRoute,
+  ApiPublicHooksTaskNudgesRoute: ApiPublicHooksTaskNudgesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
