@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarClock, ListTodo, Mail, Send, Sparkles, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarClock, ListTodo, Mail, Mic, MicOff, Send, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { aiAction, getDailyBriefing, getImportantEmails, type ImportantEmail } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
