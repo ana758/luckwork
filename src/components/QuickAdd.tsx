@@ -13,8 +13,9 @@ import { createNotionDailyPage } from "@/lib/notion.functions";
 
 type Kind = "task" | "meeting";
 
-// Só aparece nestas rotas — no /ai e outras atrapalha o composer.
+// Só aparece nestas rotas — no /ai, /reunioes e outras atrapalha.
 const VISIBLE_ROUTES = ["/", "/tarefas", "/calendario"];
+
 
 export function QuickAdd() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -186,12 +187,13 @@ export function QuickAdd() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Adicionar tarefa ou reunião"
-        className="fixed bottom-24 right-4 z-40 flex h-14 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 md:bottom-6 md:right-6"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 5.5rem)" }}
+        className="fixed right-4 z-40 flex h-16 items-center gap-2 rounded-full bg-primary px-6 text-base font-semibold text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 md:right-6"
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 7.5rem)" }}
       >
-        <Plus className="h-5 w-5" />
+        <Plus className="h-6 w-6" />
         Adicionar
       </button>
+
 
       {open && (
         <div

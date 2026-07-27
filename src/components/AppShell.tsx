@@ -97,7 +97,8 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
+    <div className="min-h-screen bg-background pb-36 md:pb-0">
+
       <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-4 md:px-6">
         {/* Desktop nav */}
         <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
@@ -154,8 +155,9 @@ export function AppShell() {
       {/* Mobile nav */}
       <nav
         className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 2.25rem)" }}
       >
+
         {NAV.map((item) => {
           const active = pathname === item.to;
           const showBadge = item.to === "/configuracoes" && pendingCount > 0;

@@ -134,9 +134,11 @@ export function TaskEditModal({
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          rows={6}
+          placeholder="Espaço livre — escreva o quanto quiser."
+          className="mb-3 mt-1 min-h-[10rem] w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"
         />
+
 
         <div className="flex items-center gap-2">
           <button
