@@ -31,14 +31,15 @@ export async function runNotionSync(supabase: any, userId: string) {
 
   const nowIso = new Date().toISOString();
 
-  // Anora → Notion: se concluída aqui e não lá, mover
+  // Anora → Notion: Anora é a fonte da verdade de STATUS.
+  // Se o status local diverge do Notion, empurra o local para o Notion.
   let pushed = 0;
   for (const p of allPages) {
     const local = byKey.get(p.pageId);
     if (!local) continue;
-    if (local.status === "done" && p.status !== "done") {
+    if (local.status && local.status !== p.status) {
       try {
-        const ok = await transitionPage(p.pageId, "done");
+        const ok = await transitionPage(p.pageId, local.status as any);
         if (ok) pushed += 1;
       } catch {
         /* segue */
@@ -47,7 +48,14 @@ export async function runNotionSync(supabase: any, userId: string) {
   }
 
   // Se a página virou "concluída" no Notion, remover da Anora
-  const remoteDoneIds = allPages.filter((p) => p.status === "done").map((p) => p.pageId);
+  const remoteDoneIds = allPages
+    .filter((p) => p.status === "done")
+    .filter((p) => {
+      const local = byKey.get(p.pageId);
+      // só remove se o local também estava done (ou não existe)
+      return !local || local.status === "done";
+    })
+    .map((p) => p.pageId);
   if (remoteDoneIds.length > 0) {
     await supabase
       .from("tasks")
@@ -74,7 +82,6 @@ export async function runNotionSync(supabase: any, userId: string) {
   }));
 
   // Só insere páginas criadas no Notion a partir do cutoff.
-  // Páginas antigas que não estão mais na Anora foram removidas de propósito.
   const toInsert = rows
     .filter((r) => !byKey.has(r.external_id) && r._created >= IMPORT_CUTOFF_ISO)
     .map(({ _created, ...rest }) => rest);
@@ -88,14 +95,13 @@ export async function runNotionSync(supabase: any, userId: string) {
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
+    // Não sobrescreve status local — Anora manda no status.
     const { error } = await supabase
       .from("tasks")
       .update({
         title: r.title,
-        status: r.status,
         priority: r.priority,
         due_date: r.due_date,
-        completed_at: r.completed_at,
         external_url: r.external_url,
         updated_at: r.updated_at,
       })
@@ -105,3 +111,4 @@ export async function runNotionSync(supabase: any, userId: string) {
 
   return { imported: rows.length, pushed };
 }
+
