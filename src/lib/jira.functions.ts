@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-/** Sincroniza issues do Jira (projeto Angi | Commercial & Marketing) → tarefas do Anora. */
+/** Sincroniza issues do Jira (projeto Angi | Commercial & Marketing) → tarefas do LUCK. */
 export const syncJira = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -19,7 +19,7 @@ export const completeJiraIssue = createServerFn({ method: "POST" })
     return { ok };
   });
 
-/** Move a issue para a coluna correspondente ao status do Anora. */
+/** Move a issue para a coluna correspondente ao status do LUCK. */
 export const transitionJiraIssue = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(

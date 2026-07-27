@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-/** Sincroniza páginas do Notion (Devore) → tarefas do Anora. */
+/** Sincroniza páginas do Notion (Devore) → tarefas do LUCK. */
 export const syncNotion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

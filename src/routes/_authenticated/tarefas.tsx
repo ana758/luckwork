@@ -27,12 +27,12 @@ import { useArchivedSources } from "@/lib/archived-sources";
 export const Route = createFileRoute("/_authenticated/tarefas")({
   head: () => ({
     meta: [
-      { title: "Tarefas · Anora" },
+      { title: "Tarefas · LUCK" },
       {
         name: "description",
         content: "Board e lista das suas tarefas por empresa, com visão semanal ou mensal.",
       },
-      { property: "og:title", content: "Tarefas · Anora" },
+      { property: "og:title", content: "Tarefas · LUCK" },
       { property: "og:description", content: "Board e lista das suas tarefas por empresa." },
     ],
   }),
@@ -101,7 +101,7 @@ function taskSortAt(t: Task): number {
   return new Date(t.created_at).getTime();
 }
 
-const ORDER_KEY = "anora.tasks.order.v1";
+const ORDER_KEY = "luck.tasks.order.v1";
 
 function loadOrder(): Record<string, number> {
   try {
@@ -272,7 +272,7 @@ function TasksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      toast.success("Anora aprendeu: próximos iguais vão para essa empresa.");
+      toast.success("LUCK aprendeu: próximos iguais vão para essa empresa.");
     },
     onError: (e: Error) => toast.error(e.message),
   });

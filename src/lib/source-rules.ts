@@ -15,7 +15,7 @@ export type SourceRule = { title_key: string; source: SourceKey };
 
 /**
  * Detecta menção explícita de empresa no título (ex.: "Reunião Angi", "pagar devore").
- * Retorna a SourceKey correspondente ou null. Usado pela IA da Anora para
+ * Retorna a SourceKey correspondente ou null. Usado pela IA da LUCK para
  * reclassificar automaticamente itens quando o nome da empresa aparece no título.
  */
 export function inferSourceFromTitle(title: string): SourceKey | null {

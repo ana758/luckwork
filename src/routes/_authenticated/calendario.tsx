@@ -18,12 +18,12 @@ import { useArchivedSources } from "@/lib/archived-sources";
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
     meta: [
-      { title: "Calendário · Anora" },
+      { title: "Calendário · LUCK" },
       {
         name: "description",
         content: "Visão diária, 5 dias ou mensal com tarefas e reuniões de todas as empresas.",
       },
-      { property: "og:title", content: "Calendário · Anora" },
+      { property: "og:title", content: "Calendário · LUCK" },
       { property: "og:description", content: "Visão diária, 5 dias ou mensal de tarefas e reuniões." },
     ],
   }),
@@ -218,7 +218,7 @@ function CalendarPage() {
             endsAt: newEndIso,
           },
         });
-        toast.success("Evento movido (Anora + Google)");
+        toast.success("Evento movido (LUCK + Google)");
       } catch (e: any) {
         toast.error("Movi aqui mas não no Google: " + (e?.message ?? "erro"));
       }
@@ -228,18 +228,18 @@ function CalendarPage() {
   }
 
   function onDragStart(ev: React.DragEvent, itemId: string) {
-    ev.dataTransfer.setData("text/anora-meeting", itemId);
+    ev.dataTransfer.setData("text/luck-meeting", itemId);
     ev.dataTransfer.effectAllowed = "move";
   }
   function onDragOver(ev: React.DragEvent, key: string) {
-    if (ev.dataTransfer.types.includes("text/anora-meeting")) {
+    if (ev.dataTransfer.types.includes("text/luck-meeting")) {
       ev.preventDefault();
       ev.dataTransfer.dropEffect = "move";
       if (dragOverKey !== key) setDragOverKey(key);
     }
   }
   function onDrop(ev: React.DragEvent, key: string) {
-    const id = ev.dataTransfer.getData("text/anora-meeting");
+    const id = ev.dataTransfer.getData("text/luck-meeting");
     setDragOverKey(null);
     if (!id) return;
     const m = meetings.find((x) => x.id === id);

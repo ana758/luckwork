@@ -45,7 +45,7 @@ export function useAccessEntries() {
   });
 }
 
-// Semana = domingo → sábado (padrão da Anora).
+// Semana = domingo → sábado (padrão da LUCK).
 export function startOfWeek(d = new Date()) {
   const date = new Date(d);
   date.setDate(date.getDate() - date.getDay()); // domingo = 0

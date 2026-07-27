@@ -170,7 +170,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
     await supabase.from("meetings").delete().in("id", orphans);
   }
 
-  // IA da Anora: reclassifica retroativamente qualquer item cujo título
+  // IA da LUCK: reclassifica retroativamente qualquer item cujo título
   // mencione outra empresa (ex.: "Reunião Angi" marcado como Pessoal).
   // Regras aprendidas explicitamente têm precedência e não são sobrescritas.
   // (inferSourceFromTitle já importado acima)
@@ -257,7 +257,7 @@ export async function runCalendarPush(
   if (data.withMeetLink && !data.allDay) {
     body.conferenceData = {
       createRequest: {
-        requestId: `anora-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        requestId: `luck-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         conferenceSolutionKey: { type: "hangoutsMeet" },
       },
     };

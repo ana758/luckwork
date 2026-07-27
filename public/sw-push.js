@@ -1,5 +1,5 @@
-/* Anora Web Push service worker */
-const CACHE = "anora-push-v1";
+/* LUCK Web Push service worker */
+const CACHE = "luck-push-v1";
 
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
@@ -19,7 +19,7 @@ self.addEventListener("push", (event) => {
           if (res.ok) {
             const list = await res.json();
             for (const n of list.items ?? []) {
-              await self.registration.showNotification(n.title || "Anora", {
+              await self.registration.showNotification(n.title || "LUCK", {
                 body: n.body || "",
                 icon: "/favicon.ico",
                 badge: "/favicon.ico",
@@ -34,7 +34,7 @@ self.addEventListener("push", (event) => {
       }
 
       // Direct payload push
-      await self.registration.showNotification(payload.title || "Anora", {
+      await self.registration.showNotification(payload.title || "LUCK", {
         body: payload.body || "",
         icon: "/favicon.ico",
         badge: "/favicon.ico",

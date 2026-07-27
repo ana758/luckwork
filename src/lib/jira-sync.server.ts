@@ -1,9 +1,9 @@
 /**
- * Sync bilateral Jira ↔ Anora.
+ * Sync bilateral Jira ↔ LUCK.
  * - Traz issues do projeto TASK atribuídas ao usuário do token.
  * - Insere/atualiza em public.tasks (source = 'angi', external_system = 'jira').
  * - Se a issue foi concluída no Jira, marca a tarefa como done.
- * - Se a tarefa foi concluída no Anora, transiciona a issue para "Done".
+ * - Se a tarefa foi concluída no LUCK, transiciona a issue para "Done".
  */
 import { listMyIssues, transitionToDone, mapPriority, mapStatus } from "./jira.server";
 
@@ -26,7 +26,7 @@ export async function runJiraSync(supabase: any, userId: string) {
 
   const nowIso = new Date().toISOString();
 
-  // 1) Anora → Jira: issues que foram marcadas como done aqui, mas não estão done no Jira
+  // 1) LUCK → Jira: issues que foram marcadas como done aqui, mas não estão done no Jira
   let pushed = 0;
   for (const iss of issues) {
     const local = byKey.get(iss.key);
@@ -41,7 +41,7 @@ export async function runJiraSync(supabase: any, userId: string) {
     }
   }
 
-  // 2) Jira → Anora: upsert de cada issue
+  // 2) Jira → LUCK: upsert de cada issue
   const rows = issues.map((iss) => ({
     created_by: userId,
     source: "angi" as const,

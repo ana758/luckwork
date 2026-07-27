@@ -75,13 +75,13 @@ export function MeetingEditModal({
           });
           return { synced: true };
         } catch (e) {
-          toast.error(`Salvo no Anora, mas não sincronizou com o Google: ${(e as Error).message}`);
+          toast.error(`Salvo no LUCK, mas não sincronizou com o Google: ${(e as Error).message}`);
         }
       }
       return { synced: false };
     },
     onSuccess: (r) => {
-      toast.success(r?.synced ? "Atualizado no Anora e no Google" : "Reunião atualizada");
+      toast.success(r?.synced ? "Atualizado no LUCK e no Google" : "Reunião atualizada");
       qc.invalidateQueries({ queryKey: ["meetings"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
@@ -122,7 +122,7 @@ export function MeetingEditModal({
       return { prev };
     },
     onSuccess: (r) => {
-      toast.success(r.wasLinked ? "Removido do Anora e do Google Agenda" : "Removido");
+      toast.success(r.wasLinked ? "Removido do LUCK e do Google Agenda" : "Removido");
       qc.invalidateQueries({ queryKey: ["meetings"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
     },
@@ -199,7 +199,7 @@ export function MeetingEditModal({
         <p className="mb-3 text-[11px] text-muted-foreground">
           {isFromGoogle
             ? "Vinculado ao Google Agenda — salvar e remover atualizam os dois lados."
-            : "Este evento foi criado no Anora."}
+            : "Este evento foi criado no LUCK."}
         </p>
 
 

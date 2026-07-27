@@ -44,7 +44,7 @@ export function NotificationsBell() {
     if (unread > 0) nav.setAppBadge?.(unread).catch(() => {});
     else nav.clearAppBadge?.().catch(() => {});
     // Tab title indicator
-    const base = "Anora";
+    const base = "LUCK";
     document.title = unread > 0 ? `(${unread}) ${base}` : base;
   }, [unread]);
 

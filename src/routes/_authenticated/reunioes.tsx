@@ -15,12 +15,12 @@ import { SOURCE_DOT, SOURCE_LABEL, type Meeting } from "@/lib/sources";
 export const Route = createFileRoute("/_authenticated/reunioes")({
   head: () => ({
     meta: [
-      { title: "Reuniões · Anora" },
+      { title: "Reuniões · LUCK" },
       {
         name: "description",
         content: "Todas as suas reuniões com tipo, participantes e anotações recebidas por e-mail.",
       },
-      { property: "og:title", content: "Reuniões · Anora" },
+      { property: "og:title", content: "Reuniões · LUCK" },
       { property: "og:description", content: "Reuniões com participantes e anotações." },
     ],
   }),
@@ -113,7 +113,7 @@ function MeetingsPage() {
       if (r.count === 0) return;
       toast.success(`${r.count} reuniões removidas`);
       const fails = await r.googlePromise;
-      if (fails) toast.warning(`${fails} não removidas no Google Agenda (removidas do Anora)`);
+      if (fails) toast.warning(`${fails} não removidas no Google Agenda (removidas do LUCK)`);
       qc.invalidateQueries({ queryKey: ["meetings"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
     },

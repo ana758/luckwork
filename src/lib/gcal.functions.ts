@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-/** Sincroniza as agendas do Google (todas as contas conectadas) → reuniões do Anora. */
+/** Sincroniza as agendas do Google (todas as contas conectadas) → reuniões do LUCK. */
 export const syncGoogleCalendar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -9,7 +9,7 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" })
     return runCalendarSync(context.supabase, context.userId);
   });
 
-/** Envia uma reunião/tarefa do Anora para o Google Agenda da conta escolhida. */
+/** Envia uma reunião/tarefa do LUCK para o Google Agenda da conta escolhida. */
 export const pushToGoogleCalendar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(

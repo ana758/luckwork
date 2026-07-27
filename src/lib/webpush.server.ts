@@ -56,7 +56,7 @@ export interface PushSubscriptionRecord {
 export async function sendWakeupPush(sub: PushSubscriptionRecord): Promise<number> {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT || "mailto:noreply@anora.app";
+  const subject = process.env.VAPID_SUBJECT || "mailto:noreply@luck.app";
   if (!publicKey || !privateKey) throw new Error("VAPID keys missing");
 
   const url = new URL(sub.endpoint);

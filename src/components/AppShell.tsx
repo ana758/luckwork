@@ -108,7 +108,7 @@ export function AppShell() {
         {/* Desktop nav */}
         <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
           <div className="mb-6 px-2">
-            <p className="text-lg font-semibold tracking-tight">Anora</p>
+            <p className="text-lg font-semibold tracking-tight">LUCK</p>
             <p className="text-xs text-muted-foreground">Angi · Devore · Brand.Pe · Pessoal</p>
           </div>
           <nav className="space-y-1">
@@ -147,7 +147,7 @@ export function AppShell() {
         <main className="min-w-0 flex-1">
           <header className="mb-4 flex items-center justify-between gap-2">
             <p className="text-xs font-semibold tracking-widest text-muted-foreground md:hidden">
-              ANORA
+              LUCK
             </p>
             <div className="ml-auto flex items-center gap-2">
               <NotifPermissionButton />

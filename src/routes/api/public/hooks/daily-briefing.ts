@@ -28,7 +28,7 @@ async function callGemini(prompt: string): Promise<string> {
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages: [
-        { role: "system", content: "Você é a Anora, assistente pessoal da Ana. Fale em português, direto e curto." },
+        { role: "system", content: "Você é a LUCK, assistente pessoal da Ana. Fale em português, direto e curto." },
         { role: "user", content: prompt },
       ],
     }),
