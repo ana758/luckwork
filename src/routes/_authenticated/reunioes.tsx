@@ -62,33 +62,41 @@ function MeetingsPage() {
       const chosen = meetings.filter((m) => ids.includes(m.id)) as Array<
         Meeting & { google_event_id?: string | null; google_account?: string | null }
       >;
-      let googleFails = 0;
-      for (const m of chosen) {
-        if (m.google_event_id && m.google_account) {
-          try {
-            await delGoogle({
-              data: { googleAccount: m.google_account, googleEventId: m.google_event_id },
-            });
-          } catch {
-            googleFails++;
-          }
-        }
-      }
+      // Apaga localmente primeiro (rápido); Google roda em paralelo em background.
       const { error } = await supabase.from("meetings").delete().in("id", ids);
       if (error) throw new Error(error.message);
-      return { count: ids.length, googleFails };
+      const googlePromise = Promise.allSettled(
+        chosen
+          .filter((m) => m.google_event_id && m.google_account)
+          .map((m) =>
+            delGoogle({
+              data: { googleAccount: m.google_account!, googleEventId: m.google_event_id! },
+            }),
+          ),
+      ).then((results) => results.filter((r) => r.status === "rejected").length);
+      return { count: ids.length, googlePromise };
     },
-    onSuccess: (r) => {
-      toast.success(
-        r.googleFails
-          ? `${r.count} removidas (${r.googleFails} falharam no Google Agenda)`
-          : `${r.count} reuniões removidas`,
+    onMutate: async () => {
+      const ids = Array.from(selected);
+      await qc.cancelQueries({ queryKey: ["meetings"] });
+      const prev = qc.getQueryData<Meeting[]>(["meetings"]);
+      qc.setQueryData<Meeting[]>(["meetings"], (old) =>
+        (old ?? []).filter((m) => !ids.includes(m.id)),
       );
+      exitSelect();
+      return { prev };
+    },
+    onSuccess: async (r) => {
+      toast.success(`${r.count} reuniões removidas`);
+      const fails = await r.googlePromise;
+      if (fails) toast.warning(`${fails} não removidas no Google Agenda`);
       qc.invalidateQueries({ queryKey: ["meetings"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
-      exitSelect();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _v, ctx: any) => {
+      if (ctx?.prev) qc.setQueryData(["meetings"], ctx.prev);
+      toast.error(e.message);
+    },
   });
 
   const onCardClick = (m: Meeting) => {
