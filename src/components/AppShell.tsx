@@ -62,6 +62,8 @@ export function AppShell() {
 
   useAutoSyncGoogle();
   useOverdueScan();
+  useDesktopReminders();
+
 
 
   async function signOut() {
