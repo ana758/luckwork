@@ -14,11 +14,12 @@ export async function runJiraSync(supabase: any, userId: string) {
 
   const issues = await listMyIssues();
 
-  // Tarefas existentes vindas do Jira (para este usuário)
+  // Tarefas existentes vindas do Jira. Não filtramos por usuário porque o
+  // workspace pode ter mais de um login ativo; a issue externa precisa ser
+  // única no LUCK, senão cada login recria uma cópia.
   const { data: existing } = await supabase
     .from("tasks")
     .select("id, external_id, status, completed_at")
-    .eq("created_by", userId)
     .eq("external_system", "jira");
 
   const byKey = new Map<string, any>();
@@ -61,8 +62,29 @@ export async function runJiraSync(supabase: any, userId: string) {
   const toUpdate = rows.filter((r) => byKey.has(r.external_id));
 
   if (toInsert.length > 0) {
-    const { error } = await supabase.from("tasks").insert(toInsert);
-    if (error) throw new Error(`Falha ao inserir tarefas do Jira: ${error.message}`);
+    for (const r of toInsert) {
+      const { error } = await supabase.from("tasks").insert(r);
+      if (error) {
+        if (/duplicate key|unique/i.test(error.message)) {
+          const { error: updateError } = await supabase
+            .from("tasks")
+            .update({
+              title: r.title,
+              status: r.status,
+              priority: r.priority,
+              due_date: r.due_date,
+              completed_at: r.completed_at,
+              external_url: r.external_url,
+              updated_at: r.updated_at,
+            })
+            .eq("external_system", "jira")
+            .eq("external_id", r.external_id);
+          if (updateError) throw new Error(`Falha ao atualizar tarefa Jira ${r.external_id}: ${updateError.message}`);
+          continue;
+        }
+        throw new Error(`Falha ao inserir tarefas do Jira: ${error.message}`);
+      }
+    }
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);

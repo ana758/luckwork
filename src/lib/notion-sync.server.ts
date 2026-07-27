@@ -23,7 +23,6 @@ export async function runNotionSync(supabase: any, userId: string) {
   const { data: existing } = await supabase
     .from("tasks")
     .select("id, external_id, status")
-    .eq("created_by", userId)
     .eq("external_system", "notion");
 
   const byKey = new Map<string, any>();
@@ -60,7 +59,6 @@ export async function runNotionSync(supabase: any, userId: string) {
     await supabase
       .from("tasks")
       .delete()
-      .eq("created_by", userId)
       .eq("external_system", "notion")
       .in("external_id", remoteDoneIds);
   }
@@ -90,8 +88,29 @@ export async function runNotionSync(supabase: any, userId: string) {
     .map(({ _created, ...rest }) => rest);
 
   if (toInsert.length > 0) {
-    const { error } = await supabase.from("tasks").insert(toInsert);
-    if (error) throw new Error(`Falha ao inserir tarefas do Notion: ${error.message}`);
+    for (const r of toInsert) {
+      const { error } = await supabase.from("tasks").insert(r);
+      if (error) {
+        // Se outra sincronização já criou a mesma página, atualiza a existente
+        // em vez de recriar duplicada para outro login ativo.
+        if (/duplicate key|unique/i.test(error.message)) {
+          const { error: updateError } = await supabase
+            .from("tasks")
+            .update({
+              title: r.title,
+              priority: r.priority,
+              due_date: r.due_date,
+              external_url: r.external_url,
+              updated_at: r.updated_at,
+            })
+            .eq("external_system", "notion")
+            .eq("external_id", r.external_id);
+          if (updateError) throw new Error(`Falha ao atualizar página Notion ${r.external_id}: ${updateError.message}`);
+          continue;
+        }
+        throw new Error(`Falha ao inserir tarefas do Notion: ${error.message}`);
+      }
+    }
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
