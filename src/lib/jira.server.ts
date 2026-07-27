@@ -8,6 +8,24 @@
 
 const BASE = "https://angisaude.atlassian.net";
 const PROJECT_KEY = "TASK";
+const ASSIGNEE_EMAIL = "ana@devoresnacks.com";
+
+let cachedAssigneeId: string | null = null;
+async function getAssigneeAccountId(): Promise<string | null> {
+  if (cachedAssigneeId) return cachedAssigneeId;
+  try {
+    const data: any = await jiraFetch(
+      `/rest/api/3/user/search?query=${encodeURIComponent(ASSIGNEE_EMAIL)}`,
+    );
+    const match = (data ?? []).find(
+      (u: any) => (u.emailAddress ?? "").toLowerCase() === ASSIGNEE_EMAIL,
+    ) ?? data?.[0];
+    cachedAssigneeId = match?.accountId ?? null;
+  } catch {
+    cachedAssigneeId = null;
+  }
+  return cachedAssigneeId;
+}
 
 function authHeader() {
   const email = process.env.JIRA_EMAIL;
@@ -127,10 +145,11 @@ export async function transitionToStatus(
     method: "POST",
     body: JSON.stringify({ transition: { id: chosen.id } }),
   });
+  await ensureAssignee(issueKey);
   return true;
 }
 
-/** Cria uma nova issue no projeto Angi | Commercial & Marketing atribuída ao dono do token. */
+/** Cria uma nova issue no projeto Angi | Commercial & Marketing atribuída à Ana (ana@devoresnacks.com). */
 export async function createIssue(input: {
   summary: string;
   dueDate?: string | null;
@@ -138,11 +157,12 @@ export async function createIssue(input: {
 }): Promise<{ key: string; url: string }> {
   const priorityName =
     input.priority === "alta" ? "High" : input.priority === "baixa" ? "Low" : "Medium";
+  const accountId = (await getAssigneeAccountId()) ?? "-1";
   const fields: Record<string, unknown> = {
     project: { key: PROJECT_KEY },
     summary: input.summary,
     issuetype: { name: "Task" },
-    assignee: { accountId: "-1" }, // "-1" = currentUser (dono do token)
+    assignee: { accountId },
     priority: { name: priorityName },
   };
   if (input.dueDate) fields.duedate = input.dueDate;
@@ -150,11 +170,11 @@ export async function createIssue(input: {
     method: "POST",
     body: JSON.stringify({ fields }),
   });
-  // Fallback: se "-1" não funcionar, faz assign via endpoint dedicado.
+  // Garante o assignee mesmo que o create tenha ignorado (fluxos que exigem PUT).
   try {
     await jiraFetch(`/rest/api/3/issue/${data.key}/assignee`, {
       method: "PUT",
-      body: JSON.stringify({ accountId: "-1" }),
+      body: JSON.stringify({ accountId }),
     });
   } catch {
     /* ignora — já pode estar atribuído */
@@ -162,7 +182,21 @@ export async function createIssue(input: {
   return { key: data.key, url: `${BASE}/browse/${data.key}` };
 }
 
-/** Atualiza summary/duedate de uma issue existente. */
+/** Reatribui uma issue existente para Ana (usada quando updates saem do Anora). */
+export async function ensureAssignee(issueKey: string): Promise<void> {
+  const accountId = await getAssigneeAccountId();
+  if (!accountId) return;
+  try {
+    await jiraFetch(`/rest/api/3/issue/${issueKey}/assignee`, {
+      method: "PUT",
+      body: JSON.stringify({ accountId }),
+    });
+  } catch {
+    /* silencioso — não bloqueia o update principal */
+  }
+}
+
+/** Atualiza summary/duedate de uma issue existente e garante Ana como assignee. */
 export async function updateIssue(
   issueKey: string,
   patch: { summary?: string; dueDate?: string | null },
@@ -170,11 +204,13 @@ export async function updateIssue(
   const fields: Record<string, unknown> = {};
   if (patch.summary !== undefined) fields.summary = patch.summary;
   if (patch.dueDate !== undefined) fields.duedate = patch.dueDate;
-  if (Object.keys(fields).length === 0) return;
-  await jiraFetch(`/rest/api/3/issue/${issueKey}`, {
-    method: "PUT",
-    body: JSON.stringify({ fields }),
-  });
+  if (Object.keys(fields).length > 0) {
+    await jiraFetch(`/rest/api/3/issue/${issueKey}`, {
+      method: "PUT",
+      body: JSON.stringify({ fields }),
+    });
+  }
+  await ensureAssignee(issueKey);
 }
 
 
