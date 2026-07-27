@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, ListTodo, Mail, Mic, MicOff, Send, Sparkles, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { aiAction, getDailyBriefing, getImportantEmails, type ImportantEmail } from "@/lib/ai.functions";
+import { aiAction, getDailyBriefing, getImportantEmails, transcribeAudio, type ImportantEmail } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { isOverdue, SOURCE_DOT } from "@/lib/sources";
 
