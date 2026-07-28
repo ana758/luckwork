@@ -370,8 +370,8 @@ export async function runMoveGoogleEvent(
         ? new Date(data.endsAt)
         : new Date(start.getTime() + 60 * 60 * 1000);
       await patchEvent(acc.key, data.googleAccount, data.googleEventId, {
-        start: { dateTime: start.toISOString() },
-        end: { dateTime: end.toISOString() },
+        start: { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" },
+        end: { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" },
       });
       return { ok: true };
     } catch (e) {
