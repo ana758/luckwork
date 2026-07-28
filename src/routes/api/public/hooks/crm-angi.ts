@@ -157,7 +157,7 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
                   crm_destination: "crm",
                   notes: lead.stage ? `Etapa no CRM: ${lead.stage}` : null,
                 },
-                { onConflict: "crm_lead_id", ignoreDuplicates: false },
+                { onConflict: "external_system,external_id", ignoreDuplicates: false },
               )
               .select("id")
               .single();
@@ -186,7 +186,7 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
                   crm_destination: "crm",
                   notes: interaction!.notes?.trim() || null,
                 },
-                { onConflict: "crm_interaction_id", ignoreDuplicates: false },
+                { onConflict: "external_system,external_id", ignoreDuplicates: false },
               )
               .select("id")
               .single();
