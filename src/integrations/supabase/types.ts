@@ -151,6 +151,7 @@ export type Database = {
           read_at: string | null
           task_id: string | null
           title: string
+          user_id: string | null
         }
         Insert: {
           body?: string | null
@@ -159,6 +160,7 @@ export type Database = {
           read_at?: string | null
           task_id?: string | null
           title: string
+          user_id?: string | null
         }
         Update: {
           body?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           read_at?: string | null
           task_id?: string | null
           title?: string
+          user_id?: string | null
         }
         Relationships: [
           {
