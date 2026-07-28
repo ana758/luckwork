@@ -135,7 +135,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
     let accountCount = 0;
 
     for (const cal of calendars) {
-      const { source: defaultSource, isMeeting, skip } = classifyCalendar(acc.defaultSource, cal);
+      const { source: defaultSource, skip } = classifyCalendar(acc.defaultSource, cal);
       if (skip) continue;
       const events = await listEvents(acc.key, cal.id, timeMin, timeMax);
       const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
@@ -168,7 +168,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             source,
             starts_at: startsAt,
             ends_at: eventEnd(e),
-            meeting_type: isMeeting ? "Reunião" : "Reunião",
+            meeting_type: "Reunião",
             people: eventPeople(e),
             location: e.location ?? null,
             notes: e.description?.slice(0, 4000) ?? null,
