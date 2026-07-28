@@ -65,6 +65,10 @@ function meetingSignature(title: string, startsAt: string) {
   return `${normalizedMeetingTitle(title)}::${new Date(startsAt).toISOString()}`;
 }
 
+function isMeetingTitle(title: string) {
+  return /\b(reuni[aã]o|reuniao|meeting|call)\b/i.test(title);
+}
+
 export async function runListAccounts() {
   const out: { email: string; source: string; envVar: string }[] = [];
   for (const acc of connectedAccounts()) {
@@ -148,14 +152,12 @@ export async function runCalendarSync(supabase: any, userId: string) {
           ) {
             return [];
           }
-          // Só entra em Reuniões o que é de fato reunião:
-          // agenda classificada como reunião, título com "reuni",
-          // link do Meet, ou com convidados. O resto (pagamentos,
-          // compras, lembretes pessoais) fica só no Calendário.
-          const titleLooksLikeMeeting = /reuni[aã]o|meeting|call|1:1|1x1|sync/i.test(title);
-          const hasAttendees = (e.attendees ?? []).length > 0;
-          const hasMeetLink = Boolean(e.hangoutLink);
-          if (!isMeeting && !titleLooksLikeMeeting && !hasAttendees && !hasMeetLink) {
+          // A aba Reuniões não é espelho da agenda inteira. Do Google, só entra
+          // o que está nomeado como reunião/call no título. Convite, link do
+          // Meet ou agenda chamada "reuniões" não bastam, porque isso estava
+          // puxando pagamentos, lembretes e tarefas para Reuniões.
+          const titleLooksLikeMeeting = isMeetingTitle(title);
+          if (!titleLooksLikeMeeting) {
             return [];
           }
           const learned = rulesMap.get(normalizeTitleKey(title));
@@ -166,7 +168,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             source,
             starts_at: startsAt,
             ends_at: eventEnd(e),
-            meeting_type: isMeeting || titleLooksLikeMeeting ? "Reunião" : hasMeetLink ? "Online" : "Reunião",
+            meeting_type: isMeeting ? "Reunião" : "Reunião",
             people: eventPeople(e),
             location: e.location ?? null,
             notes: e.description?.slice(0, 4000) ?? null,
