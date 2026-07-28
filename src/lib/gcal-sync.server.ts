@@ -310,8 +310,8 @@ export async function runCalendarPush(
   } else {
     const start = new Date(data.startsAt);
     const end = data.endsAt ? new Date(data.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
-    body.start = { dateTime: start.toISOString() };
-    body.end = { dateTime: end.toISOString() };
+    body.start = { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" };
+    body.end = { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" };
   }
 
   if (data.withMeetLink && !data.allDay) {
