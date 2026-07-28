@@ -271,6 +271,39 @@ export function QuickAdd() {
                 </button>
               ))}
             </div>
+
+            {source === "angi" && kind === "task" && (
+              <div className="mb-3">
+                <label className="text-xs text-muted-foreground">Destino da tarefa Angi</label>
+                <div className="mt-1 grid grid-cols-3 gap-1">
+                  {(
+                    [
+                      { key: "jira", label: "Jira" },
+                      { key: "crm", label: "CRM Angi" },
+                      { key: "none", label: "Só no LUCK" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.key}
+                      onClick={() => setAngiDest(o.key)}
+                      className={`rounded-md border px-2 py-1.5 text-xs ${
+                        angiDest === o.key
+                          ? "border-foreground font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {angiDest === "jira" && "Também vai virar issue no Jira (board Commercial & Marketing)."}
+                  {angiDest === "crm" && "Marcada como do CRM Angi — envio automático ao CRM entra quando ele expuser API."}
+                  {angiDest === "none" && "Fica só aqui no LUCK, sem enviar pra nenhum sistema externo."}
+                </p>
+              </div>
+            )}
+
             <p className="mb-3 text-[11px] text-muted-foreground">
               {kind === "meeting" || (kind === "task" && when)
                 ? `Também será criado no Google Agenda (${source === "angi" || source === "devore" ? "ana@devoresnacks.com" : "anaduquek@gmail.com"}).`
