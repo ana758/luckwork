@@ -148,6 +148,16 @@ export async function runCalendarSync(supabase: any, userId: string) {
           ) {
             return [];
           }
+          // Só entra em Reuniões o que é de fato reunião:
+          // agenda classificada como reunião, título com "reuni",
+          // link do Meet, ou com convidados. O resto (pagamentos,
+          // compras, lembretes pessoais) fica só no Calendário.
+          const titleLooksLikeMeeting = /reuni[aã]o|meeting|call|1:1|1x1|sync/i.test(title);
+          const hasAttendees = (e.attendees ?? []).length > 0;
+          const hasMeetLink = Boolean(e.hangoutLink);
+          if (!isMeeting && !titleLooksLikeMeeting && !hasAttendees && !hasMeetLink) {
+            return [];
+          }
           const learned = rulesMap.get(normalizeTitleKey(title));
           const inferred = inferSourceFromTitle(title);
           const source = learned ?? inferred ?? defaultSource;
@@ -156,7 +166,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             source,
             starts_at: startsAt,
             ends_at: eventEnd(e),
-            meeting_type: isMeeting ? "Reunião" : e.hangoutLink ? "Online" : null,
+            meeting_type: isMeeting || titleLooksLikeMeeting ? "Reunião" : hasMeetLink ? "Online" : "Reunião",
             people: eventPeople(e),
             location: e.location ?? null,
             notes: e.description?.slice(0, 4000) ?? null,
@@ -166,6 +176,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             synced_at: new Date().toISOString(),
           }];
         });
+
 
       if (rows.length > 0) {
         const { error } = await supabase
