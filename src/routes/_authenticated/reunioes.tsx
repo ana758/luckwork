@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/reunioes")({
 });
 
 function MeetingsPage() {
-  const { data: meetings = [], isLoading } = useMeetings();
+  const { data: allMeetings = [], isLoading } = useMeetings();
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [creating, setCreating] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -37,6 +37,14 @@ function MeetingsPage() {
   const delGoogle = useServerFn(deleteGoogleEvent);
 
   const now = Date.now();
+  const monthStart = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+  }, []);
+  const meetings = useMemo(
+    () => allMeetings.filter((m) => new Date(m.starts_at).getTime() >= monthStart),
+    [allMeetings, monthStart]
+  );
   const upcoming = meetings.filter((m) => new Date(m.starts_at).getTime() >= now);
   const past = meetings.filter((m) => new Date(m.starts_at).getTime() < now).reverse();
   const allIds = useMemo(() => meetings.map((m) => m.id), [meetings]);
