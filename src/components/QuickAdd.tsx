@@ -120,12 +120,18 @@ export function QuickAdd() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Escreva o que precisa ser feito.");
-      const payload = { title: title.trim(), source, when };
+      const dest: "jira" | "crm" | "none" = source === "angi" ? angiDest : "none";
+      const payload = { title: title.trim(), source, when, dest };
 
       if (kind === "task") {
         const { data: inserted, error } = await supabase
           .from("tasks")
-          .insert({ title: payload.title, source, due_date: when || null })
+          .insert({
+            title: payload.title,
+            source,
+            due_date: when || null,
+            crm_destination: source === "angi" ? dest : null,
+          })
           .select("id")
           .single();
         if (error) throw new Error(error.message);
