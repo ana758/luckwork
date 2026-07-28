@@ -405,8 +405,8 @@ export async function runPatchGoogleEvent(
     const end = data.endsAt
       ? new Date(data.endsAt)
       : new Date(start.getTime() + 60 * 60 * 1000);
-    body.start = { dateTime: start.toISOString() };
-    body.end = { dateTime: end.toISOString() };
+    body.start = { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" };
+    body.end = { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" };
   }
   let lastErr: unknown = null;
   for (const acc of accounts) {
