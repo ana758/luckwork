@@ -17,6 +17,10 @@ export function TaskEditModal({
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
   const [source, setSource] = useState<SourceKey>(task.source);
   const [notes, setNotes] = useState(task.notes ?? "");
+  const initialDest =
+    (task as unknown as { crm_destination?: "jira" | "crm" | "none" | null }).crm_destination ??
+    (task.external_system === "crm_angi" ? "crm" : task.external_system === "jira" ? "jira" : "none");
+  const [angiDest, setAngiDest] = useState<"jira" | "crm" | "none">(initialDest);
   const qc = useQueryClient();
   const delGoogle = useServerFn(deleteGoogleEvent);
 
@@ -30,6 +34,7 @@ export function TaskEditModal({
           source,
           notes: notes.trim() || null,
           due_date: dueDate || null,
+          crm_destination: source === "angi" ? angiDest : null,
         })
         .eq("id", task.id);
       if (error) throw new Error(error.message);
