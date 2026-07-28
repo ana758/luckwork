@@ -24,6 +24,8 @@ export function QuickAdd() {
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState("");
   const [source, setSource] = useState<SourceKey>("pessoal");
+  // Destino da tarefa quando a empresa é Angi: 'jira' (padrão) | 'crm' | 'none'.
+  const [angiDest, setAngiDest] = useState<"jira" | "crm" | "none">("jira");
   const queryClient = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
   const pushJira = useServerFn(createJiraIssue);

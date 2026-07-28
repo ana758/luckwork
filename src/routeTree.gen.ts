@@ -22,6 +22,7 @@ import { Route as ApiPublicHooksSyncAllRouteImport } from './routes/api/public/h
 import { Route as ApiPublicHooksRemindersRouteImport } from './routes/api/public/hooks/reminders'
 import { Route as ApiPublicHooksPendingPushesRouteImport } from './routes/api/public/hooks/pending-pushes'
 import { Route as ApiPublicHooksDailyBriefingRouteImport } from './routes/api/public/hooks/daily-briefing'
+import { Route as ApiPublicHooksCrmAngiRouteImport } from './routes/api/public/hooks/crm-angi'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -91,6 +92,11 @@ const ApiPublicHooksDailyBriefingRoute =
     path: '/api/public/hooks/daily-briefing',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksCrmAngiRoute = ApiPublicHooksCrmAngiRouteImport.update({
+  id: '/api/public/hooks/crm-angi',
+  path: '/api/public/hooks/crm-angi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/reunioes': typeof AuthenticatedReunioesRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
+  '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/reunioes': typeof AuthenticatedReunioesRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authenticated/reunioes': typeof AuthenticatedReunioesRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/reunioes'
     | '/tarefas'
+    | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/reunioes'
     | '/tarefas'
     | '/'
+    | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reunioes'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
+    | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicHooksCrmAngiRoute: typeof ApiPublicHooksCrmAngiRoute
   ApiPublicHooksDailyBriefingRoute: typeof ApiPublicHooksDailyBriefingRoute
   ApiPublicHooksPendingPushesRoute: typeof ApiPublicHooksPendingPushesRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDailyBriefingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/crm-angi': {
+      id: '/api/public/hooks/crm-angi'
+      path: '/api/public/hooks/crm-angi'
+      fullPath: '/api/public/hooks/crm-angi'
+      preLoaderRoute: typeof ApiPublicHooksCrmAngiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -312,6 +332,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicHooksCrmAngiRoute: ApiPublicHooksCrmAngiRoute,
   ApiPublicHooksDailyBriefingRoute: ApiPublicHooksDailyBriefingRoute,
   ApiPublicHooksPendingPushesRoute: ApiPublicHooksPendingPushesRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
