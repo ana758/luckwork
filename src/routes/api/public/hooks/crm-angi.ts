@@ -29,7 +29,7 @@ import type { Database } from "@/integrations/supabase/types";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-CRM-Secret",
+  "Access-Control-Allow-Headers": "Content-Type, X-CRM-Secret, X-Webhook-Secret",
   "Access-Control-Max-Age": "86400",
 } as const;
 
@@ -79,7 +79,10 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
         const secret = process.env.CRM_ANGI_WEBHOOK_SECRET;
         if (!secret) return json(500, { error: "webhook secret not configured" });
 
-        const provided = request.headers.get("x-crm-secret") ?? "";
+        const provided =
+          request.headers.get("x-webhook-secret") ??
+          request.headers.get("x-crm-secret") ??
+          "";
         if (provided !== secret) return json(401, { error: "invalid secret" });
 
         let body: any;
