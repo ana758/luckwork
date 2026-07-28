@@ -36,7 +36,7 @@ export function QuickAdd() {
   // Roda integrações em background sem bloquear a UI.
   async function syncTaskIntegrations(
     id: string,
-    payload: { title: string; source: SourceKey; when: string },
+    payload: { title: string; source: SourceKey; when: string; dest: "jira" | "crm" | "none" },
   ) {
     // Jira (Angi) — só se destino for jira
     if (payload.source === "angi" && payload.dest === "jira") {
