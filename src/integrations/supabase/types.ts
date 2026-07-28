@@ -50,6 +50,47 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_angi_events: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string | null
+          task_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed_at?: string | null
+          task_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+          task_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_angi_events_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_accounts: {
         Row: {
           created_at: string
@@ -306,6 +347,9 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string | null
+          crm_destination: string | null
+          crm_interaction_id: string | null
+          crm_lead_id: string | null
           due_date: string | null
           external_id: string | null
           external_system: string | null
@@ -326,6 +370,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          crm_destination?: string | null
+          crm_interaction_id?: string | null
+          crm_lead_id?: string | null
           due_date?: string | null
           external_id?: string | null
           external_system?: string | null
@@ -346,6 +393,9 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          crm_destination?: string | null
+          crm_interaction_id?: string | null
+          crm_lead_id?: string | null
           due_date?: string | null
           external_id?: string | null
           external_system?: string | null

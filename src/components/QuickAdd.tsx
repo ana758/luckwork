@@ -24,6 +24,8 @@ export function QuickAdd() {
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState("");
   const [source, setSource] = useState<SourceKey>("pessoal");
+  // Destino da tarefa quando a empresa é Angi: 'jira' (padrão) | 'crm' | 'none'.
+  const [angiDest, setAngiDest] = useState<"jira" | "crm" | "none">("jira");
   const queryClient = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
   const pushJira = useServerFn(createJiraIssue);
@@ -34,10 +36,10 @@ export function QuickAdd() {
   // Roda integrações em background sem bloquear a UI.
   async function syncTaskIntegrations(
     id: string,
-    payload: { title: string; source: SourceKey; when: string },
+    payload: { title: string; source: SourceKey; when: string; dest: "jira" | "crm" | "none" },
   ) {
-    // Jira (Angi)
-    if (payload.source === "angi") {
+    // Jira (Angi) — só se destino for jira
+    if (payload.source === "angi" && payload.dest === "jira") {
       try {
         const jira = await pushJira({
           data: { summary: payload.title, dueDate: payload.when || null },
@@ -118,12 +120,18 @@ export function QuickAdd() {
   const mutation = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Escreva o que precisa ser feito.");
-      const payload = { title: title.trim(), source, when };
+      const dest: "jira" | "crm" | "none" = source === "angi" ? angiDest : "none";
+      const payload = { title: title.trim(), source, when, dest };
 
       if (kind === "task") {
         const { data: inserted, error } = await supabase
           .from("tasks")
-          .insert({ title: payload.title, source, due_date: when || null })
+          .insert({
+            title: payload.title,
+            source,
+            due_date: when || null,
+            crm_destination: source === "angi" ? dest : null,
+          })
           .select("id")
           .single();
         if (error) throw new Error(error.message);
@@ -263,6 +271,39 @@ export function QuickAdd() {
                 </button>
               ))}
             </div>
+
+            {source === "angi" && kind === "task" && (
+              <div className="mb-3">
+                <label className="text-xs text-muted-foreground">Destino da tarefa Angi</label>
+                <div className="mt-1 grid grid-cols-3 gap-1">
+                  {(
+                    [
+                      { key: "jira", label: "Jira" },
+                      { key: "crm", label: "CRM Angi" },
+                      { key: "none", label: "Só no LUCK" },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.key}
+                      onClick={() => setAngiDest(o.key)}
+                      className={`rounded-md border px-2 py-1.5 text-xs ${
+                        angiDest === o.key
+                          ? "border-foreground font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {angiDest === "jira" && "Também vai virar issue no Jira (board Commercial & Marketing)."}
+                  {angiDest === "crm" && "Marcada como do CRM Angi — envio automático ao CRM entra quando ele expuser API."}
+                  {angiDest === "none" && "Fica só aqui no LUCK, sem enviar pra nenhum sistema externo."}
+                </p>
+              </div>
+            )}
+
             <p className="mb-3 text-[11px] text-muted-foreground">
               {kind === "meeting" || (kind === "task" && when)
                 ? `Também será criado no Google Agenda (${source === "angi" || source === "devore" ? "ana@devoresnacks.com" : "anaduquek@gmail.com"}).`
