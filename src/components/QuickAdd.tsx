@@ -38,8 +38,8 @@ export function QuickAdd() {
     id: string,
     payload: { title: string; source: SourceKey; when: string },
   ) {
-    // Jira (Angi)
-    if (payload.source === "angi") {
+    // Jira (Angi) — só se destino for jira
+    if (payload.source === "angi" && payload.dest === "jira") {
       try {
         const jira = await pushJira({
           data: { summary: payload.title, dueDate: payload.when || null },
