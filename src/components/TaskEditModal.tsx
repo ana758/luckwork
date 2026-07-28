@@ -135,6 +135,32 @@ export function TaskEditModal({
           ))}
         </div>
 
+        {source === "angi" && (
+          <>
+            <label className="text-xs text-muted-foreground">Destino Angi</label>
+            <div className="mb-3 mt-1 grid grid-cols-3 gap-1">
+              {(
+                [
+                  { key: "jira", label: "Jira" },
+                  { key: "crm", label: "CRM Angi" },
+                  { key: "none", label: "Só LUCK" },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={o.key}
+                  onClick={() => setAngiDest(o.key)}
+                  className={`rounded-md border px-2 py-1.5 text-xs ${
+                    angiDest === o.key ? "border-foreground font-medium" : "text-muted-foreground"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+
         <label className="text-xs text-muted-foreground">Notas</label>
         <textarea
           value={notes}
