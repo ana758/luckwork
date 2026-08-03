@@ -173,6 +173,36 @@ export const deleteAiMemory = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Sugestões proativas da IA (as mesmas que viram push) para aparecerem no chat. */
+export const listAiSuggestions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("notifications")
+      .select("id, title, body, created_at")
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return (data ?? []).filter((n) => (n.title ?? "").startsWith("🤖")).slice(0, 5);
+  });
+
+/** Marca uma sugestão como resolvida (respondida ou dispensada). */
+export const dismissAiSuggestion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("id obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 
 export const getImportantEmails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -383,10 +413,40 @@ export const aiAction = createServerFn({ method: "POST" })
 
     const currentYear = today.getFullYear();
     const memories = await loadMemories(context.supabase);
+
+    // Contexto vivo do LUCK: a IA enxerga tarefas, reuniões e sugestões em aberto
+    const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const [{ data: ctxTasks }, { data: ctxMeetings }, { data: ctxSuggestions }] = await Promise.all([
+      context.supabase
+        .from("tasks")
+        .select("title, source, status, priority, start_date, due_date, updated_at")
+        .neq("status", "done")
+        .order("due_date", { ascending: true })
+        .limit(300),
+      context.supabase
+        .from("meetings")
+        .select("title, source, starts_at, meeting_type, people, external_url")
+        .gte("starts_at", `${todayStr}T00:00:00`)
+        .lte("starts_at", `${in7}T23:59:59`)
+        .order("starts_at", { ascending: true })
+        .limit(80),
+      context.supabase
+        .from("notifications")
+        .select("title, body, created_at")
+        .is("read_at", null)
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ]);
+
     const system = [
       memoryBlock(memories),
       "Você é a assistente da Ana. Interprete a mensagem (que pode vir de áudio transcrito, com pequenos erros) e responda APENAS um JSON válido, sem markdown.",
       `Hoje é ${todayStr} (fuso ${tz}). O ano corrente é ${currentYear}.`,
+      "CONTEXTO ATUAL DO SISTEMA LUCK (use para responder perguntas sobre tarefas, agenda e prioridades; nunca invente o que não estiver aqui):",
+      `Tarefas em aberto (JSON): ${JSON.stringify(ctxTasks ?? [])}`,
+      `Reuniões dos próximos 7 dias (JSON): ${JSON.stringify(ctxMeetings ?? [])}`,
+      `Sugestões/alertas em aberto da própria IA (JSON): ${JSON.stringify(ctxSuggestions ?? [])}`,
+      "Se a Ana responder algo curto como 'pode', 'sim', 'faz isso', 'manda ver', entenda que ela está aceitando a última sugestão em aberto e execute/oriente com base nela.",
       `⚠️ REGRA DE ANO: se a usuária disser apenas dia/mês (ex.: '27/07', '3 de agosto', 'dia 15'), SEMPRE use o ano ${currentYear}. NUNCA use anos passados. Se a data já passou este ano, ainda assim assuma ${currentYear} (a menos que ela diga explicitamente 'ano que vem').`,
       "Empresas (source): 'angi', 'devore', 'bruna' (Brand.Pe), 'pessoal'.",
       "REGRA CRÍTICA DE CLASSIFICAÇÃO DE EMPRESA (siga nesta ordem):",

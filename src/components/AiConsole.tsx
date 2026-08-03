@@ -1,23 +1,51 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Mail, Mic, MicOff, Send } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  Mail,
+  Mic,
+  MicOff,
+  Send,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   aiAction,
+  dismissAiSuggestion,
   dismissEmail,
   getDailyBriefing,
   getImportantEmails,
+  listAiSuggestions,
   transcribeAudio,
   type ImportantEmail,
 } from "@/lib/ai.functions";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+function speak(text: string) {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[#*_`>]/g, "").slice(0, 1200));
+    u.lang = "pt-BR";
+    const v = synth.getVoices().find((x) => x.lang?.toLowerCase().startsWith("pt"));
+    if (v) u.voice = v;
+    synth.speak(u);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function AiConsole({ compact = false }: { compact?: boolean }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [voice, setVoice] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -30,6 +58,18 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  const suggestionsQuery = useQuery({
+    queryKey: ["ai-suggestions"],
+    queryFn: () => listAiSuggestions(),
+    refetchInterval: 60_000,
+  });
+
+  const dismissSuggestion = useMutation({
+    mutationFn: (id: string) => dismissAiSuggestion({ data: { id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-suggestions"] }),
+  });
+
 
   const ask = useMutation({
     mutationFn: async (q?: string) => {
@@ -47,6 +87,8 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
         { role: "assistant", content: res.reply },
       ]);
       setQuestion("");
+      if (voice) speak(res.reply);
+
       if (res.created) {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
         queryClient.invalidateQueries({ queryKey: ["meetings"] });
@@ -72,6 +114,25 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
     }
     ask.mutate(text);
   }
+
+  function answerSuggestion(
+    s: { id: string; title: string; body: string | null },
+    accept: boolean,
+  ) {
+    dismissSuggestion.mutate(s.id);
+    const context = `${s.title.replace(/^🤖\s*/, "")}${s.body ? ` — ${s.body}` : ""}`;
+    if (!accept) {
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: context },
+        { role: "user", content: "Agora não." },
+      ]);
+      return;
+    }
+    setMessages((m) => [...m, { role: "assistant", content: context }]);
+    ask.mutate(`Sobre sua sugestão "${context}": pode fazer, sim. Siga em frente.`);
+  }
+
 
   async function toggleListening() {
     if (listening && recorderRef.current) {
@@ -213,6 +274,20 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
           >
             <Send className="h-4 w-4" />
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (voice) window.speechSynthesis?.cancel();
+              setVoice((v) => !v);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+              voice ? "border-primary bg-primary/10 text-primary" : "bg-card hover:bg-accent"
+            }`}
+            aria-label={voice ? "Desligar resposta em voz" : "Ligar resposta em voz"}
+            title={voice ? "Resposta em voz ligada" : "Resposta em voz desligada"}
+          >
+            {voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+          </button>
         </div>
       </form>
 
@@ -220,6 +295,34 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
         ref={scrollRef}
         className={`${compact ? "min-h-[26vh]" : "min-h-[40vh] flex-1"} space-y-3 overflow-y-auto rounded-xl border bg-card p-4`}
       >
+        {(suggestionsQuery.data ?? []).map((s) => (
+          <div key={s.id} className="flex justify-start">
+            <div className="max-w-[90%] rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+              <p className="mb-1 flex items-center gap-1.5 font-medium">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                {s.title.replace(/^🤖\s*/, "")}
+              </p>
+              {s.body && <p className="text-muted-foreground">{s.body}</p>}
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => answerSuggestion(s, true)}
+                  className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                >
+                  Pode fazer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => answerSuggestion(s, false)}
+                  className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                >
+                  Agora não
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
 
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
