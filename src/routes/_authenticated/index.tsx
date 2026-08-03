@@ -106,69 +106,74 @@ function Dashboard() {
         </p>
       </header>
 
-      {overdueTasks.length > 0 && (
-        <section className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-          <div className="mb-2 flex items-center gap-2 text-destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <h2 className="text-sm font-semibold">
-              {overdueTasks.length} tarefa{overdueTasks.length > 1 ? "s" : ""} atrasada
-              {overdueTasks.length > 1 ? "s" : ""}
-            </h2>
-          </div>
-          <ul className="space-y-1.5">
-            {overdueTasks.slice(0, 6).map((t) => (
-              <li key={t.id} className="flex items-center gap-2 text-sm">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${SOURCE_DOT[t.source]}`} />
-                <Link to="/tarefas" className="truncate hover:underline">
-                  {t.title}
-                </Link>
-                <span className="ml-auto shrink-0 text-xs text-destructive/80">
-                  {t.due_date &&
-                    new Date(`${t.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
-                </span>
-              </li>
-            ))}
-            {overdueTasks.length > 6 && (
-              <li className="pt-1 text-xs text-muted-foreground">
-                +{overdueTasks.length - 6} outra(s) — ver em{" "}
-                <Link to="/tarefas" className="underline">
-                  Tarefas
-                </Link>
-                .
-              </li>
+      <section className="grid gap-3 md:grid-cols-2">
+        {overdueTasks.length > 0 && (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
+            <div className="mb-2 flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <h2 className="text-sm font-semibold">
+                {overdueTasks.length} tarefa{overdueTasks.length > 1 ? "s" : ""} atrasada
+                {overdueTasks.length > 1 ? "s" : ""}
+              </h2>
+            </div>
+            <ul className="space-y-1.5">
+              {(showAllOverdue ? overdueTasks : overdueTasks.slice(0, 3)).map((t) => (
+                <li key={t.id} className="flex items-center gap-2 text-sm">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${SOURCE_DOT[t.source]}`} />
+                  <Link to="/tarefas" className="truncate hover:underline">
+                    {t.title}
+                  </Link>
+                  <span className="ml-auto shrink-0 text-xs text-destructive/80">
+                    {t.due_date &&
+                      new Date(`${t.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {overdueTasks.length > 3 && (
+              <button
+                onClick={() => setShowAllOverdue((v) => !v)}
+                className="mt-3 w-full rounded-md border border-destructive/30 px-2 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+              >
+                {showAllOverdue ? "Ver menos" : `Ver mais (${overdueTasks.length - 3})`}
+              </button>
             )}
-          </ul>
-        </section>
-      )}
-
-      {/* Hoje */}
-      <section className="rounded-xl border bg-card p-4">
-        <h2 className="mb-3 text-sm font-medium">Hoje</h2>
-        {todayItems.t.length === 0 && todayItems.m.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nada marcado para hoje.</p>
-        ) : (
-          <ul className="space-y-2">
-            {todayItems.m.map((m) => (
-              <li key={m.id} className="flex items-center gap-2 text-sm">
-                <span className="h-2 w-2 shrink-0 rounded-full bg-reuniao" />
-                <span className="truncate">{m.title}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                  {new Date(m.starts_at).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              </li>
-            ))}
-            {todayItems.t.map((t) => (
-              <li key={t.id} className="flex items-center gap-2 text-sm">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${SOURCE_DOT[t.source]}`} />
-                <span className="truncate">{t.title}</span>
-              </li>
-            ))}
-          </ul>
+          </div>
         )}
+
+        {/* Hoje */}
+        <div className="rounded-xl border bg-card p-4">
+          <h2 className="mb-3 text-sm font-medium">Hoje</h2>
+          {todayList.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nada marcado para hoje.</p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {(showAllToday ? todayList : todayList.slice(0, 3)).map((item) => (
+                  <li key={item.id} className="flex items-center gap-2 text-sm">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
+                    <span className="truncate">{item.title}</span>
+                    {item.time && (
+                      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                        {item.time}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {todayList.length > 3 && (
+                <button
+                  onClick={() => setShowAllToday((v) => !v)}
+                  className="mt-3 w-full rounded-md border px-2 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                >
+                  {showAllToday ? "Ver menos" : `Ver mais (${todayList.length - 3})`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </section>
+
 
       {/* Colunas por empresa */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
