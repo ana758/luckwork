@@ -1,5 +1,5 @@
 /* LUCK Web Push service worker */
-const CACHE = "luck-push-v2";
+const CACHE = "luck-push-v3";
 
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
@@ -14,7 +14,7 @@ function show(n) {
     renotify: true,
     silent: false,
     vibrate: [200, 100, 200, 100, 300],
-    requireInteraction: false,
+    requireInteraction: true,
     timestamp: Date.now(),
   });
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BellRing, BellOff, Check } from "lucide-react";
 import { toast } from "sonner";
-import { enablePush, isPushEnabled } from "@/lib/push-client";
+import { enablePush, isPushEnabled, refreshPushSubscription } from "@/lib/push-client";
 
 export function NotifPermissionButton() {
   const [state, setState] = useState<"unknown" | "off" | "on" | "unsupported">("unknown");
@@ -13,6 +13,7 @@ export function NotifPermissionButton() {
         return;
       }
       const on = await isPushEnabled();
+      if (on) await refreshPushSubscription().catch(() => false);
       setState(on ? "on" : "off");
     })();
   }, []);
@@ -21,13 +22,19 @@ export function NotifPermissionButton() {
 
   if (state === "on") {
     return (
-      <span
+      <button
+        type="button"
+        onClick={async () => {
+          const ok = await refreshPushSubscription().catch(() => false);
+          if (ok) toast.success("Alertas renovados");
+          else toast.error("Permita notificações para a LUCK nos ajustes do aparelho.");
+        }}
         className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1.5 text-xs text-emerald-600"
-        title="Notificações ativadas — chegam mesmo com o app fechado"
+        title="Toque para renovar os alertas deste aparelho"
       >
         <Check className="h-3.5 w-3.5" />
         Alertas ativos
-      </span>
+      </button>
     );
   }
 
