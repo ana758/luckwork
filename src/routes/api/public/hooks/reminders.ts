@@ -71,18 +71,27 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
 
 
         if ((overdue ?? []).length > 0) {
-          const bySource: Record<string, number> = {};
-          for (const t of overdue ?? []) bySource[t.source] = (bySource[t.source] ?? 0) + 1;
-          const parts = Object.entries(bySource)
-            .map(([s, n]) => `${SOURCE_LABEL[s] || s}: ${n}`)
-            .join(" · ");
-          await notifyAll({
-            title: `📌 Você tem ${overdue!.length} tarefa(s) atrasada(s)`,
-            body: parts,
-            url: "/tarefas",
-            tag: "overdue-summary",
-          });
-          sent.push(`overdue:${overdue!.length}`);
+          // Uma vez por dia apenas
+          const overdueTag = `overdue-summary-${today.replace(/-/g, "")}`;
+          const { data: sentToday } = await sb
+            .from("pending_pushes")
+            .select("tag")
+            .eq("tag", overdueTag)
+            .limit(1);
+          if ((sentToday ?? []).length === 0) {
+            const bySource: Record<string, number> = {};
+            for (const t of overdue ?? []) bySource[t.source] = (bySource[t.source] ?? 0) + 1;
+            const parts = Object.entries(bySource)
+              .map(([s, n]) => `${SOURCE_LABEL[s] || s}: ${n}`)
+              .join(" · ");
+            await notifyAll({
+              title: `📌 Você tem ${overdue!.length} tarefa(s) atrasada(s)`,
+              body: parts,
+              url: "/tarefas",
+              tag: overdueTag,
+            });
+            sent.push(`overdue:${overdue!.length}`);
+          }
         }
 
         return Response.json({ ok: true, sent });
