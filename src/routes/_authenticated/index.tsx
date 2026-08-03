@@ -126,6 +126,58 @@ function Dashboard() {
         </p>
       </header>
 
+      {/* Colunas por empresa */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {visibleSources.map((s) => {
+          const list = tasks.filter((t) => t.source === s.key && t.status !== "done");
+          const late = list.filter(isOverdue).length;
+          const links = access.filter((a) => a.source === s.key && a.url);
+          return (
+            <div key={s.key} className="rounded-xl border bg-card p-3">
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${SOURCE_DOT[s.key]}`} />
+                <p className="text-sm font-medium">{s.label}</p>
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold">{list.length}</span>
+                <span className="text-xs text-muted-foreground">pendências</span>
+              </div>
+              {late > 0 && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-reuniao">
+                  <AlertTriangle className="h-3 w-3" /> {late} atrasada(s)
+                </p>
+              )}
+              <div className="mt-3 space-y-1">
+                {links.slice(0, 3).map((l) => (
+                  <a
+                    key={l.id}
+                    href={l.url!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 truncate text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" /> {l.label}
+                  </a>
+                ))}
+              </div>
+              <button
+                onClick={() => setDrawer(s.key)}
+                className={`mt-3 flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs ${SOURCE_CHIP[s.key]}`}
+              >
+                <KeyRound className="h-3 w-3" /> Acessos
+              </button>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* E-mails importantes + LUCK AI */}
+      <AiConsole compact />
+
+      {/* Memória da IA */}
+      <AiMemoryCard />
+
+      {/* Atrasadas + Hoje */}
       <section className="grid gap-3 md:grid-cols-2">
         {overdueTasks.length > 0 && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
@@ -193,6 +245,7 @@ function Dashboard() {
           )}
         </div>
       </section>
+
 
 
       {/* Colunas por empresa */}
