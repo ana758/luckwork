@@ -383,7 +383,10 @@ function AIPage() {
           </div>
         )}
       </div>
+
+      <AiMemoryCard />
     </div>
+
   );
 }
 
