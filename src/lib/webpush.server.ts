@@ -35,7 +35,11 @@ export async function sendPush(sub: PushSubscriptionRecord, payload: PushPayload
     subscription,
     vapid,
   );
-  const res = await fetch(subscription.endpoint, request);
+  const body = request.body.buffer.slice(
+    request.body.byteOffset,
+    request.body.byteOffset + request.body.byteLength,
+  ) as ArrayBuffer;
+  const res = await fetch(subscription.endpoint, { ...request, body });
   return res.status;
 }
 
