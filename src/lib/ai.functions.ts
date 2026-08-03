@@ -98,6 +98,69 @@ async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?
   }
 }
 
+// ---------------------------------------------------------------------------
+// Memória da IA: fatos/preferências aprendidos ao longo do tempo
+// ---------------------------------------------------------------------------
+async function loadMemories(supabase: any, limit = 60): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from("ai_memory")
+      .select("content")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return (data ?? []).map((m: { content: string }) => m.content).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function memoryBlock(memories: string[]): string {
+  if (!memories.length) return "";
+  return [
+    "MEMÓRIA (o que você já aprendeu com a Ana — respeite sempre):",
+    ...memories.map((m) => `- ${m}`),
+  ].join("\n");
+}
+
+export const listAiMemories = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("ai_memory")
+      .select("id, content, kind, source, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const addAiMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { content: string }) => {
+    if (!input?.content?.trim()) throw new Error("Conteúdo vazio.");
+    return { content: input.content.trim().slice(0, 500) };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("ai_memory")
+      .insert({ user_id: context.userId, content: data.content, source: "manual" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteAiMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("id obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("ai_memory").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
 export const getImportantEmails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => loadImportantEmails());
