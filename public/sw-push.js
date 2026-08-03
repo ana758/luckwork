@@ -1,8 +1,23 @@
 /* LUCK Web Push service worker */
-const CACHE = "luck-push-v1";
+const CACHE = "luck-push-v2";
 
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+
+function show(n) {
+  return self.registration.showNotification(n.title || "LUCK", {
+    body: n.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: n.url || "/" },
+    tag: n.tag || n.id || undefined,
+    renotify: true,
+    silent: false,
+    vibrate: [200, 100, 200, 100, 300],
+    requireInteraction: false,
+    timestamp: Date.now(),
+  });
+}
 
 self.addEventListener("push", (event) => {
   event.waitUntil(
@@ -10,38 +25,36 @@ self.addEventListener("push", (event) => {
       let payload = null;
       try {
         if (event.data) payload = event.data.json();
-      } catch {}
-
-      // Wake-up push (no payload): fetch pending
-      if (!payload) {
+      } catch {
         try {
-          const res = await fetch("/api/public/hooks/pending-pushes", { cache: "no-store" });
-          if (res.ok) {
-            const list = await res.json();
-            for (const n of list.items ?? []) {
-              await self.registration.showNotification(n.title || "LUCK", {
-                body: n.body || "",
-                icon: "/favicon.ico",
-                badge: "/favicon.ico",
-                data: { url: n.url || "/" },
-                tag: n.tag || n.id,
-                requireInteraction: false,
-              });
-            }
-          }
+          const text = event.data && event.data.text();
+          if (text) payload = { title: "LUCK", body: text };
         } catch {}
+      }
+
+      // Direct payload push (normal path)
+      if (payload && (payload.title || payload.body)) {
+        await show(payload);
         return;
       }
 
-      // Direct payload push
-      await self.registration.showNotification(payload.title || "LUCK", {
-        body: payload.body || "",
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
-        data: { url: payload.url || "/" },
-        tag: payload.tag,
-        requireInteraction: false,
-      });
+      // Wake-up push (no payload): fetch pending
+      let shown = 0;
+      try {
+        const res = await fetch("/api/public/hooks/pending-pushes", { cache: "no-store" });
+        if (res.ok) {
+          const list = await res.json();
+          for (const n of list.items ?? []) {
+            await show(n);
+            shown++;
+          }
+        }
+      } catch {}
+
+      // iOS/Chrome require a visible notification for every push
+      if (shown === 0) {
+        await show({ title: "LUCK", body: "Você tem novas atualizações", url: "/" });
+      }
     })(),
   );
 });
