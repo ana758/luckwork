@@ -224,11 +224,39 @@ export function AiPanel() {
             </div>
 
             <div ref={scrollRef} className="min-h-32 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-              {messages.length === 0 && !ask.isPending && (
-                <p className="text-sm text-muted-foreground">
-                  Escreva ou fale: "adiciona na Angi entregar roteiro dia 12/08" — eu faço pra você.
-                </p>
-              )}
+              {(suggestionsQuery.data ?? []).map((s) => (
+                <div key={s.id} className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                  <p className="mb-1 flex items-center gap-1.5 font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    {s.title.replace(/^🤖\s*/, "")}
+                  </p>
+                  {s.body && <p className="text-muted-foreground">{s.body}</p>}
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => answerSuggestion(s, true)}
+                      className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                    >
+                      Pode fazer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => answerSuggestion(s, false)}
+                      className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                    >
+                      Agora não
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {messages.length === 0 &&
+                !ask.isPending &&
+                (suggestionsQuery.data ?? []).length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Escreva ou fale: "adiciona na Angi entregar roteiro dia 12/08" — eu faço pra você.
+                  </p>
+                )}
+
               {messages.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "text-right" : ""}>
                   <div
