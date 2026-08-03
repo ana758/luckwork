@@ -98,6 +98,69 @@ async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?
   }
 }
 
+// ---------------------------------------------------------------------------
+// Memória da IA: fatos/preferências aprendidos ao longo do tempo
+// ---------------------------------------------------------------------------
+async function loadMemories(supabase: any, limit = 60): Promise<string[]> {
+  try {
+    const { data } = await supabase
+      .from("ai_memory")
+      .select("content")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return (data ?? []).map((m: { content: string }) => m.content).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function memoryBlock(memories: string[]): string {
+  if (!memories.length) return "";
+  return [
+    "MEMÓRIA (o que você já aprendeu com a Ana — respeite sempre):",
+    ...memories.map((m) => `- ${m}`),
+  ].join("\n");
+}
+
+export const listAiMemories = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("ai_memory")
+      .select("id, content, kind, source, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const addAiMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { content: string }) => {
+    if (!input?.content?.trim()) throw new Error("Conteúdo vazio.");
+    return { content: input.content.trim().slice(0, 500) };
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("ai_memory")
+      .insert({ user_id: context.userId, content: data.content, source: "manual" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteAiMemory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("id obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("ai_memory").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
 export const getImportantEmails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async () => loadImportantEmails());
@@ -136,8 +199,11 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
       motivo: e.reason,
     }));
 
+    const memories = await loadMemories(context.supabase);
+
     const prompt = [
       `Hoje é ${today}.`,
+      memoryBlock(memories),
       `Tarefas em aberto (JSON): ${JSON.stringify(tasks ?? [])}`,
       `Reuniões dos próximos 7 dias (JSON): ${JSON.stringify(meetings ?? [])}`,
       `E-mails importantes já filtrados (JSON, ignore spam/propaganda): ${JSON.stringify(emailsForPrompt)}`,
@@ -288,7 +354,9 @@ export const aiAction = createServerFn({ method: "POST" })
     const tz = "America/Sao_Paulo";
 
     const currentYear = today.getFullYear();
+    const memories = await loadMemories(context.supabase);
     const system = [
+      memoryBlock(memories),
       "Você é a assistente da Ana. Interprete a mensagem (que pode vir de áudio transcrito, com pequenos erros) e responda APENAS um JSON válido, sem markdown.",
       `Hoje é ${todayStr} (fuso ${tz}). O ano corrente é ${currentYear}.`,
       `⚠️ REGRA DE ANO: se a usuária disser apenas dia/mês (ex.: '27/07', '3 de agosto', 'dia 15'), SEMPRE use o ano ${currentYear}. NUNCA use anos passados. Se a data já passou este ano, ainda assim assuma ${currentYear} (a menos que ela diga explicitamente 'ano que vem').`,
@@ -313,7 +381,9 @@ export const aiAction = createServerFn({ method: "POST" })
       `{"intent":"chat","reply":"resposta curta"}`,
       "Para delete: use kind='auto' se não estiver claro se é tarefa ou reunião; 'match' deve conter as palavras mais distintivas do título.",
       `Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base em ${todayStr}, sempre no ano ${currentYear}.`,
-    ].join("\n");
+      "APRENDIZADO: em QUALQUER intent você pode incluir o campo opcional \"memory\" (string curta, 1 frase) quando a mensagem revelar uma preferência duradoura, correção sua, rotina, apelido, pessoa, lugar ou regra de classificação (ex.: 'Reuniões com Dr. Lázaro são pessoais', 'Ana prefere respostas curtas'). Não use \"memory\" para fatos pontuais (uma tarefa específica, uma data isolada). Nunca repita algo que já está na MEMÓRIA.",
+      "Se a usuária pedir explicitamente para você lembrar/esquecer algo, use intent='chat', confirme na resposta e preencha \"memory\" (para lembrar).",
+    ].filter(Boolean).join("\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -344,6 +414,20 @@ export const aiAction = createServerFn({ method: "POST" })
     } catch {
       return { intent: "chat", reply: raw };
     }
+
+    // Aprendizado contínuo: guarda o que a IA identificou como preferência duradoura
+    if (typeof parsed.memory === "string" && parsed.memory.trim().length > 3) {
+      const fact = parsed.memory.trim().slice(0, 300);
+      const known = memories.map((m) => m.toLowerCase());
+      if (!known.includes(fact.toLowerCase())) {
+        await context.supabase
+          .from("ai_memory")
+          .insert({ user_id: context.userId, content: fact, source: "auto" })
+          .then(() => undefined, () => undefined);
+      }
+    }
+
+
 
     if (parsed.intent === "add_task" && parsed.task?.title) {
       const t = parsed.task;

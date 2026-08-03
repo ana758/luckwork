@@ -50,6 +50,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_memory: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          kind?: string
+          source?: string
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       crm_angi_events: {
         Row: {
           created_at: string
