@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { sendWakeupPush } from "./webpush.server";
+import { sendPush } from "./webpush.server";
+
 
 function admin() {
   const url = process.env.SUPABASE_URL!;
