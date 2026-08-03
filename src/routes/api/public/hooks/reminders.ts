@@ -75,13 +75,20 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         }
 
 
-        // 2) Tarefas atrasadas (due_date antes de hoje, ainda em aberto) — resumo agregado por empresa
+        // 2) Tarefas atrasadas — vencidas e sem movimentação de board (7 dias de tolerância
+        // para o que já saiu de "a fazer") — resumo agregado por empresa
         const today = now.toISOString().slice(0, 10);
-        const { data: overdue } = await sb
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+        const { data: openPastDue } = await sb
           .from("tasks")
-          .select("id, title, source, due_date, status")
+          .select("id, title, source, due_date, status, status_changed_at, updated_at")
           .lt("due_date", today)
-          .eq("status", "todo");
+          .neq("status", "done");
+        const overdue = (openPastDue ?? []).filter(
+          (t) => t.status === "todo" || (t.status_changed_at ?? t.updated_at) < sevenDaysAgo,
+        );
+
+
 
 
         if ((overdue ?? []).length > 0) {
