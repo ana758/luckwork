@@ -41,6 +41,18 @@ export function AiPanel() {
   const streamRef = useRef<MediaStream | null>(null);
   const queryClient = useQueryClient();
 
+  const suggestionsQuery = useQuery({
+    queryKey: ["ai-suggestions"],
+    queryFn: () => listAiSuggestions(),
+    refetchInterval: 60_000,
+  });
+
+  const dismissSuggestion = useMutation({
+    mutationFn: (id: string) => dismissAiSuggestion({ data: { id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-suggestions"] }),
+  });
+
+
   const ask = useMutation({
     mutationFn: async (q?: string) => {
       if (!q) {
