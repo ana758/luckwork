@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { aiAction, getDailyBriefing, getImportantEmails, transcribeAudio, type ImportantEmail } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { isOverdue, SOURCE_DOT } from "@/lib/sources";
+import { AiMemoryCard } from "@/components/AiMemoryCard";
 
 export const Route = createFileRoute("/_authenticated/ai")({
   head: () => ({
