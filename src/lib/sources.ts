@@ -117,11 +117,19 @@ export type AccessEntry = {
 
 export function isOverdue(task: Task) {
   if (!task.due_date) return false;
-  // Só conta como atrasada se ainda estiver "a fazer" (todo).
-  // Em andamento, em espera ou concluída não contam.
-  if (task.status !== "todo") return false;
+  if (task.status === "done") return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return new Date(`${task.due_date}T00:00:00`) < today;
+  const past = new Date(`${task.due_date}T00:00:00`) < today;
+  if (!past) return false;
+
+  // Teve movimentação de board (saiu de "a fazer")? Só vira atrasada
+  // se ficar parada no mesmo board por mais de 7 dias.
+  if (task.status !== "todo") {
+    const moved = task.status_changed_at ?? task.updated_at;
+    const days = (Date.now() - new Date(moved).getTime()) / 86400000;
+    return days > 7;
+  }
+  return true;
 }
 
