@@ -415,6 +415,20 @@ export const aiAction = createServerFn({ method: "POST" })
       return { intent: "chat", reply: raw };
     }
 
+    // Aprendizado contínuo: guarda o que a IA identificou como preferência duradoura
+    if (typeof parsed.memory === "string" && parsed.memory.trim().length > 3) {
+      const fact = parsed.memory.trim().slice(0, 300);
+      const known = memories.map((m) => m.toLowerCase());
+      if (!known.includes(fact.toLowerCase())) {
+        await context.supabase
+          .from("ai_memory")
+          .insert({ user_id: context.userId, content: fact, source: "auto" })
+          .then(() => undefined, () => undefined);
+      }
+    }
+
+
+
     if (parsed.intent === "add_task" && parsed.task?.title) {
       const t = parsed.task;
       const { data: inserted, error } = await context.supabase
