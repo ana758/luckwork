@@ -50,6 +50,15 @@ function MeetingsPage() {
   const allIds = useMemo(() => meetings.map((m) => m.id), [meetings]);
   const allSelected = selected.size > 0 && selected.size === allIds.length;
 
+  // Notificação de reunião abre direto o card certo (?open=<id>)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const id = new URLSearchParams(window.location.search).get("open");
+    if (!id) return;
+    const m = allMeetings.find((x) => x.id === id);
+    if (m) setEditing(m);
+  }, [allMeetings]);
+
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
