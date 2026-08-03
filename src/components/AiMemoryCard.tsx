@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Brain, Plus, X, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
-import { addAiMemory, deleteAiMemory, listAiMemories } from "@/lib/ai.functions";
+import { Brain, X, ChevronDown, ChevronUp } from "lucide-react";
+import { deleteAiMemory, listAiMemories } from "@/lib/ai.functions";
 
 export function AiMemoryCard() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState("");
 
   const { data: memories = [] } = useQuery({
     queryKey: ["ai-memory"],
@@ -15,15 +13,6 @@ export function AiMemoryCard() {
     staleTime: 60_000,
   });
 
-  const add = useMutation({
-    mutationFn: (content: string) => addAiMemory({ data: { content } }),
-    onSuccess: () => {
-      setDraft("");
-      qc.invalidateQueries({ queryKey: ["ai-memory"] });
-      toast.success("Aprendido");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteAiMemory({ data: { id } }),
@@ -54,29 +43,10 @@ export function AiMemoryCard() {
       {open && (
         <div className="mt-3 space-y-3">
           <p className="text-xs text-muted-foreground">
-            A LUCK guarda aqui suas preferências e correções e usa em todas as respostas. Você pode
-            adicionar ou apagar o que quiser.
+            A LUCK aprende sozinha com suas conversas e correções, e usa isso em todas as respostas.
+            Se algo estiver errado, é só apagar.
           </p>
 
-          <div className="flex gap-2">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && draft.trim()) add.mutate(draft.trim());
-              }}
-              placeholder="Ex.: reuniões com Dr. Lázaro são pessoais"
-              className="flex-1 rounded-lg border bg-background px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => draft.trim() && add.mutate(draft.trim())}
-              disabled={add.isPending || !draft.trim()}
-              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
 
           <ul className="space-y-1.5">
             {memories.map((m) => (

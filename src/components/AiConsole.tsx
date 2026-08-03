@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Mail, Mic, MicOff, Send, Sparkles } from "lucide-react";
+import { Check, ExternalLink, Mail, Mic, MicOff, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   aiAction,
@@ -147,12 +147,8 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
     }
   }
 
-  const suggestions = [
-    "Resumo do dia",
-    "O que priorizar hoje?",
-    "Apagar tarefa teste 4",
-    "Como está a semana na Angi?",
-  ];
+
+
 
   return (
     <div className="space-y-4">
@@ -224,28 +220,6 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
         ref={scrollRef}
         className={`${compact ? "min-h-[26vh]" : "min-h-[40vh] flex-1"} space-y-3 overflow-y-auto rounded-xl border bg-card p-4`}
       >
-        {messages.length === 0 && !ask.isPending && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Peça resumo, adicione ou apague tarefas/reuniões por texto ou voz.
-            </p>
-            <div className="flex flex-wrap justify-center gap-2 pt-2">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => send(s === "Resumo do dia" ? undefined : s)}
-                  className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
