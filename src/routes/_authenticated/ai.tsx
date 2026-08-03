@@ -282,25 +282,30 @@ function AIPage() {
       >
         <textarea
           value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          onChange={(e) => {
+            setQuestion(e.target.value);
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.metaKey) {
               e.preventDefault();
               send();
             }
           }}
-          maxLength={2000}
           rows={3}
           placeholder={
             listening
               ? "🔴 Gravando… toque no microfone para parar e enviar"
               : transcribing
                 ? "Transcrevendo áudio…"
-                : 'Fale ou escreva. Ex.: "adiciona tarefa angi entrega branding pessoal 27/07"'
+                : 'Fale ou escreva à vontade (Shift+Enter quebra linha). Ex.: "adiciona tarefa angi entrega branding pessoal 27/07"'
           }
           disabled={transcribing}
-          className="flex-1 resize-none rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+          className="max-h-80 min-h-[88px] flex-1 resize-y overflow-y-auto rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
         />
+
         <div className="flex flex-col gap-2">
           <button
             type="button"
