@@ -7,6 +7,8 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SOURCE_LABEL } from "@/lib/sources";
+import { playNotificationSound } from "@/lib/notify-sound";
+
 
 const FIRED_KEY = "luck.fired.v1";
 const REMINDER_KEY = "luck.reminded.v1";
