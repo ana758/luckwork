@@ -147,12 +147,8 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
     }
   }
 
-  const suggestions = [
-    "Resumo do dia",
-    "O que priorizar hoje?",
-    "Apagar tarefa teste 4",
-    "Como está a semana na Angi?",
-  ];
+
+
 
   return (
     <div className="space-y-4">
