@@ -145,6 +145,27 @@ export type Database = {
         }
         Relationships: []
       }
+      email_dismissals: {
+        Row: {
+          created_at: string
+          email_id: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_id: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_id?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       meetings: {
         Row: {
           completed_at: string | null
@@ -390,6 +411,7 @@ export type Database = {
           source: Database["public"]["Enums"]["source_key"]
           start_date: string | null
           status: Database["public"]["Enums"]["task_status"]
+          status_changed_at: string
           title: string
           updated_at: string
         }
@@ -413,6 +435,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["source_key"]
           start_date?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          status_changed_at?: string
           title: string
           updated_at?: string
         }
@@ -436,6 +459,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["source_key"]
           start_date?: string | null
           status?: Database["public"]["Enums"]["task_status"]
+          status_changed_at?: string
           title?: string
           updated_at?: string
         }
