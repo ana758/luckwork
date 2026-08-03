@@ -274,6 +274,20 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
           >
             <Send className="h-4 w-4" />
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (voice) window.speechSynthesis?.cancel();
+              setVoice((v) => !v);
+            }}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+              voice ? "border-primary bg-primary/10 text-primary" : "bg-card hover:bg-accent"
+            }`}
+            aria-label={voice ? "Desligar resposta em voz" : "Ligar resposta em voz"}
+            title={voice ? "Resposta em voz ligada" : "Resposta em voz desligada"}
+          >
+            {voice ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+          </button>
         </div>
       </form>
 
@@ -281,6 +295,34 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
         ref={scrollRef}
         className={`${compact ? "min-h-[26vh]" : "min-h-[40vh] flex-1"} space-y-3 overflow-y-auto rounded-xl border bg-card p-4`}
       >
+        {(suggestionsQuery.data ?? []).map((s) => (
+          <div key={s.id} className="flex justify-start">
+            <div className="max-w-[90%] rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+              <p className="mb-1 flex items-center gap-1.5 font-medium">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                {s.title.replace(/^🤖\s*/, "")}
+              </p>
+              {s.body && <p className="text-muted-foreground">{s.body}</p>}
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => answerSuggestion(s, true)}
+                  className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                >
+                  Pode fazer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => answerSuggestion(s, false)}
+                  className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                >
+                  Agora não
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
 
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
