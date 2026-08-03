@@ -47,15 +47,35 @@ function Dashboard() {
   const { data: meetings = [] } = useMeetings();
   const { data: access = [] } = useAccessEntries();
   const [drawer, setDrawer] = useState<SourceKey | null>(null);
+  const [showAllOverdue, setShowAllOverdue] = useState(false);
+  const [showAllToday, setShowAllToday] = useState(false);
   const { visibleSources } = useArchivedSources();
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const todayItems = useMemo(() => {
-    const t = tasks.filter((x) => x.due_date === today && x.status !== "done");
-    const m = meetings.filter((x) => x.starts_at.slice(0, 10) === today);
-    return { t, m };
+  const todayList = useMemo(() => {
+    const m = meetings
+      .filter((x) => x.starts_at.slice(0, 10) === today)
+      .map((x) => ({
+        id: `m-${x.id}`,
+        title: x.title,
+        dot: "bg-reuniao",
+        time: new Date(x.starts_at).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }));
+    const t = tasks
+      .filter((x) => x.due_date === today && x.status !== "done")
+      .map((x) => ({
+        id: `t-${x.id}`,
+        title: x.title,
+        dot: SOURCE_DOT[x.source],
+        time: "",
+      }));
+    return [...m, ...t];
   }, [tasks, meetings, today]);
+
 
   const weekTasks = useMemo(() => {
     const keys = visibleSources.map((s) => s.key);
