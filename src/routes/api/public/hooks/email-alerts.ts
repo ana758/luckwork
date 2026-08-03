@@ -56,7 +56,12 @@ export const Route = createFileRoute("/api/public/hooks/email-alerts")({
             url: m.link,
             tag: `mail-${m.id}`,
           });
+          await sb.from("notifications").insert({
+            title: `📧 E-mail importante — ${m.from}`.slice(0, 90),
+            body: `${m.subject}${reason ? ` · ${reason}` : ""}`,
+          });
           sent.push(m.id);
+
         }
 
         return Response.json({ ok: true, sent, checked: fresh.length });

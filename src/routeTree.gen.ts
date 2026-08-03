@@ -21,6 +21,7 @@ import { Route as ApiPublicHooksTaskNudgesRouteImport } from './routes/api/publi
 import { Route as ApiPublicHooksSyncAllRouteImport } from './routes/api/public/hooks/sync-all'
 import { Route as ApiPublicHooksRemindersRouteImport } from './routes/api/public/hooks/reminders'
 import { Route as ApiPublicHooksPendingPushesRouteImport } from './routes/api/public/hooks/pending-pushes'
+import { Route as ApiPublicHooksEmailAlertsRouteImport } from './routes/api/public/hooks/email-alerts'
 import { Route as ApiPublicHooksDailyBriefingRouteImport } from './routes/api/public/hooks/daily-briefing'
 import { Route as ApiPublicHooksCrmAngiRouteImport } from './routes/api/public/hooks/crm-angi'
 
@@ -86,6 +87,12 @@ const ApiPublicHooksPendingPushesRoute =
     path: '/api/public/hooks/pending-pushes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksEmailAlertsRoute =
+  ApiPublicHooksEmailAlertsRouteImport.update({
+    id: '/api/public/hooks/email-alerts',
+    path: '/api/public/hooks/email-alerts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksDailyBriefingRoute =
   ApiPublicHooksDailyBriefingRouteImport.update({
     id: '/api/public/hooks/daily-briefing',
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
+  '/api/public/hooks/email-alerts': typeof ApiPublicHooksEmailAlertsRoute
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
   '/api/public/hooks/sync-all': typeof ApiPublicHooksSyncAllRoute
@@ -123,6 +131,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
+  '/api/public/hooks/email-alerts': typeof ApiPublicHooksEmailAlertsRoute
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
   '/api/public/hooks/sync-all': typeof ApiPublicHooksSyncAllRoute
@@ -140,6 +149,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
+  '/api/public/hooks/email-alerts': typeof ApiPublicHooksEmailAlertsRoute
   '/api/public/hooks/pending-pushes': typeof ApiPublicHooksPendingPushesRoute
   '/api/public/hooks/reminders': typeof ApiPublicHooksRemindersRoute
   '/api/public/hooks/sync-all': typeof ApiPublicHooksSyncAllRoute
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/tarefas'
     | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
+    | '/api/public/hooks/email-alerts'
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
     | '/api/public/hooks/sync-all'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
+    | '/api/public/hooks/email-alerts'
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
     | '/api/public/hooks/sync-all'
@@ -188,6 +200,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
+    | '/api/public/hooks/email-alerts'
     | '/api/public/hooks/pending-pushes'
     | '/api/public/hooks/reminders'
     | '/api/public/hooks/sync-all'
@@ -199,6 +212,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ApiPublicHooksCrmAngiRoute: typeof ApiPublicHooksCrmAngiRoute
   ApiPublicHooksDailyBriefingRoute: typeof ApiPublicHooksDailyBriefingRoute
+  ApiPublicHooksEmailAlertsRoute: typeof ApiPublicHooksEmailAlertsRoute
   ApiPublicHooksPendingPushesRoute: typeof ApiPublicHooksPendingPushesRoute
   ApiPublicHooksRemindersRoute: typeof ApiPublicHooksRemindersRoute
   ApiPublicHooksSyncAllRoute: typeof ApiPublicHooksSyncAllRoute
@@ -291,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksPendingPushesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/email-alerts': {
+      id: '/api/public/hooks/email-alerts'
+      path: '/api/public/hooks/email-alerts'
+      fullPath: '/api/public/hooks/email-alerts'
+      preLoaderRoute: typeof ApiPublicHooksEmailAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/daily-briefing': {
       id: '/api/public/hooks/daily-briefing'
       path: '/api/public/hooks/daily-briefing'
@@ -334,6 +355,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ApiPublicHooksCrmAngiRoute: ApiPublicHooksCrmAngiRoute,
   ApiPublicHooksDailyBriefingRoute: ApiPublicHooksDailyBriefingRoute,
+  ApiPublicHooksEmailAlertsRoute: ApiPublicHooksEmailAlertsRoute,
   ApiPublicHooksPendingPushesRoute: ApiPublicHooksPendingPushesRoute,
   ApiPublicHooksRemindersRoute: ApiPublicHooksRemindersRoute,
   ApiPublicHooksSyncAllRoute: ApiPublicHooksSyncAllRoute,
@@ -342,3 +364,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
