@@ -115,6 +115,25 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
     ask.mutate(text);
   }
 
+  function answerSuggestion(
+    s: { id: string; title: string; body: string | null },
+    accept: boolean,
+  ) {
+    dismissSuggestion.mutate(s.id);
+    const context = `${s.title.replace(/^🤖\s*/, "")}${s.body ? ` — ${s.body}` : ""}`;
+    if (!accept) {
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: context },
+        { role: "user", content: "Agora não." },
+      ]);
+      return;
+    }
+    setMessages((m) => [...m, { role: "assistant", content: context }]);
+    ask.mutate(`Sobre sua sugestão "${context}": pode fazer, sim. Siga em frente.`);
+  }
+
+
   async function toggleListening() {
     if (listening && recorderRef.current) {
       const rec = recorderRef.current;
