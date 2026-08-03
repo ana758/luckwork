@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CalendarClock, ListTodo, Mail, Mic, MicOff, Send, Sparkles, ExternalLink } from "lucide-react";
+import { AlertTriangle, CalendarClock, ListTodo, Mail, Mic, MicOff, Send, Sparkles, ExternalLink, Check } from "lucide-react";
 import { toast } from "sonner";
-import { aiAction, getDailyBriefing, getImportantEmails, transcribeAudio, type ImportantEmail } from "@/lib/ai.functions";
+import { aiAction, getDailyBriefing, getImportantEmails, transcribeAudio, dismissEmail, type ImportantEmail } from "@/lib/ai.functions";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { isOverdue, SOURCE_DOT } from "@/lib/sources";
 import { AiMemoryCard } from "@/components/AiMemoryCard";
@@ -439,6 +439,21 @@ function ImportantEmailsCard({
   emails: ImportantEmail[];
   error?: string;
 }) {
+  const queryClient = useQueryClient();
+  const [hidden, setHidden] = useState<string[]>([]);
+  const dismiss = useMutation({
+    mutationFn: (emailId: string) => dismissEmail({ data: { emailId } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["important-emails"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const visible = emails.filter((e) => !hidden.includes(e.id));
+
+  function markSeen(id: string) {
+    setHidden((h) => [...h, id]);
+    dismiss.mutate(id);
+  }
+
   return (
     <div className="rounded-xl border bg-card p-3 text-sm">
       <div className="mb-2 flex items-center gap-2">
@@ -451,14 +466,14 @@ function ImportantEmailsCard({
           {error} A IA lê apenas a caixa conectada; spam e promoções são ignorados.
         </p>
       )}
-      {!loading && !error && emails.length === 0 && (
+      {!loading && !error && visible.length === 0 && (
         <p className="text-xs text-muted-foreground">
           Nada urgente na caixa de entrada — só ruído (promoções, newsletters).
         </p>
       )}
-      {emails.length > 0 && (
+      {visible.length > 0 && (
         <ul className="space-y-2">
-          {emails.slice(0, 8).map((e) => (
+          {visible.slice(0, 8).map((e) => (
             <li key={e.id} className="rounded-lg border bg-background/40 p-2">
               <div className="flex items-start gap-2">
                 <span className="mt-0.5 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
@@ -475,11 +490,21 @@ function ImportantEmailsCard({
                   href={e.link}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => markSeen(e.id)}
                   className="shrink-0 text-muted-foreground hover:text-primary"
                   aria-label="Abrir no Gmail"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
+                <button
+                  type="button"
+                  onClick={() => markSeen(e.id)}
+                  className="shrink-0 text-muted-foreground hover:text-primary"
+                  aria-label="Já vi este e-mail"
+                  title="Já vi"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </button>
               </div>
             </li>
           ))}

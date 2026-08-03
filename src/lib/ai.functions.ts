@@ -13,7 +13,7 @@ export type ImportantEmail = {
   reason: string;
 };
 
-async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?: string }> {
+async function loadImportantEmails(supabase?: any): Promise<{ emails: ImportantEmail[]; error?: string }> {
   const errors: string[] = [];
   const inbox: Array<{
     id: string;
@@ -89,7 +89,20 @@ async function loadImportantEmails(): Promise<{ emails: ImportantEmail[]; error?
         reason: f.reason,
       });
     }
-    return { emails: out, error: errors[0] };
+    let visible = out;
+    if (supabase) {
+      try {
+        const { data: dismissed } = await supabase
+          .from("email_dismissals")
+          .select("email_id")
+          .in("email_id", out.map((e) => e.id));
+        const seen = new Set((dismissed ?? []).map((d: { email_id: string }) => d.email_id));
+        visible = out.filter((e) => !seen.has(e.id));
+      } catch {
+        visible = out;
+      }
+    }
+    return { emails: visible, error: errors[0] };
   } catch (err) {
     return {
       emails: [],
@@ -163,7 +176,22 @@ export const deleteAiMemory = createServerFn({ method: "POST" })
 
 export const getImportantEmails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => loadImportantEmails());
+  .handler(async ({ context }) => loadImportantEmails(context.supabase));
+
+/** Marca um e-mail como "já vi" — ele some da aba IA e não volta. */
+export const dismissEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { emailId: string }) => {
+    if (!input?.emailId) throw new Error("emailId obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("email_dismissals")
+      .upsert({ email_id: data.emailId, user_id: context.userId }, { onConflict: "email_id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 export const getDailyBriefing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

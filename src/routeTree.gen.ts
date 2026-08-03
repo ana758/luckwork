@@ -25,6 +25,7 @@ import { Route as ApiPublicHooksPendingPushesRouteImport } from './routes/api/pu
 import { Route as ApiPublicHooksEmailAlertsRouteImport } from './routes/api/public/hooks/email-alerts'
 import { Route as ApiPublicHooksDailyBriefingRouteImport } from './routes/api/public/hooks/daily-briefing'
 import { Route as ApiPublicHooksCrmAngiRouteImport } from './routes/api/public/hooks/crm-angi'
+import { Route as ApiPublicHooksAiProactiveRouteImport } from './routes/api/public/hooks/ai-proactive'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -110,6 +111,12 @@ const ApiPublicHooksCrmAngiRoute = ApiPublicHooksCrmAngiRouteImport.update({
   path: '/api/public/hooks/crm-angi',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksAiProactiveRoute =
+  ApiPublicHooksAiProactiveRouteImport.update({
+    id: '/api/public/hooks/ai-proactive',
+    path: '/api/public/hooks/ai-proactive',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/reunioes': typeof AuthenticatedReunioesRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
+  '/api/public/hooks/ai-proactive': typeof ApiPublicHooksAiProactiveRoute
   '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
   '/api/public/hooks/email-alerts': typeof ApiPublicHooksEmailAlertsRoute
@@ -136,6 +144,7 @@ export interface FileRoutesByTo {
   '/reunioes': typeof AuthenticatedReunioesRoute
   '/tarefas': typeof AuthenticatedTarefasRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/hooks/ai-proactive': typeof ApiPublicHooksAiProactiveRoute
   '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
   '/api/public/hooks/email-alerts': typeof ApiPublicHooksEmailAlertsRoute
@@ -155,6 +164,7 @@ export interface FileRoutesById {
   '/_authenticated/reunioes': typeof AuthenticatedReunioesRoute
   '/_authenticated/tarefas': typeof AuthenticatedTarefasRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/hooks/ai-proactive': typeof ApiPublicHooksAiProactiveRoute
   '/api/public/hooks/crm-angi': typeof ApiPublicHooksCrmAngiRoute
   '/api/public/hooks/daily-briefing': typeof ApiPublicHooksDailyBriefingRoute
   '/api/public/hooks/email-alerts': typeof ApiPublicHooksEmailAlertsRoute
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/reunioes'
     | '/tarefas'
+    | '/api/public/hooks/ai-proactive'
     | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
     | '/api/public/hooks/email-alerts'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/reunioes'
     | '/tarefas'
     | '/'
+    | '/api/public/hooks/ai-proactive'
     | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
     | '/api/public/hooks/email-alerts'
@@ -209,6 +221,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reunioes'
     | '/_authenticated/tarefas'
     | '/_authenticated/'
+    | '/api/public/hooks/ai-proactive'
     | '/api/public/hooks/crm-angi'
     | '/api/public/hooks/daily-briefing'
     | '/api/public/hooks/email-alerts'
@@ -222,6 +235,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicHooksAiProactiveRoute: typeof ApiPublicHooksAiProactiveRoute
   ApiPublicHooksCrmAngiRoute: typeof ApiPublicHooksCrmAngiRoute
   ApiPublicHooksDailyBriefingRoute: typeof ApiPublicHooksDailyBriefingRoute
   ApiPublicHooksEmailAlertsRoute: typeof ApiPublicHooksEmailAlertsRoute
@@ -346,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksCrmAngiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/ai-proactive': {
+      id: '/api/public/hooks/ai-proactive'
+      path: '/api/public/hooks/ai-proactive'
+      fullPath: '/api/public/hooks/ai-proactive'
+      preLoaderRoute: typeof ApiPublicHooksAiProactiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -373,6 +394,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicHooksAiProactiveRoute: ApiPublicHooksAiProactiveRoute,
   ApiPublicHooksCrmAngiRoute: ApiPublicHooksCrmAngiRoute,
   ApiPublicHooksDailyBriefingRoute: ApiPublicHooksDailyBriefingRoute,
   ApiPublicHooksEmailAlertsRoute: ApiPublicHooksEmailAlertsRoute,

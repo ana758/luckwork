@@ -157,3 +157,55 @@ export async function classifyImportantEmails(
     return [];
   }
 }
+
+const MEETING_LINK_RE =
+  /(https:\/\/(?:meet\.google\.com\/[a-z0-9-]+|[a-z0-9.-]*zoom\.us\/j\/[^\s"'<>)]+|teams\.microsoft\.com\/l\/meetup-join\/[^\s"'<>)]+|[a-z0-9-]+\.whereby\.com\/[^\s"'<>)]+))/i;
+
+function decodeB64Url(data: string): string {
+  try {
+    const b = data.replace(/-/g, "+").replace(/_/g, "/");
+    return typeof atob === "function" ? atob(b) : Buffer.from(b, "base64").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+function collectText(part: any, out: string[]) {
+  if (!part) return;
+  if (part.body?.data) out.push(decodeB64Url(part.body.data));
+  for (const p of part.parts ?? []) collectText(p, out);
+}
+
+/**
+ * Procura no Gmail o link da videochamada de uma reunião (Meet, Zoom, Teams, Whereby).
+ * Busca por palavras do título nos últimos 60 dias e devolve o primeiro link encontrado.
+ */
+export async function findMeetingLink(title: string): Promise<string | null> {
+  const words = title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 4);
+  if (words.length === 0) return null;
+
+  const q = encodeURIComponent(`newer_than:60d (${words.join(" ")})`);
+  const listRes = await fetch(`${GATEWAY}/users/me/messages?maxResults=5&q=${q}`, {
+    headers: headers(),
+  });
+  if (!listRes.ok) return null;
+  const list = (await listRes.json()) as { messages?: { id: string }[] };
+  for (const m of list.messages ?? []) {
+    const r = await fetch(`${GATEWAY}/users/me/messages/${m.id}?format=full`, {
+      headers: headers(),
+    });
+    if (!r.ok) continue;
+    const msg = (await r.json()) as { snippet?: string; payload?: any };
+    const chunks: string[] = [msg.snippet ?? ""];
+    collectText(msg.payload, chunks);
+    const found = chunks.join("\n").match(MEETING_LINK_RE);
+    if (found) return found[1];
+  }
+  return null;
+}

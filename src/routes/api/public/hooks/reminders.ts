@@ -52,22 +52,43 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
           const label = SOURCE_LABEL[m.source] || m.source;
           const when = new Date(m.starts_at);
           const hh = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+          // Link da chamada: usa o salvo; se faltar, procura nos e-mails conectados.
+          let link = m.external_url;
+          if (!link && process.env.GOOGLE_MAIL_API_KEY) {
+            try {
+              const { findMeetingLink } = await import("@/lib/gmail.server");
+              link = await findMeetingLink(m.title);
+              if (link) await sb.from("meetings").update({ external_url: link }).eq("id", m.id);
+            } catch {
+              link = null;
+            }
+          }
+
           await notifyAll({
             title: `⏰ Reunião em ${minutes} min — ${label}`,
-            body: `${hh} · ${m.title}${m.location ? ` · ${m.location}` : ""}`,
-            url: m.external_url || "/reunioes",
+            body: `${hh} · ${m.title}${link ? " · toque para entrar e gravar" : m.location ? ` · ${m.location}` : ""}`,
+            url: link ? `/reunioes?open=${m.id}` : "/reunioes",
             tag,
           });
           sent.push(`meeting:${m.id}`);
         }
 
-        // 2) Tarefas atrasadas (due_date antes de hoje, ainda em aberto) — resumo agregado por empresa
+
+        // 2) Tarefas atrasadas — vencidas e sem movimentação de board (7 dias de tolerância
+        // para o que já saiu de "a fazer") — resumo agregado por empresa
         const today = now.toISOString().slice(0, 10);
-        const { data: overdue } = await sb
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString();
+        const { data: openPastDue } = await sb
           .from("tasks")
-          .select("id, title, source, due_date, status")
+          .select("id, title, source, due_date, status, status_changed_at, updated_at")
           .lt("due_date", today)
-          .eq("status", "todo");
+          .neq("status", "done");
+        const overdue = (openPastDue ?? []).filter(
+          (t) => t.status === "todo" || (t.status_changed_at ?? t.updated_at) < sevenDaysAgo,
+        );
+
+
 
 
         if ((overdue ?? []).length > 0) {
