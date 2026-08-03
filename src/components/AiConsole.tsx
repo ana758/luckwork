@@ -1,23 +1,51 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Mail, Mic, MicOff, Send } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  Mail,
+  Mic,
+  MicOff,
+  Send,
+  Sparkles,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   aiAction,
+  dismissAiSuggestion,
   dismissEmail,
   getDailyBriefing,
   getImportantEmails,
+  listAiSuggestions,
   transcribeAudio,
   type ImportantEmail,
 } from "@/lib/ai.functions";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+function speak(text: string) {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text.replace(/[#*_`>]/g, "").slice(0, 1200));
+    u.lang = "pt-BR";
+    const v = synth.getVoices().find((x) => x.lang?.toLowerCase().startsWith("pt"));
+    if (v) u.voice = v;
+    synth.speak(u);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function AiConsole({ compact = false }: { compact?: boolean }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [listening, setListening] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [voice, setVoice] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -30,6 +58,18 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
     staleTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  const suggestionsQuery = useQuery({
+    queryKey: ["ai-suggestions"],
+    queryFn: () => listAiSuggestions(),
+    refetchInterval: 60_000,
+  });
+
+  const dismissSuggestion = useMutation({
+    mutationFn: (id: string) => dismissAiSuggestion({ data: { id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-suggestions"] }),
+  });
+
 
   const ask = useMutation({
     mutationFn: async (q?: string) => {
