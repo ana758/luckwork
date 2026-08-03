@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import { toast } from "sonner";
-import { aiAction, getDailyBriefing, transcribeAudio } from "@/lib/ai.functions";
+import {
+  aiAction,
+  dismissAiSuggestion,
+  getDailyBriefing,
+  listAiSuggestions,
+  transcribeAudio,
+} from "@/lib/ai.functions";
+
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -33,6 +40,18 @@ export function AiPanel() {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const queryClient = useQueryClient();
+
+  const suggestionsQuery = useQuery({
+    queryKey: ["ai-suggestions"],
+    queryFn: () => listAiSuggestions(),
+    refetchInterval: 60_000,
+  });
+
+  const dismissSuggestion = useMutation({
+    mutationFn: (id: string) => dismissAiSuggestion({ data: { id } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-suggestions"] }),
+  });
+
 
   const ask = useMutation({
     mutationFn: async (q?: string) => {
@@ -67,6 +86,25 @@ export function AiPanel() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, ask.isPending]);
+
+  function answerSuggestion(
+    s: { id: string; title: string; body: string | null },
+    accept: boolean,
+  ) {
+    dismissSuggestion.mutate(s.id);
+    const context = `${s.title.replace(/^🤖\s*/, "")}${s.body ? ` — ${s.body}` : ""}`;
+    if (!accept) {
+      setMessages((m) => [
+        ...m,
+        { role: "assistant" as const, content: context },
+        { role: "user" as const, content: "Agora não." },
+      ]);
+      return;
+    }
+    setMessages((m) => [...m, { role: "assistant" as const, content: context }]);
+    ask.mutate(`Sobre sua sugestão "${context}": pode fazer, sim. Siga em frente.`);
+  }
+
 
   useEffect(() => {
     if (!open) window.speechSynthesis?.cancel();
@@ -186,11 +224,39 @@ export function AiPanel() {
             </div>
 
             <div ref={scrollRef} className="min-h-32 flex-1 space-y-3 overflow-y-auto px-4 py-3">
-              {messages.length === 0 && !ask.isPending && (
-                <p className="text-sm text-muted-foreground">
-                  Escreva ou fale: "adiciona na Angi entregar roteiro dia 12/08" — eu faço pra você.
-                </p>
-              )}
+              {(suggestionsQuery.data ?? []).map((s) => (
+                <div key={s.id} className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+                  <p className="mb-1 flex items-center gap-1.5 font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    {s.title.replace(/^🤖\s*/, "")}
+                  </p>
+                  {s.body && <p className="text-muted-foreground">{s.body}</p>}
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => answerSuggestion(s, true)}
+                      className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                    >
+                      Pode fazer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => answerSuggestion(s, false)}
+                      className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                    >
+                      Agora não
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {messages.length === 0 &&
+                !ask.isPending &&
+                (suggestionsQuery.data ?? []).length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Escreva ou fale: "adiciona na Angi entregar roteiro dia 12/08" — eu faço pra você.
+                  </p>
+                )}
+
               {messages.map((m, i) => (
                 <div key={i} className={m.role === "user" ? "text-right" : ""}>
                   <div
