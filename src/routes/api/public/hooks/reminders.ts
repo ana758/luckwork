@@ -22,27 +22,41 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
       POST: async () => {
         const sb = admin();
         const now = new Date();
-        const in35 = new Date(now.getTime() + 35 * 60 * 1000);
-        const in25 = new Date(now.getTime() + 25 * 60 * 1000);
+        const in36 = new Date(now.getTime() + 36 * 60 * 1000);
         const sent: string[] = [];
 
-        // 1) Reuniões que começam em 25-35 min
+        // 1) Reuniões que começam nos próximos 36 min (janela do lembrete de 30 min)
         const { data: meetings } = await sb
           .from("meetings")
           .select("id, title, source, starts_at, external_url, location")
-          .gte("starts_at", in25.toISOString())
-          .lte("starts_at", in35.toISOString())
+          .gte("starts_at", now.toISOString())
+          .lte("starts_at", in36.toISOString())
           .neq("hidden", true);
 
-        for (const m of meetings ?? []) {
+        const upcoming = meetings ?? [];
+        // Dedupe: nunca repete o lembrete da mesma reunião
+        const tags30 = upcoming.map((m) => `meeting-30-${m.id}`);
+        const seen = new Set<string>();
+        if (tags30.length > 0) {
+          const { data: already } = await sb.from("pending_pushes").select("tag").in("tag", tags30);
+          for (const r of already ?? []) if (r.tag) seen.add(r.tag);
+        }
+
+        for (const m of upcoming) {
+          const tag = `meeting-30-${m.id}`;
+          if (seen.has(tag)) continue;
+          const minutes = Math.max(
+            1,
+            Math.round((new Date(m.starts_at).getTime() - now.getTime()) / 60000),
+          );
           const label = SOURCE_LABEL[m.source] || m.source;
           const when = new Date(m.starts_at);
           const hh = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
           await notifyAll({
-            title: `⏰ Reunião em 30 min — ${label}`,
+            title: `⏰ Reunião em ${minutes} min — ${label}`,
             body: `${hh} · ${m.title}${m.location ? ` · ${m.location}` : ""}`,
             url: m.external_url || "/reunioes",
-            tag: `meeting-${m.id}`,
+            tag,
           });
           sent.push(`meeting:${m.id}`);
         }
