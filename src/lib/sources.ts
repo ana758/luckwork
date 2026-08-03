@@ -85,6 +85,7 @@ export type Task = {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  status_changed_at?: string | null;
 };
 
 export type Meeting = {
