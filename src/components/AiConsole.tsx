@@ -87,6 +87,8 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
         { role: "assistant", content: res.reply },
       ]);
       setQuestion("");
+      if (voice) speak(res.reply);
+
       if (res.created) {
         queryClient.invalidateQueries({ queryKey: ["tasks"] });
         queryClient.invalidateQueries({ queryKey: ["meetings"] });
