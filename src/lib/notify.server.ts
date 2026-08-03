@@ -34,7 +34,13 @@ export async function notifyAll(params: {
   let failed = 0;
   for (const s of subs ?? []) {
     try {
-      const status = await sendWakeupPush(s);
+      const status = await sendPush(s, {
+        title: params.title,
+        body: params.body ?? "",
+        url: params.url ?? "/",
+        tag: params.tag ?? null,
+      });
+
       if (status >= 200 && status < 300) {
         woke++;
         await sb
