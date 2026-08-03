@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
 import { toast } from "sonner";
-import { aiAction, getDailyBriefing, transcribeAudio } from "@/lib/ai.functions";
+import {
+  aiAction,
+  dismissAiSuggestion,
+  getDailyBriefing,
+  listAiSuggestions,
+  transcribeAudio,
+} from "@/lib/ai.functions";
+
 
 type Msg = { role: "user" | "assistant"; content: string };
 
