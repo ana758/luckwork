@@ -1,13 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Brain, Plus, X, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
-import { addAiMemory, deleteAiMemory, listAiMemories } from "@/lib/ai.functions";
+import { Brain, X, ChevronDown, ChevronUp } from "lucide-react";
+import { deleteAiMemory, listAiMemories } from "@/lib/ai.functions";
 
 export function AiMemoryCard() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState("");
 
   const { data: memories = [] } = useQuery({
     queryKey: ["ai-memory"],
@@ -15,15 +13,6 @@ export function AiMemoryCard() {
     staleTime: 60_000,
   });
 
-  const add = useMutation({
-    mutationFn: (content: string) => addAiMemory({ data: { content } }),
-    onSuccess: () => {
-      setDraft("");
-      qc.invalidateQueries({ queryKey: ["ai-memory"] });
-      toast.success("Aprendido");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const remove = useMutation({
     mutationFn: (id: string) => deleteAiMemory({ data: { id } }),
