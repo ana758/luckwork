@@ -40,11 +40,14 @@ function fire(title: string, body?: string, tag?: string) {
       tag,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-    });
+      silent: false,
+    } as NotificationOptions);
+    playNotificationSound();
   } catch {
     /* iOS pré-16.4 dá throw — ignora */
   }
 }
+
 
 export function useDesktopReminders() {
   const enabled =
