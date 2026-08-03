@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Mail, Mic, MicOff, Send, Sparkles } from "lucide-react";
+import { Check, ExternalLink, Mail, Mic, MicOff, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   aiAction,
