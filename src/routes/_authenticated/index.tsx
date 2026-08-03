@@ -173,14 +173,14 @@ function Dashboard() {
         })}
       </section>
 
-      {/* E-mails importantes + LUCK AI */}
-      <AiConsole compact />
-
       {/* Memória da IA */}
       <AiMemoryCard />
 
+      {/* E-mails importantes + LUCK AI */}
+      <AiConsole compact />
+
       {/* Atrasadas + Hoje */}
-      <section className="grid gap-3 md:grid-cols-2">
+      <section className="grid grid-cols-2 gap-3">
         {overdueTasks.length > 0 && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
             <div className="mb-2 flex items-center gap-2 text-destructive">
