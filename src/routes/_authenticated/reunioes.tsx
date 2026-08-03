@@ -241,11 +241,17 @@ function Section({
         <div className="space-y-2">
           {items.map((m) => {
             const isSel = selected.has(m.id);
+            const isCall = !!m.external_url && /^https?:\/\//i.test(m.external_url);
             return (
-              <button
+              <div
                 key={m.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpen(m)}
-                className={`flex w-full items-start gap-3 rounded-xl border border-l-4 border-l-reuniao bg-card p-3 text-left hover:bg-accent/40 ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onOpen(m);
+                }}
+                className={`flex w-full cursor-pointer items-start gap-3 rounded-xl border border-l-4 border-l-reuniao bg-card p-3 text-left hover:bg-accent/40 ${
                   selectMode && isSel ? "ring-2 ring-primary" : ""
                 }`}
               >
@@ -282,8 +288,30 @@ function Section({
                   {m.notes && (
                     <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{m.notes}</p>
                   )}
+                  {isCall && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <a
+                        href={m.external_url!}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-full bg-reuniao px-3 py-1 text-[11px] font-medium text-white"
+                      >
+                        Entrar na reunião
+                      </a>
+                      <a
+                        href={m.external_url!}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-full border px-3 py-1 text-[11px] font-medium hover:bg-accent"
+                      >
+                        Entrar e gravar
+                      </a>
+                    </div>
+                  )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
