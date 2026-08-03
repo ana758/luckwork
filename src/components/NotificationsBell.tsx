@@ -37,6 +37,20 @@ export function NotificationsBell() {
 
   const unread = items.filter((n) => !n.read_at).length;
 
+  // Som + vibração quando chega notificação nova com o app aberto.
+  const prevUnread = useRef<number | null>(null);
+  useEffect(() => {
+    primeNotificationSound();
+  }, []);
+  useEffect(() => {
+    if (prevUnread.current !== null && unread > prevUnread.current) {
+      playNotificationSound();
+    }
+    prevUnread.current = unread;
+  }, [unread]);
+
+
+
   // App icon badge on installed PWA (iOS 16.4+ / Android Chrome).
   useEffect(() => {
     const nav = navigator as Navigator & {
