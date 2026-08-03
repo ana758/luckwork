@@ -9,7 +9,8 @@ export async function enablePush(): Promise<{ ok: boolean; reason?: string }> {
   const perm = await Notification.requestPermission();
   if (perm !== "granted") return { ok: false, reason: "denied" };
 
-  const reg = await navigator.serviceWorker.register("/sw-push.js", { scope: "/" });
+  const reg = await navigator.serviceWorker.register("/sw-push.js", { scope: "/", updateViaCache: "none" });
+  await reg.update();
   await navigator.serviceWorker.ready;
 
   let sub = await reg.pushManager.getSubscription();
@@ -47,4 +48,23 @@ export async function isPushEnabled(): Promise<boolean> {
   if (!reg) return false;
   const sub = await reg.pushManager.getSubscription();
   return !!sub;
+}
+
+export async function refreshPushSubscription(): Promise<boolean> {
+  if (!(await isPushEnabled())) return false;
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  const sub = await reg?.pushManager.getSubscription();
+  if (!reg || !sub) return false;
+  await reg.update();
+  const json = sub.toJSON() as { endpoint: string; keys?: { p256dh?: string; auth?: string } };
+  if (!json.keys?.p256dh || !json.keys.auth) return false;
+  await registerPushSubscription({
+    data: {
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      userAgent: navigator.userAgent,
+    },
+  });
+  return true;
 }
