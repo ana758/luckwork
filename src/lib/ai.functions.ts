@@ -199,8 +199,11 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
       motivo: e.reason,
     }));
 
+    const memories = await loadMemories(context.supabase);
+
     const prompt = [
       `Hoje é ${today}.`,
+      memoryBlock(memories),
       `Tarefas em aberto (JSON): ${JSON.stringify(tasks ?? [])}`,
       `Reuniões dos próximos 7 dias (JSON): ${JSON.stringify(meetings ?? [])}`,
       `E-mails importantes já filtrados (JSON, ignore spam/propaganda): ${JSON.stringify(emailsForPrompt)}`,
