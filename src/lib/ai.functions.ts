@@ -381,7 +381,9 @@ export const aiAction = createServerFn({ method: "POST" })
       `{"intent":"chat","reply":"resposta curta"}`,
       "Para delete: use kind='auto' se não estiver claro se é tarefa ou reunião; 'match' deve conter as palavras mais distintivas do título.",
       `Nunca invente dados. Datas relativas ('amanhã', 'hoje', '28/07') resolva com base em ${todayStr}, sempre no ano ${currentYear}.`,
-    ].join("\n");
+      "APRENDIZADO: em QUALQUER intent você pode incluir o campo opcional \"memory\" (string curta, 1 frase) quando a mensagem revelar uma preferência duradoura, correção sua, rotina, apelido, pessoa, lugar ou regra de classificação (ex.: 'Reuniões com Dr. Lázaro são pessoais', 'Ana prefere respostas curtas'). Não use \"memory\" para fatos pontuais (uma tarefa específica, uma data isolada). Nunca repita algo que já está na MEMÓRIA.",
+      "Se a usuária pedir explicitamente para você lembrar/esquecer algo, use intent='chat', confirme na resposta e preencha \"memory\" (para lembrar).",
+    ].filter(Boolean).join("\n");
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
