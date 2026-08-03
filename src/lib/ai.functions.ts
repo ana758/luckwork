@@ -118,14 +118,14 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         .select("title, source, status, priority, start_date, due_date, updated_at, recurrence")
         .neq("status", "done")
         .order("due_date", { ascending: true })
-        .limit(120),
+        .limit(400),
       context.supabase
         .from("meetings")
         .select("title, source, starts_at, meeting_type, people")
         .gte("starts_at", `${today}T00:00:00`)
         .lte("starts_at", `${in7}T23:59:59`)
         .order("starts_at", { ascending: true })
-        .limit(40),
+        .limit(120),
       loadImportantEmails(),
     ]);
 
@@ -154,15 +154,18 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
           {
             role: "system",
             content:
-              "Você é a assistente executiva da Ana. Responda em português do Brasil, direto e curto, em markdown. " +
-              "Estruture assim quando fizer o resumo do dia: '## Resumo do dia' (2 linhas), '## Atrasado' (lista), " +
-              "'## Hoje e amanhã' (lista), '## Reuniões' (lista), '## E-mails importantes' (lista curta com remetente e por que importa, ou 'Nenhum'), '## Sugestões' (2 a 4 ações práticas). " +
+              "Você é a assistente executiva da Ana. Responda em português do Brasil, em markdown, com raciocínio afiado: priorize por impacto, aponte conflitos de agenda, riscos e o que pode ser delegado ou adiado. " +
+              "Não tem limite de tamanho: seja completa quando a pergunta pedir profundidade e enxuta quando for simples. " +
+              "Se a usuária fizer uma pergunta específica, responda a ela diretamente (sem forçar o formato de resumo). " +
+              "No resumo do dia use: '## Resumo do dia' (2 a 4 linhas), '## Atrasado', '## Hoje e amanhã', '## Reuniões' (indique choques de horário), " +
+              "'## E-mails importantes' (remetente + por que importa, ou 'Nenhum'), '## Prioridades da semana', '## Sugestões' (3 a 6 ações práticas com o próximo passo concreto). " +
               "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
+
           },
           { role: "user", content: prompt },
         ],
@@ -216,7 +219,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
           {
             role: "system",
@@ -319,7 +322,7 @@ export const aiAction = createServerFn({ method: "POST" })
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.6-flash",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
