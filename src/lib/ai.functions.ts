@@ -118,14 +118,14 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         .select("title, source, status, priority, start_date, due_date, updated_at, recurrence")
         .neq("status", "done")
         .order("due_date", { ascending: true })
-        .limit(120),
+        .limit(400),
       context.supabase
         .from("meetings")
         .select("title, source, starts_at, meeting_type, people")
         .gte("starts_at", `${today}T00:00:00`)
         .lte("starts_at", `${in7}T23:59:59`)
         .order("starts_at", { ascending: true })
-        .limit(40),
+        .limit(120),
       loadImportantEmails(),
     ]);
 
@@ -154,7 +154,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
           {
             role: "system",
@@ -216,7 +216,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.1-pro-preview",
         messages: [
           {
             role: "system",
@@ -319,7 +319,7 @@ export const aiAction = createServerFn({ method: "POST" })
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3.5-flash",
+        model: "google/gemini-3.6-flash",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },
