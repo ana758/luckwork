@@ -87,6 +87,25 @@ export function AiPanel() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, ask.isPending]);
 
+  function answerSuggestion(
+    s: { id: string; title: string; body: string | null },
+    accept: boolean,
+  ) {
+    dismissSuggestion.mutate(s.id);
+    const context = `${s.title.replace(/^🤖\s*/, "")}${s.body ? ` — ${s.body}` : ""}`;
+    if (!accept) {
+      setMessages((m) => [
+        ...m,
+        { role: "assistant" as const, content: context },
+        { role: "user" as const, content: "Agora não." },
+      ]);
+      return;
+    }
+    setMessages((m) => [...m, { role: "assistant" as const, content: context }]);
+    ask.mutate(`Sobre sua sugestão "${context}": pode fazer, sim. Siga em frente.`);
+  }
+
+
   useEffect(() => {
     if (!open) window.speechSynthesis?.cancel();
   }, [open]);
