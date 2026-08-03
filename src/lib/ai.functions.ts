@@ -173,6 +173,36 @@ export const deleteAiMemory = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Sugestões proativas da IA (as mesmas que viram push) para aparecerem no chat. */
+export const listAiSuggestions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("notifications")
+      .select("id, title, body, created_at")
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    return (data ?? []).filter((n) => (n.title ?? "").startsWith("🤖")).slice(0, 5);
+  });
+
+/** Marca uma sugestão como resolvida (respondida ou dispensada). */
+export const dismissAiSuggestion = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { id: string }) => {
+    if (!input?.id) throw new Error("id obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 
 export const getImportantEmails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
