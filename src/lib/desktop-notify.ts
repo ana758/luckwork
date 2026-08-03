@@ -7,6 +7,8 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SOURCE_LABEL } from "@/lib/sources";
+import { playNotificationSound } from "@/lib/notify-sound";
+
 
 const FIRED_KEY = "luck.fired.v1";
 const REMINDER_KEY = "luck.reminded.v1";
@@ -40,11 +42,14 @@ function fire(title: string, body?: string, tag?: string) {
       tag,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-    });
+      silent: false,
+    } as NotificationOptions);
+    playNotificationSound();
   } catch {
     /* iOS pré-16.4 dá throw — ignora */
   }
 }
+
 
 export function useDesktopReminders() {
   const enabled =

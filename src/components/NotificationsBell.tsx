@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bell, Check, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { playNotificationSound, primeNotificationSound } from "@/lib/notify-sound";
+
 import {
   Popover,
   PopoverContent,
@@ -34,6 +36,20 @@ export function NotificationsBell() {
   });
 
   const unread = items.filter((n) => !n.read_at).length;
+
+  // Som + vibração quando chega notificação nova com o app aberto.
+  const prevUnread = useRef<number | null>(null);
+  useEffect(() => {
+    primeNotificationSound();
+  }, []);
+  useEffect(() => {
+    if (prevUnread.current !== null && unread > prevUnread.current) {
+      playNotificationSound();
+    }
+    prevUnread.current = unread;
+  }, [unread]);
+
+
 
   // App icon badge on installed PWA (iOS 16.4+ / Android Chrome).
   useEffect(() => {
