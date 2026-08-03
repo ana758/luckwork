@@ -354,7 +354,9 @@ export const aiAction = createServerFn({ method: "POST" })
     const tz = "America/Sao_Paulo";
 
     const currentYear = today.getFullYear();
+    const memories = await loadMemories(context.supabase);
     const system = [
+      memoryBlock(memories),
       "Você é a assistente da Ana. Interprete a mensagem (que pode vir de áudio transcrito, com pequenos erros) e responda APENAS um JSON válido, sem markdown.",
       `Hoje é ${todayStr} (fuso ${tz}). O ano corrente é ${currentYear}.`,
       `⚠️ REGRA DE ANO: se a usuária disser apenas dia/mês (ex.: '27/07', '3 de agosto', 'dia 15'), SEMPRE use o ano ${currentYear}. NUNCA use anos passados. Se a data já passou este ano, ainda assim assuma ${currentYear} (a menos que ela diga explicitamente 'ano que vem').`,
