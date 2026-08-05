@@ -741,16 +741,17 @@ export const transcribeAudio = createServerFn({ method: "POST" })
               ? "ogg"
               : "webm";
 
-    const form = new FormData();
-    form.append("file", new Blob([bytes], { type: mime }), `voice.${ext}`);
-    form.append("model", "openai/gpt-4o-mini-transcribe");
-    form.append("language", "pt");
+    const buildForm = () => {
+      const form = new FormData();
+      form.append("file", new Blob([bytes], { type: mime }), `voice.${ext}`);
+      form.append("model", "openai/gpt-4o-mini-transcribe");
+      form.append("language", "pt");
+      return form;
+    };
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
+    const { aiTranscribe } = await import("./ai-fallback.server");
+    const res = await aiTranscribe(buildForm);
+
 
     if (res.status === 429) throw new Error("Muitas solicitações. Aguarde um instante.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
