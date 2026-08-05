@@ -465,21 +465,16 @@ export const aiAction = createServerFn({ method: "POST" })
       "Se a usuária pedir explicitamente para você lembrar/esquecer algo, use intent='chat', confirme na resposta e preencha \"memory\" (para lembrar).",
     ].filter(Boolean).join("\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: data.text },
-        ],
-      }),
+    const { aiChat } = await import("./ai-fallback.server");
+    const res = await aiChat({
+      model: "google/gemini-3.6-flash",
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: data.text },
+      ],
     });
+
 
 
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
