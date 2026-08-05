@@ -227,8 +227,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { question?: string }) => input ?? {})
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("IA indisponível no momento.");
+    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const today = new Date().toISOString().slice(0, 10);
     const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
@@ -271,30 +270,24 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         : "Gere o resumo do dia.",
     ].filter(Boolean).join("\n\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Você é a assistente executiva da Ana. Responda em português do Brasil, em markdown, com raciocínio afiado: priorize por impacto, aponte conflitos de agenda, riscos e o que pode ser delegado ou adiado. " +
-              "Não tem limite de tamanho: seja completa quando a pergunta pedir profundidade e enxuta quando for simples. " +
-              "Se a usuária fizer uma pergunta específica, responda a ela diretamente (sem forçar o formato de resumo). " +
-              "No resumo do dia use: '## Resumo do dia' (2 a 4 linhas), '## Atrasado', '## Hoje e amanhã', '## Reuniões' (indique choques de horário), " +
-              "'## E-mails importantes' (remetente + por que importa, ou 'Nenhum'), '## Prioridades da semana', '## Sugestões' (3 a 6 ações práticas com o próximo passo concreto). " +
-              "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
-
-          },
-          { role: "user", content: prompt },
-        ],
-      }),
+    const { aiChat } = await import("./ai-fallback.server");
+    const res = await aiChat({
+      model: "google/gemini-3.1-pro-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é a assistente executiva da Ana. Responda em português do Brasil, em markdown, com raciocínio afiado: priorize por impacto, aponte conflitos de agenda, riscos e o que pode ser delegado ou adiado. " +
+            "Não tem limite de tamanho: seja completa quando a pergunta pedir profundidade e enxuta quando for simples. " +
+            "Se a usuária fizer uma pergunta específica, responda a ela diretamente (sem forçar o formato de resumo). " +
+            "No resumo do dia use: '## Resumo do dia' (2 a 4 linhas), '## Atrasado', '## Hoje e amanhã', '## Reuniões' (indique choques de horário), " +
+            "'## E-mails importantes' (remetente + por que importa, ou 'Nenhum'), '## Prioridades da semana', '## Sugestões' (3 a 6 ações práticas com o próximo passo concreto). " +
+            "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
+        },
+        { role: "user", content: prompt },
+      ],
     });
+
 
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos para continuar.");
@@ -318,8 +311,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("IA indisponível.");
+    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const { data: m, error } = await context.supabase
       .from("meetings")
@@ -339,23 +331,21 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
       m.notes ? `Notas existentes:\n${m.notes}` : "Sem notas ainda.",
     ].filter(Boolean).join("\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Você organiza reuniões. Gere em pt-BR e markdown curto: '## Contexto' (1-2 linhas), " +
-              "'## Pauta sugerida' (3-5 bullets), '## Próximos passos' (checklist com [ ]). " +
-              "Se houver notas, use-as como base — não invente decisões que não estejam ali.",
-          },
-          { role: "user", content: prompt },
-        ],
-      }),
+    const { aiChat } = await import("./ai-fallback.server");
+    const res = await aiChat({
+      model: "google/gemini-3.1-pro-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você organiza reuniões. Gere em pt-BR e markdown curto: '## Contexto' (1-2 linhas), " +
+            "'## Pauta sugerida' (3-5 bullets), '## Próximos passos' (checklist com [ ]). " +
+            "Se houver notas, use-as como base — não invente decisões que não estejam ali.",
+        },
+        { role: "user", content: prompt },
+      ],
     });
+
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
     if (!res.ok) throw new Error(`Falha na IA (${res.status})`);
@@ -404,8 +394,7 @@ export const aiAction = createServerFn({ method: "POST" })
     return { text: input.text.trim() };
   })
   .handler(async ({ data, context }): Promise<ActionResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("IA indisponível no momento.");
+    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
@@ -473,21 +462,16 @@ export const aiAction = createServerFn({ method: "POST" })
       "Se a usuária pedir explicitamente para você lembrar/esquecer algo, use intent='chat', confirme na resposta e preencha \"memory\" (para lembrar).",
     ].filter(Boolean).join("\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.6-flash",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: data.text },
-        ],
-      }),
+    const { aiChat } = await import("./ai-fallback.server");
+    const res = await aiChat({
+      model: "google/gemini-3.6-flash",
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: data.text },
+      ],
     });
+
 
 
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
@@ -735,8 +719,7 @@ export const transcribeAudio = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }): Promise<{ text: string }> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("IA indisponível.");
+    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const bin = atob(data.audioBase64);
     const bytes = new Uint8Array(bin.length);
@@ -754,16 +737,17 @@ export const transcribeAudio = createServerFn({ method: "POST" })
               ? "ogg"
               : "webm";
 
-    const form = new FormData();
-    form.append("file", new Blob([bytes], { type: mime }), `voice.${ext}`);
-    form.append("model", "openai/gpt-4o-mini-transcribe");
-    form.append("language", "pt");
+    const buildForm = () => {
+      const form = new FormData();
+      form.append("file", new Blob([bytes], { type: mime }), `voice.${ext}`);
+      form.append("model", "openai/gpt-4o-mini-transcribe");
+      form.append("language", "pt");
+      return form;
+    };
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-    });
+    const { aiTranscribe } = await import("./ai-fallback.server");
+    const res = await aiTranscribe(buildForm);
+
 
     if (res.status === 429) throw new Error("Muitas solicitações. Aguarde um instante.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
