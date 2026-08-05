@@ -271,30 +271,24 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
         : "Gere o resumo do dia.",
     ].filter(Boolean).join("\n\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Você é a assistente executiva da Ana. Responda em português do Brasil, em markdown, com raciocínio afiado: priorize por impacto, aponte conflitos de agenda, riscos e o que pode ser delegado ou adiado. " +
-              "Não tem limite de tamanho: seja completa quando a pergunta pedir profundidade e enxuta quando for simples. " +
-              "Se a usuária fizer uma pergunta específica, responda a ela diretamente (sem forçar o formato de resumo). " +
-              "No resumo do dia use: '## Resumo do dia' (2 a 4 linhas), '## Atrasado', '## Hoje e amanhã', '## Reuniões' (indique choques de horário), " +
-              "'## E-mails importantes' (remetente + por que importa, ou 'Nenhum'), '## Prioridades da semana', '## Sugestões' (3 a 6 ações práticas com o próximo passo concreto). " +
-              "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
-
-          },
-          { role: "user", content: prompt },
-        ],
-      }),
+    const { aiChat } = await import("./ai-fallback.server");
+    const res = await aiChat({
+      model: "google/gemini-3.1-pro-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é a assistente executiva da Ana. Responda em português do Brasil, em markdown, com raciocínio afiado: priorize por impacto, aponte conflitos de agenda, riscos e o que pode ser delegado ou adiado. " +
+            "Não tem limite de tamanho: seja completa quando a pergunta pedir profundidade e enxuta quando for simples. " +
+            "Se a usuária fizer uma pergunta específica, responda a ela diretamente (sem forçar o formato de resumo). " +
+            "No resumo do dia use: '## Resumo do dia' (2 a 4 linhas), '## Atrasado', '## Hoje e amanhã', '## Reuniões' (indique choques de horário), " +
+            "'## E-mails importantes' (remetente + por que importa, ou 'Nenhum'), '## Prioridades da semana', '## Sugestões' (3 a 6 ações práticas com o próximo passo concreto). " +
+            "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
+        },
+        { role: "user", content: prompt },
+      ],
     });
+
 
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo em instantes.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos para continuar.");
