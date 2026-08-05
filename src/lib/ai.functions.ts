@@ -333,23 +333,21 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
       m.notes ? `Notas existentes:\n${m.notes}` : "Sem notas ainda.",
     ].filter(Boolean).join("\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "google/gemini-3.1-pro-preview",
-        messages: [
-          {
-            role: "system",
-            content:
-              "Você organiza reuniões. Gere em pt-BR e markdown curto: '## Contexto' (1-2 linhas), " +
-              "'## Pauta sugerida' (3-5 bullets), '## Próximos passos' (checklist com [ ]). " +
-              "Se houver notas, use-as como base — não invente decisões que não estejam ali.",
-          },
-          { role: "user", content: prompt },
-        ],
-      }),
+    const { aiChat } = await import("./ai-fallback.server");
+    const res = await aiChat({
+      model: "google/gemini-3.1-pro-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você organiza reuniões. Gere em pt-BR e markdown curto: '## Contexto' (1-2 linhas), " +
+            "'## Pauta sugerida' (3-5 bullets), '## Próximos passos' (checklist com [ ]). " +
+            "Se houver notas, use-as como base — não invente decisões que não estejam ali.",
+        },
+        { role: "user", content: prompt },
+      ],
     });
+
     if (res.status === 429) throw new Error("Muitas solicitações. Tente de novo.");
     if (res.status === 402) throw new Error("Créditos de IA esgotados.");
     if (!res.ok) throw new Error(`Falha na IA (${res.status})`);
