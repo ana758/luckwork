@@ -42,7 +42,7 @@ async function getAngiAccountId(): Promise<string | null> {
   } catch {
     cachedAngiId = null;
   }
-  return cachedAngiId;
+  return cachedAngiId ?? null;
 }
 
 function authHeader() {
