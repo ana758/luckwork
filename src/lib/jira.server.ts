@@ -27,6 +27,24 @@ async function getAssigneeAccountId(): Promise<string | null> {
   return cachedAssigneeId;
 }
 
+let cachedAngiId: string | null | undefined;
+/** accountId de ana@angisaude.com (para também trazer issues atribuídas a ela). */
+async function getAngiAccountId(): Promise<string | null> {
+  if (cachedAngiId !== undefined) return cachedAngiId;
+  try {
+    const { ANGI_EMAIL } = await import("./accounts");
+    const data: any = await jiraFetch(
+      `/rest/api/3/user/search?query=${encodeURIComponent(ANGI_EMAIL)}`,
+    );
+    const match =
+      (data ?? []).find((u: any) => (u.emailAddress ?? "").toLowerCase() === ANGI_EMAIL) ?? data?.[0];
+    cachedAngiId = match?.accountId ?? null;
+  } catch {
+    cachedAngiId = null;
+  }
+  return cachedAngiId ?? null;
+}
+
 function authHeader() {
   const email = process.env.JIRA_EMAIL;
   const token = process.env.JIRA_API_TOKEN;
@@ -66,7 +84,10 @@ export type JiraIssue = {
 
 /** Retorna todas as issues do projeto TASK atribuídas ao dono do token. */
 export async function listMyIssues(): Promise<JiraIssue[]> {
-  const jql = `project = ${PROJECT_KEY} AND assignee = currentUser() ORDER BY updated DESC`;
+  const angiId = await getAngiAccountId();
+  const jql = angiId
+    ? `project = ${PROJECT_KEY} AND assignee in (currentUser(), "${angiId}") ORDER BY updated DESC`
+    : `project = ${PROJECT_KEY} AND assignee = currentUser() ORDER BY updated DESC`;
   const fields = "summary,status,duedate,priority,updated";
   const out: JiraIssue[] = [];
   let nextPageToken: string | undefined;
