@@ -22,7 +22,7 @@ export function inferSourceFromTitle(title: string): SourceKey | null {
   const t = normalizeTitleKey(title);
   if (!t) return null;
   const has = (kw: string) => new RegExp(`(^|[^a-z0-9])${kw}([^a-z0-9]|$)`).test(t);
-  if (has("angi")) return "angi";
+  if (has("angi") || t.includes("angisaude")) return "angi";
   if (has("devore") || has("devoresnacks") || has("snacks")) return "devore";
   if (has("bruna") || has("bergamini") || has("branding pessoal")) return "bruna";
   if (has("pessoal")) return "pessoal";

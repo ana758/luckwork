@@ -306,7 +306,7 @@ export function QuickAdd() {
 
             <p className="mb-3 text-[11px] text-muted-foreground">
               {kind === "meeting" || (kind === "task" && when)
-                ? `Também será criado no Google Agenda (${source === "angi" || source === "devore" ? "ana@devoresnacks.com" : "anaduquek@gmail.com"}).`
+                ? `Também será criado no Google Agenda (${source === "angi" ? "ana@angisaude.com" : source === "devore" ? "ana@devoresnacks.com" : "anaduquek@gmail.com"}).`
                 : "Adicione uma data pra enviar também ao Google Agenda."}
             </p>
 

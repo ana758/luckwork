@@ -16,6 +16,7 @@ export type GoogleAccount = {
 export const GOOGLE_ACCOUNTS: GoogleAccount[] = [
   { envVar: "GOOGLE_CALENDAR_API_KEY", defaultSource: "devore" },
   { envVar: "GOOGLE_CALENDAR_API_KEY_1", defaultSource: "pessoal" },
+  { envVar: "GOOGLE_CALENDAR_API_KEY_2", defaultSource: "angi" },
 ];
 
 function headers(connectionKey: string) {
@@ -191,6 +192,12 @@ export function classifyCalendar(
 
   // Agenda literalmente chamada "Pessoal" no anaduquek — pedido: não puxar.
   if (name.trim() === "pessoal") return { source: "pessoal", isMeeting: false, skip: true };
+
+  // Qualquer agenda da conta ana@angisaude.com (ou compartilhada da Angi) → Angi.
+  if (id.includes("angisaude") || name.includes("angisaude") || name.includes("angi"))
+    return { source: "angi", isMeeting: name.includes("reuni") };
+
+  if (accountDefault === "angi") return { source: "angi", isMeeting: name.includes("reuni") };
 
   // Agenda compartilhada da Devore aparece nas duas contas → sempre Devore.
   if (id.includes("devoresnacks") || name.includes("devoresnacks") || name.includes("devore"))

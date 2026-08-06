@@ -28,7 +28,8 @@ async function assertMember(supabase: any, userId: string) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: u } = await supabaseAdmin.auth.admin.getUserById(userId);
     const email = u?.user?.email ?? "";
-    const auto = ["ana@devoresnacks.com", "anaduquek@gmail.com"].includes(email.toLowerCase());
+    const { ALLOWED_EMAILS } = await import("./accounts");
+    const auto = ALLOWED_EMAILS.includes(email.toLowerCase());
     await supabaseAdmin
       .from("workspace_members")
       .upsert(
@@ -258,9 +259,12 @@ export async function runCalendarSync(supabase: any, userId: string) {
 // Bruna e Pessoal vão para anaduquek@gmail.com (GOOGLE_CALENDAR_API_KEY_1).
 function pickAccountBySource(source?: string | null) {
   const accs = connectedAccounts();
-  const wantsDevore = source === "angi" || source === "devore";
+  const wantsAngi = source === "angi";
+  const wantsDevore = source === "devore" || source === "angi";
   const wantsPessoal = source === "bruna" || source === "pessoal";
-  const preferredEnv = wantsDevore
+  const preferredEnv = wantsAngi && accs.some((a) => a.envVar === "GOOGLE_CALENDAR_API_KEY_2")
+    ? "GOOGLE_CALENDAR_API_KEY_2"
+    : wantsDevore
     ? "GOOGLE_CALENDAR_API_KEY"
     : wantsPessoal
       ? "GOOGLE_CALENDAR_API_KEY_1"
