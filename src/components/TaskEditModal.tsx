@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGoogleEvent } from "@/lib/gcal.functions";
+import { syncTaskToCalendar } from "@/lib/task-calendar.functions";
 import { SOURCES, SOURCE_DOT, type Task, type SourceKey } from "@/lib/sources";
 
 export function TaskEditModal({
@@ -15,6 +16,7 @@ export function TaskEditModal({
 }) {
   const [title, setTitle] = useState(task.title);
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
+  const [dueTime, setDueTime] = useState((task.due_time ?? "").slice(0, 5));
   const [source, setSource] = useState<SourceKey>(task.source);
   const [notes, setNotes] = useState(task.notes ?? "");
   const initialDest =
@@ -23,6 +25,7 @@ export function TaskEditModal({
   const [angiDest, setAngiDest] = useState<"jira" | "crm" | "none">(initialDest);
   const qc = useQueryClient();
   const delGoogle = useServerFn(deleteGoogleEvent);
+  const syncCalendar = useServerFn(syncTaskToCalendar);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -34,6 +37,7 @@ export function TaskEditModal({
           source,
           notes: notes.trim() || null,
           due_date: dueDate || null,
+          due_time: dueDate && dueTime ? `${dueTime}:00` : null,
           crm_destination: source === "angi" ? angiDest : null,
         })
         .eq("id", task.id);
@@ -42,10 +46,19 @@ export function TaskEditModal({
         const { learnSourceRule } = await import("@/lib/learn-source");
         await learnSourceRule(title.trim(), source);
       }
+      // Qualquer alteração (nome, data, horário, notas) reflete no Google Agenda.
+      try {
+        const r = await syncCalendar({ data: { taskId: task.id } });
+        return { synced: r.synced };
+      } catch (e) {
+        toast.error(`Salvo na LUCK, mas o calendário não atualizou: ${(e as Error).message}`);
+        return { synced: false };
+      }
     },
-    onSuccess: () => {
-      toast.success("Tarefa atualizada");
+    onSuccess: (r) => {
+      toast.success(r?.synced ? "Atualizada na LUCK e no calendário" : "Tarefa atualizada");
       qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["meetings"] });
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),
