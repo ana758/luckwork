@@ -44,7 +44,8 @@ type CalItem =
 
 
 function CalendarPage() {
-  const [view, setView] = useState<ViewMode>("month");
+  // Abre sempre na visão de 5 dias — é a que a Ana usa no dia a dia.
+  const [view, setView] = useState<ViewMode>("5day");
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());

@@ -7,6 +7,8 @@ import {
   dismissAiSuggestion,
   getDailyBriefing,
   listAiSuggestions,
+  listStaleTasks,
+  refreshStaleTask,
   transcribeAudio,
 } from "@/lib/ai.functions";
 
@@ -50,6 +52,25 @@ export function AiPanel() {
   const dismissSuggestion = useMutation({
     mutationFn: (id: string) => dismissAiSuggestion({ data: { id } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-suggestions"] }),
+  });
+
+  // Tarefas paradas há mais de 7 dias — a IA pergunta se pode atualizar.
+  const [ignoredStale, setIgnoredStale] = useState<string[]>([]);
+  const staleQuery = useQuery({
+    queryKey: ["stale-tasks"],
+    queryFn: () => listStaleTasks(),
+    refetchInterval: 300_000,
+    select: (rows) => rows.filter((r) => !ignoredStale.includes(r.id)).slice(0, 3),
+  });
+
+  const refreshStale = useMutation({
+    mutationFn: (taskId: string) => refreshStaleTask({ data: { taskId } }),
+    onSuccess: () => {
+      toast.success("Atualizei a tarefa para hoje e ajustei o calendário");
+      queryClient.invalidateQueries({ queryKey: ["stale-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
 
@@ -242,6 +263,35 @@ export function AiPanel() {
                     <button
                       type="button"
                       onClick={() => answerSuggestion(s, false)}
+                      className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                    >
+                      Agora não
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {(staleQuery.data ?? []).map((t) => (
+                <div key={t.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+                  <p className="mb-1 flex items-center gap-1.5 font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                    "{t.title}" está parada há mais de 7 dias
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t.source} · vencia em {t.due_date.split("-").reverse().join("/")}. Quer que eu atualize a data para hoje?
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={refreshStale.isPending}
+                      onClick={() => refreshStale.mutate(t.id)}
+                      className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                    >
+                      Sim, atualiza
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIgnoredStale((prev) => [...prev, t.id])}
                       className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
                     >
                       Agora não

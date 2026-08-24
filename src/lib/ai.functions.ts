@@ -372,7 +372,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 
 type ActionResult = {
-  intent: "add_task" | "add_meeting" | "delete" | "chat";
+  intent: "add_task" | "add_meeting" | "add_recurring" | "delete" | "chat";
   reply: string;
   created?: { kind: "task" | "meeting"; title: string; when?: string };
   deleted?: { kind: "task" | "meeting"; title: string };
@@ -447,13 +447,16 @@ export const aiAction = createServerFn({ method: "POST" })
       "5. Se não houver menção clara de empresa, use 'pessoal'.",
       "Áudio transcrito: 'angie'/'ange' geralmente = 'angi'; 'devora'/'devori' = 'devore'; 'brandipê'/'brand pé' = 'bruna'.",
       "Intents:",
-      "- 'add_task' para tarefa (sem horário obrigatório).",
+      "- 'add_task' para tarefa (horário opcional no campo due_time, formato HH:mm).",
       "- 'add_meeting' para reunião/compromisso com horário.",
+      "- 'add_recurring' SEMPRE que a usuária citar uma rotina que se repete em dias da semana (ex.: 'toda segunda, quarta e sexta às 17:30 tenho inglês', 'todo dia 8h academia'). NUNCA responda 'chat' nesses casos — crie de verdade.",
       "- 'delete' quando a usuária pede para APAGAR/REMOVER/EXCLUIR/CANCELAR algo (tarefa, reunião, compromisso, evento).",
       "- 'chat' para qualquer outra pergunta.",
       "Formato de resposta (JSON):",
-      `{"intent":"add_task","reply":"...","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","notes":"opcional","location":"opcional"}}`,
+      `{"intent":"add_task","reply":"...","task":{"title":"...","source":"pessoal","priority":"media","status":"todo","start_date":"YYYY-MM-DD","due_date":"YYYY-MM-DD","due_time":"HH:mm ou null","notes":"opcional","location":"opcional"}}`,
       `{"intent":"add_meeting","reply":"...","meeting":{"title":"...","source":"pessoal","starts_at":"YYYY-MM-DDTHH:mm:00-03:00","ends_at":"YYYY-MM-DDTHH:mm:00-03:00 ou null","location":"opcional","people":"opcional","notes":"opcional","meeting_type":"Compromisso"}}`,
+      `{"intent":"add_recurring","reply":"...","recurring":{"title":"...","source":"pessoal","weekdays":[1,3,5],"time":"17:30","weeks":8,"notes":"opcional","location":"opcional"}}`,
+      "Em 'recurring': weekdays usa 0=domingo, 1=segunda, 2=terça, 3=quarta, 4=quinta, 5=sexta, 6=sábado. 'weeks' padrão 8. 'time' em HH:mm 24h (null se ela não disser horário).",
       `{"intent":"delete","reply":"...","target":{"kind":"task"|"meeting"|"auto","match":"palavras-chave do título","when":"YYYY-MM-DD opcional"}}`,
       `{"intent":"chat","reply":"resposta curta"}`,
       "Para delete: use kind='auto' se não estiver claro se é tarefa ou reunião; 'match' deve conter as palavras mais distintivas do título.",
@@ -503,6 +506,9 @@ export const aiAction = createServerFn({ method: "POST" })
 
     if (parsed.intent === "add_task" && parsed.task?.title) {
       const t = parsed.task;
+      const dueTime = typeof t.due_time === "string" && /^\d{1,2}:\d{2}$/.test(t.due_time)
+        ? `${t.due_time.padStart(5, "0")}:00`
+        : null;
       const { data: inserted, error } = await context.supabase
         .from("tasks")
         .insert({
@@ -514,6 +520,7 @@ export const aiAction = createServerFn({ method: "POST" })
           priority: (t.priority ?? "media") as any,
           start_date: t.start_date ?? null,
           due_date: t.due_date ?? null,
+          due_time: dueTime,
           recurrence: "none" as any,
         })
         .select("id")
@@ -543,19 +550,24 @@ export const aiAction = createServerFn({ method: "POST" })
         }
       }
 
-      // Se tem data, também empurra pro Google Agenda como all-day
+      // Se tem data, também vai pro Google Agenda (com horário quando houver).
       if (t.due_date || t.start_date) {
         try {
           const { runCalendarPush } = await import("./gcal-sync.server");
+          const day = t.due_date ?? t.start_date;
           const res = await runCalendarPush(context.supabase, context.userId, {
             title: String(t.title),
-            startsAt: `${t.due_date ?? t.start_date}T09:00:00`,
-            allDay: true,
+            startsAt: `${day}T${dueTime ? dueTime.slice(0, 5) : "09:00"}:00`,
+            allDay: !dueTime,
             notes: t.notes ?? null,
             location: t.location ?? null,
             source: t.source ?? "pessoal",
           });
           if (res.eventId && inserted?.id) {
+            await context.supabase
+              .from("tasks")
+              .update({ google_event_id: res.eventId, google_account: res.calendarId })
+              .eq("id", inserted.id);
             const src = t.source ?? "pessoal";
             if (src !== "devore" && src !== "angi") {
               await context.supabase
@@ -574,6 +586,77 @@ export const aiAction = createServerFn({ method: "POST" })
         created: { kind: "task", title: t.title, when: t.due_date ?? t.start_date },
       };
     }
+
+    // Rotinas semanais ("toda segunda, quarta e sexta às 17:30"):
+    // cria as tarefas de cada ocorrência e um único evento recorrente no Google.
+    if (parsed.intent === "add_recurring" && parsed.recurring?.title) {
+      const r = parsed.recurring;
+      const weekdays: number[] = Array.isArray(r.weekdays)
+        ? r.weekdays.map((n: any) => Number(n)).filter((n: number) => n >= 0 && n <= 6)
+        : [];
+      if (!weekdays.length) throw new Error("Não entendi em quais dias da semana isso se repete.");
+      const weeks = Math.min(Math.max(Number(r.weeks) || 8, 1), 12);
+      const time = typeof r.time === "string" && /^\d{1,2}:\d{2}$/.test(r.time)
+        ? r.time.padStart(5, "0")
+        : null;
+      const source = (r.source ?? "pessoal") as any;
+
+      const start = new Date(`${todayStr}T00:00:00`);
+      const dates: string[] = [];
+      for (let i = 0; i < weeks * 7; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        if (weekdays.includes(d.getDay())) {
+          dates.push(
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+          );
+        }
+      }
+
+      const rows = dates.map((day) => ({
+        created_by: context.userId,
+        title: String(r.title),
+        notes: r.notes ?? null,
+        source,
+        status: "todo" as any,
+        priority: "media" as any,
+        due_date: day,
+        due_time: time ? `${time}:00` : null,
+        recurrence: "none" as any,
+      }));
+      if (rows.length) {
+        const { error } = await context.supabase.from("tasks").insert(rows);
+        if (error) throw new Error(`Não consegui criar a rotina: ${error.message}`);
+      }
+
+      try {
+        const { runCalendarPush } = await import("./gcal-sync.server");
+        const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+        await runCalendarPush(context.supabase, context.userId, {
+          title: String(r.title),
+          startsAt: `${dates[0]}T${time ?? "09:00"}:00`,
+          allDay: !time,
+          notes: r.notes ?? null,
+          location: r.location ?? null,
+          source,
+          recurrence: [
+            `RRULE:FREQ=WEEKLY;BYDAY=${weekdays.map((d) => BYDAY[d]).join(",")};COUNT=${dates.length}`,
+          ],
+        });
+      } catch {
+        // segue mesmo se o Google falhar
+      }
+
+      return {
+        intent: "add_recurring",
+        reply:
+          parsed.reply ??
+          `Criei "${r.title}" ${time ? `às ${time} ` : ""}nas próximas ${weeks} semanas (${dates.length} ocorrências).`,
+        created: { kind: "task", title: r.title, when: dates[0] },
+      };
+    }
+
+
 
     if (parsed.intent === "add_meeting" && parsed.meeting?.title && parsed.meeting?.starts_at) {
       const m = parsed.meeting;
@@ -757,4 +840,61 @@ export const transcribeAudio = createServerFn({ method: "POST" })
     }
     const json = (await res.json()) as { text?: string };
     return { text: (json.text ?? "").trim() };
+  });
+
+/**
+ * Tarefas paradas há mais de 7 dias no mesmo board e com data vencida.
+ * A IA usa isso para perguntar se pode atualizar sozinha.
+ */
+export const listStaleTasks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const { data, error } = await context.supabase
+      .from("tasks")
+      .select("id, title, source, status, due_date, status_changed_at, updated_at")
+      .neq("status", "done")
+      .not("due_date", "is", null)
+      .lt("due_date", todayStr)
+      .order("due_date", { ascending: true })
+      .limit(60);
+    if (error) throw new Error(error.message);
+
+    const stale = (data ?? []).filter((t: any) => {
+      const moved = t.status_changed_at ?? t.updated_at;
+      if (!moved) return true;
+      const days = (today.getTime() - new Date(moved).getTime()) / 86_400_000;
+      return days > 7;
+    });
+    return stale.slice(0, 8).map((t: any) => ({
+      id: t.id as string,
+      title: t.title as string,
+      source: t.source as string,
+      status: t.status as string,
+      due_date: t.due_date as string,
+    }));
+  });
+
+/** Reagenda uma tarefa parada para hoje e sincroniza com o Google Agenda. */
+export const refreshStaleTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { taskId: string }) => {
+    if (!input?.taskId) throw new Error("taskId obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const { error } = await context.supabase
+      .from("tasks")
+      .update({ due_date: todayStr, status_changed_at: new Date().toISOString() })
+      .eq("id", data.taskId);
+    if (error) throw new Error(error.message);
+    try {
+      const { runSyncTaskToCalendar } = await import("./task-calendar.server");
+      await runSyncTaskToCalendar(context.supabase, context.userId, data.taskId);
+    } catch {
+      // segue mesmo se o Google falhar
+    }
+    return { ok: true as const, due_date: todayStr };
   });
