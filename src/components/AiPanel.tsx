@@ -249,6 +249,35 @@ export function AiPanel() {
                   </div>
                 </div>
               ))}
+
+              {(staleQuery.data ?? []).map((t) => (
+                <div key={t.id} className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+                  <p className="mb-1 flex items-center gap-1.5 font-medium">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                    "{t.title}" está parada há mais de 7 dias
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t.source} · vencia em {t.due_date.split("-").reverse().join("/")}. Quer que eu atualize a data para hoje?
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={refreshStale.isPending}
+                      onClick={() => refreshStale.mutate(t.id)}
+                      className="rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                    >
+                      Sim, atualiza
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIgnoredStale((prev) => [...prev, t.id])}
+                      className="rounded-full border px-3 py-1 text-xs hover:bg-accent"
+                    >
+                      Agora não
+                    </button>
+                  </div>
+                </div>
+              ))}
               {messages.length === 0 &&
                 !ask.isPending &&
                 (suggestionsQuery.data ?? []).length === 0 && (
