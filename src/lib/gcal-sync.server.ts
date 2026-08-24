@@ -396,6 +396,7 @@ export async function runPatchGoogleEvent(
     endsAt?: string | null;
     notes?: string | null;
     location?: string | null;
+    allDay?: boolean;
   },
 ) {
   await assertMember(supabase, userId);
@@ -404,7 +405,13 @@ export async function runPatchGoogleEvent(
   if (data.title !== undefined) body.summary = data.title;
   if (data.notes !== undefined) body.description = data.notes ?? "";
   if (data.location !== undefined) body.location = data.location ?? "";
-  if (data.startsAt) {
+  if (data.startsAt && data.allDay) {
+    const day = data.startsAt.slice(0, 10);
+    const next = new Date(`${day}T00:00:00`);
+    next.setDate(next.getDate() + 1);
+    body.start = { date: day };
+    body.end = { date: next.toISOString().slice(0, 10) };
+  } else if (data.startsAt) {
     const start = new Date(data.startsAt);
     const end = data.endsAt
       ? new Date(data.endsAt)
