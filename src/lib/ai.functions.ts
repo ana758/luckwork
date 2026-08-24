@@ -587,6 +587,77 @@ export const aiAction = createServerFn({ method: "POST" })
       };
     }
 
+    // Rotinas semanais ("toda segunda, quarta e sexta às 17:30"):
+    // cria as tarefas de cada ocorrência e um único evento recorrente no Google.
+    if (parsed.intent === "add_recurring" && parsed.recurring?.title) {
+      const r = parsed.recurring;
+      const weekdays: number[] = Array.isArray(r.weekdays)
+        ? r.weekdays.map((n: any) => Number(n)).filter((n: number) => n >= 0 && n <= 6)
+        : [];
+      if (!weekdays.length) throw new Error("Não entendi em quais dias da semana isso se repete.");
+      const weeks = Math.min(Math.max(Number(r.weeks) || 8, 1), 12);
+      const time = typeof r.time === "string" && /^\d{1,2}:\d{2}$/.test(r.time)
+        ? r.time.padStart(5, "0")
+        : null;
+      const source = (r.source ?? "pessoal") as any;
+
+      const start = new Date(`${todayStr}T00:00:00`);
+      const dates: string[] = [];
+      for (let i = 0; i < weeks * 7; i++) {
+        const d = new Date(start);
+        d.setDate(start.getDate() + i);
+        if (weekdays.includes(d.getDay())) {
+          dates.push(
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+          );
+        }
+      }
+
+      const rows = dates.map((day) => ({
+        created_by: context.userId,
+        title: String(r.title),
+        notes: r.notes ?? null,
+        source,
+        status: "todo" as any,
+        priority: "media" as any,
+        due_date: day,
+        due_time: time ? `${time}:00` : null,
+        recurrence: "none" as any,
+      }));
+      if (rows.length) {
+        const { error } = await context.supabase.from("tasks").insert(rows);
+        if (error) throw new Error(`Não consegui criar a rotina: ${error.message}`);
+      }
+
+      try {
+        const { runCalendarPush } = await import("./gcal-sync.server");
+        const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
+        await runCalendarPush(context.supabase, context.userId, {
+          title: String(r.title),
+          startsAt: `${dates[0]}T${time ?? "09:00"}:00`,
+          allDay: !time,
+          notes: r.notes ?? null,
+          location: r.location ?? null,
+          source,
+          recurrence: [
+            `RRULE:FREQ=WEEKLY;BYDAY=${weekdays.map((d) => BYDAY[d]).join(",")};COUNT=${dates.length}`,
+          ],
+        });
+      } catch {
+        // segue mesmo se o Google falhar
+      }
+
+      return {
+        intent: "add_recurring",
+        reply:
+          parsed.reply ??
+          `Criei "${r.title}" ${time ? `às ${time} ` : ""}nas próximas ${weeks} semanas (${dates.length} ocorrências).`,
+        created: { kind: "task", title: r.title, when: dates[0] },
+      };
+    }
+
+
+
     if (parsed.intent === "add_meeting" && parsed.meeting?.title && parsed.meeting?.starts_at) {
       const m = parsed.meeting;
       let googleId: string | null = null;
