@@ -1,7 +1,7 @@
 /**
  * Motor de IA da LUCK.
- * 1º usa a conta paga do ChatGPT (OPENAI_API_KEY) da Ana.
- * Só se ela faltar ou falhar (limite/erro) usa o gateway Lovable como reserva.
+ * 1º usa os créditos Lovable (LOVABLE_API_KEY) — sem custo extra.
+ * Só usa a OpenAI (OPENAI_API_KEY) como reserva, se a chave existir.
  */
 
 const LOVABLE_URL = "https://ai.gateway.lovable.dev/v1";
@@ -21,25 +21,25 @@ export async function aiChat(body: Record<string, unknown>): Promise<Response> {
   const lovableKey = process.env.LOVABLE_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (openaiKey) {
+  if (lovableKey) {
     try {
-      const res = await fetch(`${OPENAI_URL}/chat/completions`, {
+      const res = await fetch(`${LOVABLE_URL}/chat/completions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiKey}` },
-        body: JSON.stringify({ ...body, model: openaiModel(String(body.model ?? "")) }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+        body: JSON.stringify(body),
       });
-      if (res.ok || !lovableKey || !shouldFallback(res.status)) return res;
+      if (res.ok || !openaiKey || !shouldFallback(res.status)) return res;
     } catch (err) {
-      if (!lovableKey) throw err;
+      if (!openaiKey) throw err;
     }
   }
 
-  if (!lovableKey) throw new Error("IA indisponível no momento.");
+  if (!openaiKey) throw new Error("IA indisponível no momento.");
 
-  return fetch(`${LOVABLE_URL}/chat/completions`, {
+  return fetch(`${OPENAI_URL}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
-    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${openaiKey}` },
+    body: JSON.stringify({ ...body, model: openaiModel(String(body.model ?? "")) }),
   });
 }
 
@@ -47,26 +47,26 @@ export async function aiTranscribe(build: () => FormData): Promise<Response> {
   const lovableKey = process.env.LOVABLE_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (openaiKey) {
+  if (lovableKey) {
     try {
-      const form = build();
-      form.set("model", "whisper-1");
-      const res = await fetch(`${OPENAI_URL}/audio/transcriptions`, {
+      const res = await fetch(`${LOVABLE_URL}/audio/transcriptions`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${openaiKey}` },
-        body: form,
+        headers: { Authorization: `Bearer ${lovableKey}` },
+        body: build(),
       });
-      if (res.ok || !lovableKey || !shouldFallback(res.status)) return res;
+      if (res.ok || !openaiKey || !shouldFallback(res.status)) return res;
     } catch (err) {
-      if (!lovableKey) throw err;
+      if (!openaiKey) throw err;
     }
   }
 
-  if (!lovableKey) throw new Error("IA indisponível no momento.");
+  if (!openaiKey) throw new Error("IA indisponível no momento.");
 
-  return fetch(`${LOVABLE_URL}/audio/transcriptions`, {
+  const form = build();
+  form.set("model", "whisper-1");
+  return fetch(`${OPENAI_URL}/audio/transcriptions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${lovableKey}` },
-    body: build(),
+    headers: { Authorization: `Bearer ${openaiKey}` },
+    body: form,
   });
 }
