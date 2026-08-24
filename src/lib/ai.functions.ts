@@ -372,7 +372,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
 // ---------------------------------------------------------------------------
 
 type ActionResult = {
-  intent: "add_task" | "add_meeting" | "delete" | "chat";
+  intent: "add_task" | "add_meeting" | "add_recurring" | "delete" | "chat";
   reply: string;
   created?: { kind: "task" | "meeting"; title: string; when?: string };
   deleted?: { kind: "task" | "meeting"; title: string };
