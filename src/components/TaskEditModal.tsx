@@ -122,13 +122,26 @@ export function TaskEditModal({
           className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
 
-        <label className="text-xs text-muted-foreground">Data</label>
-        <input
-          type="date"
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-muted-foreground">Data</label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Horário (opcional)</label>
+            <input
+              type="time"
+              value={dueTime}
+              onChange={(e) => setDueTime(e.target.value)}
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        </div>
 
         <label className="text-xs text-muted-foreground">Empresa</label>
         <div className="mb-3 mt-1 grid grid-cols-4 gap-1">
