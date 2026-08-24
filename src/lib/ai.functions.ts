@@ -506,6 +506,9 @@ export const aiAction = createServerFn({ method: "POST" })
 
     if (parsed.intent === "add_task" && parsed.task?.title) {
       const t = parsed.task;
+      const dueTime = typeof t.due_time === "string" && /^\d{1,2}:\d{2}$/.test(t.due_time)
+        ? `${t.due_time.padStart(5, "0")}:00`
+        : null;
       const { data: inserted, error } = await context.supabase
         .from("tasks")
         .insert({
@@ -517,6 +520,7 @@ export const aiAction = createServerFn({ method: "POST" })
           priority: (t.priority ?? "media") as any,
           start_date: t.start_date ?? null,
           due_date: t.due_date ?? null,
+          due_time: dueTime,
           recurrence: "none" as any,
         })
         .select("id")
@@ -546,19 +550,24 @@ export const aiAction = createServerFn({ method: "POST" })
         }
       }
 
-      // Se tem data, também empurra pro Google Agenda como all-day
+      // Se tem data, também vai pro Google Agenda (com horário quando houver).
       if (t.due_date || t.start_date) {
         try {
           const { runCalendarPush } = await import("./gcal-sync.server");
+          const day = t.due_date ?? t.start_date;
           const res = await runCalendarPush(context.supabase, context.userId, {
             title: String(t.title),
-            startsAt: `${t.due_date ?? t.start_date}T09:00:00`,
-            allDay: true,
+            startsAt: `${day}T${dueTime ? dueTime.slice(0, 5) : "09:00"}:00`,
+            allDay: !dueTime,
             notes: t.notes ?? null,
             location: t.location ?? null,
             source: t.source ?? "pessoal",
           });
           if (res.eventId && inserted?.id) {
+            await context.supabase
+              .from("tasks")
+              .update({ google_event_id: res.eventId, google_account: res.calendarId })
+              .eq("id", inserted.id);
             const src = t.source ?? "pessoal";
             if (src !== "devore" && src !== "angi") {
               await context.supabase
