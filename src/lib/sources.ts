@@ -78,6 +78,9 @@ export type Task = {
   priority: TaskPriority;
   start_date: string | null;
   due_date: string | null;
+  due_time?: string | null;
+  google_event_id?: string | null;
+  google_account?: string | null;
   recurrence: Recurrence;
   external_system: string | null;
   external_id?: string | null;
