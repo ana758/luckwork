@@ -91,7 +91,8 @@ export async function runCalendarSync(supabase: any, userId: string) {
 
   const accounts = connectedAccounts();
   if (accounts.length === 0) {
-    throw new Error("Nenhuma conta do Google Agenda conectada ao projeto.");
+    // Sem conta ligada: não quebra a tela — apenas não importa nada.
+    return { imported: 0, accounts: [] as { email: string; count: number }[], notConnected: true as const };
   }
 
   const now = new Date();
