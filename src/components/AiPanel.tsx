@@ -54,6 +54,25 @@ export function AiPanel() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-suggestions"] }),
   });
 
+  // Tarefas paradas há mais de 7 dias — a IA pergunta se pode atualizar.
+  const [ignoredStale, setIgnoredStale] = useState<string[]>([]);
+  const staleQuery = useQuery({
+    queryKey: ["stale-tasks"],
+    queryFn: () => listStaleTasks(),
+    refetchInterval: 300_000,
+    select: (rows) => rows.filter((r) => !ignoredStale.includes(r.id)).slice(0, 3),
+  });
+
+  const refreshStale = useMutation({
+    mutationFn: (taskId: string) => refreshStaleTask({ data: { taskId } }),
+    onSuccess: () => {
+      toast.success("Atualizei a tarefa para hoje e ajustei o calendário");
+      queryClient.invalidateQueries({ queryKey: ["stale-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const ask = useMutation({
     mutationFn: async (q?: string) => {
