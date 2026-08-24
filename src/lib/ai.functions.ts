@@ -841,3 +841,60 @@ export const transcribeAudio = createServerFn({ method: "POST" })
     const json = (await res.json()) as { text?: string };
     return { text: (json.text ?? "").trim() };
   });
+
+/**
+ * Tarefas paradas há mais de 7 dias no mesmo board e com data vencida.
+ * A IA usa isso para perguntar se pode atualizar sozinha.
+ */
+export const listStaleTasks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const { data, error } = await context.supabase
+      .from("tasks")
+      .select("id, title, source, status, due_date, status_changed_at, updated_at")
+      .neq("status", "done")
+      .not("due_date", "is", null)
+      .lt("due_date", todayStr)
+      .order("due_date", { ascending: true })
+      .limit(60);
+    if (error) throw new Error(error.message);
+
+    const stale = (data ?? []).filter((t: any) => {
+      const moved = t.status_changed_at ?? t.updated_at;
+      if (!moved) return true;
+      const days = (today.getTime() - new Date(moved).getTime()) / 86_400_000;
+      return days > 7;
+    });
+    return stale.slice(0, 8).map((t: any) => ({
+      id: t.id as string,
+      title: t.title as string,
+      source: t.source as string,
+      status: t.status as string,
+      due_date: t.due_date as string,
+    }));
+  });
+
+/** Reagenda uma tarefa parada para hoje e sincroniza com o Google Agenda. */
+export const refreshStaleTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { taskId: string }) => {
+    if (!input?.taskId) throw new Error("taskId obrigatório.");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const { error } = await context.supabase
+      .from("tasks")
+      .update({ due_date: todayStr, status_changed_at: new Date().toISOString() })
+      .eq("id", data.taskId);
+    if (error) throw new Error(error.message);
+    try {
+      const { runSyncTaskToCalendar } = await import("./task-calendar.server");
+      await runSyncTaskToCalendar(context.supabase, context.userId, data.taskId);
+    } catch {
+      // segue mesmo se o Google falhar
+    }
+    return { ok: true as const, due_date: todayStr };
+  });
