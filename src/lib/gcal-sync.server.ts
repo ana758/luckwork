@@ -47,11 +47,52 @@ async function assertMember(supabase: any, userId: string) {
 }
 
 
+/**
+ * Todas as conexões de Google Agenda ligadas ao projeto.
+ * Aceita GOOGLE_CALENDAR_API_KEY, _1, _2, _3... (a ordem do link não importa,
+ * a conta é identificada pelo e-mail da agenda principal).
+ */
 function connectedAccounts() {
-  return GOOGLE_ACCOUNTS.map((a) => ({ ...a, key: process.env[a.envVar] })).filter(
-    (a): a is (typeof GOOGLE_ACCOUNTS)[number] & { key: string } => Boolean(a.key),
-  );
+  const known = new Map(GOOGLE_ACCOUNTS.map((a) => [a.envVar, a.defaultSource]));
+  return Object.keys(process.env)
+    .filter((k) => /^GOOGLE_CALENDAR_API_KEY(_\d+)?$/.test(k) && process.env[k])
+    .sort()
+    .map((envVar) => ({
+      envVar,
+      defaultSource: known.get(envVar) ?? ("pessoal" as const),
+      key: process.env[envVar] as string,
+    }));
 }
+
+/** Empresa dona de cada conta, pelo e-mail. */
+function sourceForEmail(email: string) {
+  const e = email.toLowerCase();
+  if (e.includes("angisaude")) return "angi" as const;
+  if (e.includes("devoresnacks")) return "devore" as const;
+  return "pessoal" as const;
+}
+
+type ResolvedAccount = ReturnType<typeof connectedAccounts>[number] & { email: string };
+
+/** Contas conectadas já com o e-mail da agenda principal resolvido. */
+async function resolvedAccounts(): Promise<ResolvedAccount[]> {
+  const out: ResolvedAccount[] = [];
+  for (const acc of connectedAccounts()) {
+    try {
+      const email = await primaryCalendarId(acc.key);
+      out.push({ ...acc, email, defaultSource: sourceForEmail(email) });
+    } catch {
+      // conta indisponível
+    }
+  }
+  return out;
+}
+
+/** Agenda pessoal (anaduquek@gmail.com) — recebe cópia de tudo. */
+function personalAccount(accounts: ResolvedAccount[]) {
+  return accounts.find((a) => sourceForEmail(a.email) === "pessoal") ?? null;
+}
+
 
 function normalizedMeetingTitle(title: string) {
   return title
@@ -89,11 +130,12 @@ export async function runListAccounts() {
 export async function runCalendarSync(supabase: any, userId: string) {
   await assertMember(supabase, userId);
 
-  const accounts = connectedAccounts();
+  const accounts = await resolvedAccounts();
   if (accounts.length === 0) {
     // Sem conta ligada: não quebra a tela — apenas não importa nada.
     return { imported: 0, accounts: [] as { email: string; count: number }[], notConnected: true as const };
   }
+
 
   const now = new Date();
   const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
@@ -128,8 +170,10 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const rulesMap = new Map<string, string>();
   for (const r of rulesData ?? []) rulesMap.set(r.title_key as string, r.source as string);
 
+  const seenSignatures = new Set<string>(); // evita o mesmo evento vindo de 2 contas
+
   for (const acc of accounts) {
-    const accountEmail = await primaryCalendarId(acc.key);
+    const accountEmail = acc.email;
     const calendars = (await listCalendars(acc.key)).filter(
       (c) => c.selected !== false && c.accessRole && c.accessRole !== "freeBusyReader",
     );
@@ -148,29 +192,29 @@ export async function runCalendarSync(supabase: any, userId: string) {
           const startsAt = eventStart(e);
           if (!startsAt) return [];
           const title = e.summary?.trim() || "(sem título)";
+          const sig = meetingSignature(title, startsAt);
           if (
             hiddenExactPairs.has(`${cal.id}::${e.id}`) ||
-            hiddenSignatures.has(meetingSignature(title, startsAt))
+            hiddenSignatures.has(sig)
           ) {
             return [];
           }
-          // A aba Reuniões não é espelho da agenda inteira. Do Google, só entra
-          // o que está nomeado como reunião/call no título. Convite, link do
-          // Meet ou agenda chamada "reuniões" não bastam, porque isso estava
-          // puxando pagamentos, lembretes e tarefas para Reuniões.
-          const titleLooksLikeMeeting = isMeetingTitle(title);
-          if (!titleLooksLikeMeeting) {
-            return [];
-          }
+          // Todo compromisso das agendas conectadas entra no calendário da LUCK.
+          // A aba Reuniões continua mostrando só o que é reunião de verdade
+          // (is_meeting), para não virar espelho da agenda inteira.
+          if (seenSignatures.has(sig)) return [];
+          seenSignatures.add(sig);
           const learned = rulesMap.get(normalizeTitleKey(title));
           const inferred = inferSourceFromTitle(title);
           const source = learned ?? inferred ?? defaultSource;
+          const isMeeting = isMeetingTitle(title);
           return [{
             title,
             source,
             starts_at: startsAt,
             ends_at: eventEnd(e),
-            meeting_type: "Reunião",
+            is_meeting: isMeeting,
+            meeting_type: isMeeting ? "Reunião" : "Compromisso",
             people: eventPeople(e),
             location: e.location ?? null,
             notes: e.description?.slice(0, 4000) ?? null,
@@ -180,6 +224,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             synced_at: new Date().toISOString(),
           }];
         });
+
 
 
       if (rows.length > 0) {
@@ -255,22 +300,20 @@ export async function runCalendarSync(supabase: any, userId: string) {
 }
 
 
-// Roteia por empresa → conta do Google.
-// Angi e Devore vão para ana@devoresnacks.com (GOOGLE_CALENDAR_API_KEY).
-// Bruna e Pessoal vão para anaduquek@gmail.com (GOOGLE_CALENDAR_API_KEY_1).
-function pickAccountBySource(source?: string | null) {
-  const accs = connectedAccounts();
-  const wantsAngi = source === "angi";
-  const wantsDevore = source === "devore" || source === "angi";
-  const wantsPessoal = source === "bruna" || source === "pessoal";
-  const preferredEnv = wantsAngi && accs.some((a) => a.envVar === "GOOGLE_CALENDAR_API_KEY_2")
-    ? "GOOGLE_CALENDAR_API_KEY_2"
-    : wantsDevore
-    ? "GOOGLE_CALENDAR_API_KEY"
-    : wantsPessoal
-      ? "GOOGLE_CALENDAR_API_KEY_1"
-      : null;
-  return (preferredEnv && accs.find((a) => a.envVar === preferredEnv)) || accs[0] || null;
+// Roteia por empresa → conta do Google (pelo e-mail da conta, não pela ordem
+// em que foi conectada):
+//   angi   → ana@angisaude.com
+//   devore → ana@devoresnacks.com
+//   demais → anaduquek@gmail.com
+// Além disso, TUDO ganha uma cópia em anaduquek@gmail.com (agenda pessoal).
+function pickAccountBySource(accounts: ResolvedAccount[], source?: string | null) {
+  const want = source === "angi" ? "angi" : source === "devore" ? "devore" : "pessoal";
+  return (
+    accounts.find((a) => sourceForEmail(a.email) === want) ??
+    personalAccount(accounts) ??
+    accounts[0] ??
+    null
+  );
 }
 
 export async function runCalendarPush(
@@ -293,13 +336,14 @@ export async function runCalendarPush(
 ) {
   await assertMember(supabase, userId);
 
-  const accounts = connectedAccounts();
+  const accounts = await resolvedAccounts();
   const acc = data.account
-    ? accounts.find((a) => a.envVar === data.account)
-    : pickAccountBySource(data.source);
+    ? accounts.find((a) => a.envVar === data.account || a.email === data.account)
+    : pickAccountBySource(accounts, data.source);
   if (!acc) throw new Error("Conta do Google Agenda não encontrada.");
 
-  const calendarId = await primaryCalendarId(acc.key);
+  const calendarId = acc.email;
+
 
   const body: Record<string, unknown> = {
     summary: data.title,
@@ -349,15 +393,58 @@ export async function runCalendarPush(
       ?.uri ??
     data.meetLink ??
     null;
+
+  // Cópia na agenda pessoal (anaduquek@gmail.com), onde a Ana controla tudo.
+  let mirrorEventId: string | null = null;
+  let mirrorAccount: string | null = null;
+  const personal = personalAccount(accounts);
+  if (personal && personal.email !== acc.email) {
+    try {
+      const mirrorBody = { ...body } as Record<string, unknown>;
+      delete mirrorBody.conferenceData;
+      delete mirrorBody.attendees;
+      if (meetLink) {
+        mirrorBody.description = [data.notes ?? "", `Link: ${meetLink}`]
+          .filter(Boolean)
+          .join("\n\n");
+      }
+      const copy = await createEvent(personal.key, personal.email, mirrorBody);
+      mirrorEventId = copy.id ?? null;
+      mirrorAccount = personal.email;
+    } catch {
+      // cópia é best-effort — não bloqueia o evento principal
+    }
+  }
+
   return {
     ok: true,
     eventId: created.id,
     calendarId,
     url: created.htmlLink ?? null,
     meetLink,
+    mirrorEventId,
+    mirrorAccount,
   };
+
 }
 
+
+/** Cópia do evento na agenda pessoal, se existir. */
+async function findMirrorRef(supabase: any, googleEventId: string) {
+  for (const table of ["meetings", "tasks"] as const) {
+    const { data } = await supabase
+      .from(table)
+      .select("mirror_event_id, mirror_account")
+      .eq("google_event_id", googleEventId)
+      .not("mirror_event_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (data?.mirror_event_id && data?.mirror_account) {
+      return { eventId: data.mirror_event_id as string, account: data.mirror_account as string };
+    }
+  }
+  return null;
+}
 
 
 export async function runMoveGoogleEvent(
@@ -421,9 +508,20 @@ export async function runPatchGoogleEvent(
     body.end = { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" };
   }
   let lastErr: unknown = null;
+  const mirror = await findMirrorRef(supabase, data.googleEventId);
   for (const acc of accounts) {
     try {
       await patchEvent(acc.key, data.googleAccount, data.googleEventId, body);
+      if (mirror) {
+        for (const a of accounts) {
+          try {
+            await patchEvent(a.key, mirror.account, mirror.eventId, body);
+            break;
+          } catch {
+            /* tenta a próxima conta */
+          }
+        }
+      }
       return { ok: true };
     } catch (e) {
       lastErr = e;
@@ -432,6 +530,7 @@ export async function runPatchGoogleEvent(
   throw new Error(`Não consegui atualizar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
 }
 
+
 export async function runDeleteGoogleEvent(
   supabase: any,
   userId: string,
@@ -439,19 +538,36 @@ export async function runDeleteGoogleEvent(
 ) {
   await assertMember(supabase, userId);
   const accounts = connectedAccounts();
+  const mirror = await findMirrorRef(supabase, data.googleEventId);
+  const removeMirror = async () => {
+    if (!mirror) return;
+    for (const a of accounts) {
+      try {
+        await deleteEvent(a.key, mirror.account, mirror.eventId);
+        return;
+      } catch {
+        /* tenta a próxima conta */
+      }
+    }
+  };
   let lastErr: unknown = null;
   for (const acc of accounts) {
     try {
       await deleteEvent(acc.key, data.googleAccount, data.googleEventId);
+      await removeMirror();
       return { ok: true };
     } catch (e) {
       const msg = (e as Error)?.message ?? "";
       // Já apagado/inexistente no Google → sucesso idempotente.
-      if (/\[(404|410)\]/.test(msg)) return { ok: true, alreadyGone: true };
+      if (/\[(404|410)\]/.test(msg)) {
+        await removeMirror();
+        return { ok: true, alreadyGone: true };
+      }
       lastErr = e;
     }
   }
   throw new Error(`Não consegui apagar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
+
 }
 
 

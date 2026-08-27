@@ -23,6 +23,7 @@ export function QuickAdd() {
   const [kind, setKind] = useState<Kind>("task");
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState("");
+  const [taskTime, setTaskTime] = useState("");
   const [source, setSource] = useState<SourceKey>("pessoal");
   // Destino da tarefa quando a empresa é Angi: 'jira' (padrão) | 'crm' | 'none'.
   const [angiDest, setAngiDest] = useState<"jira" | "crm" | "none">("jira");
@@ -36,7 +37,13 @@ export function QuickAdd() {
   // Roda integrações em background sem bloquear a UI.
   async function syncTaskIntegrations(
     id: string,
-    payload: { title: string; source: SourceKey; when: string; dest: "jira" | "crm" | "none" },
+    payload: {
+      title: string;
+      source: SourceKey;
+      when: string;
+      time?: string;
+      dest: "jira" | "crm" | "none";
+    },
   ) {
     // Jira (Angi) — só se destino for jira
     if (payload.source === "angi" && payload.dest === "jira") {
@@ -88,8 +95,8 @@ export function QuickAdd() {
         const res = await pushGoogle({
           data: {
             title: payload.title,
-            startsAt: `${payload.when}T09:00:00`,
-            allDay: true,
+            startsAt: `${payload.when}T${payload.time || "09:00"}:00`,
+            allDay: !payload.time,
             source: payload.source,
           },
         });
@@ -97,11 +104,15 @@ export function QuickAdd() {
           const patch: {
             google_event_id: string;
             google_account: string | null;
+            mirror_event_id?: string | null;
+            mirror_account?: string | null;
             external_url?: string | null;
             external_system?: string | null;
           } = {
             google_event_id: res.eventId,
             google_account: res.calendarId ?? null,
+            mirror_event_id: res.mirrorEventId ?? null,
+            mirror_account: res.mirrorAccount ?? null,
           };
           if (payload.source !== "angi" && payload.source !== "devore") {
             patch.external_url = res.url;
@@ -121,7 +132,7 @@ export function QuickAdd() {
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Escreva o que precisa ser feito.");
       const dest: "jira" | "crm" | "none" = source === "angi" ? angiDest : "none";
-      const payload = { title: title.trim(), source, when, dest };
+      const payload = { title: title.trim(), source, when, time: taskTime, dest };
 
       if (kind === "task") {
         const { data: inserted, error } = await supabase
@@ -130,6 +141,7 @@ export function QuickAdd() {
             title: payload.title,
             source,
             due_date: when || null,
+            due_time: when && taskTime ? `${taskTime}:00` : null,
             crm_destination: source === "angi" ? dest : null,
           })
           .select("id")
@@ -164,6 +176,8 @@ export function QuickAdd() {
               .update({
                 google_event_id: res.eventId ?? null,
                 google_account: res.calendarId ?? null,
+                mirror_event_id: res.mirrorEventId ?? null,
+                mirror_account: res.mirrorAccount ?? null,
                 external_url: res.meetLink ?? res.url ?? null,
               })
               .eq("id", inserted.id);
@@ -239,12 +253,23 @@ export function QuickAdd() {
             <label className="text-xs text-muted-foreground">
               {kind === "task" ? "Prazo (opcional)" : "Quando"}
             </label>
-            <input
-              type={kind === "task" ? "date" : "datetime-local"}
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-              className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-            />
+            <div className="mb-3 mt-1 flex gap-2">
+              <input
+                type={kind === "task" ? "date" : "datetime-local"}
+                value={when}
+                onChange={(e) => setWhen(e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+              {kind === "task" && (
+                <input
+                  type="time"
+                  value={taskTime}
+                  onChange={(e) => setTaskTime(e.target.value)}
+                  aria-label="Hora da tarefa"
+                  className="w-32 rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              )}
+            </div>
 
             <label className="text-xs text-muted-foreground">Empresa</label>
             <div className="mb-1 mt-1 grid grid-cols-4 gap-1">

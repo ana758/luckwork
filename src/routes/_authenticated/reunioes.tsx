@@ -42,7 +42,10 @@ function MeetingsPage() {
     return new Date(d.getFullYear(), d.getMonth(), 1).getTime();
   }, []);
   const meetings = useMemo(
-    () => allMeetings.filter((m) => new Date(m.starts_at).getTime() >= monthStart),
+    () =>
+      allMeetings.filter(
+        (m) => m.is_meeting !== false && new Date(m.starts_at).getTime() >= monthStart,
+      ),
     [allMeetings, monthStart]
   );
   const upcoming = meetings.filter((m) => new Date(m.starts_at).getTime() >= now);

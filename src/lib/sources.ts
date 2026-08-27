@@ -105,6 +105,7 @@ export type Meeting = {
   google_event_id?: string | null;
   google_account?: string | null;
   hidden?: boolean;
+  is_meeting?: boolean;
   status?: TaskStatus;
   completed_at?: string | null;
 };
