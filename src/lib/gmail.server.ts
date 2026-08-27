@@ -89,58 +89,79 @@ function parseFrom(raw: string): { name: string; email: string } {
  * Returns concise previews suitable for AI classification.
  */
 export async function fetchRecentInbox(limit = 40): Promise<GmailPreview[]> {
+  const keys = await readableGmailKeys();
+  if (keys.length === 0) throw new Error("Nenhuma caixa Gmail analisável ligada.");
+
   // Only inbox, not promotions/social/updates/forums, last 3 days
   const q = encodeURIComponent(
     "in:inbox -category:promotions -category:social -category:updates -category:forums newer_than:3d",
   );
-  const listRes = await fetch(
-    `${GATEWAY}/users/me/messages?maxResults=${limit}&q=${q}`,
-    { headers: headers() },
-  );
-  if (!listRes.ok) {
-    const body = await listRes.text();
-    throw new Error(`Gmail list falhou [${listRes.status}]: ${body.slice(0, 300)}`);
-  }
-  const list = (await listRes.json()) as { messages?: { id: string }[] };
-  const ids = (list.messages ?? []).slice(0, limit).map((m) => m.id);
-  if (ids.length === 0) return [];
 
-  const results = await Promise.allSettled(
-    ids.map(async (id) => {
-      const r = await fetch(
-        `${GATEWAY}/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-        { headers: headers() },
+  const perBox = await Promise.allSettled(
+    keys.map(async (connKey) => {
+      const h = headersFor(connKey);
+      const listRes = await fetch(
+        `${GATEWAY}/users/me/messages?maxResults=${limit}&q=${q}`,
+        { headers: h },
       );
-      if (!r.ok) throw new Error(String(r.status));
-      const msg = (await r.json()) as {
-        id: string;
-        snippet?: string;
-        labelIds?: string[];
-        payload?: { headers?: { name?: string; value?: string }[] };
-        internalDate?: string;
-      };
-      const hdrs = msg.payload?.headers;
-      const from = parseFrom(headerValue(hdrs, "From"));
-      const subject = headerValue(hdrs, "Subject") || "(sem assunto)";
-      const dateHdr = headerValue(hdrs, "Date");
-      const date = dateHdr || (msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : "");
-      return {
-        id: msg.id,
-        from: from.name,
-        fromEmail: from.email,
-        subject,
-        snippet: (msg.snippet ?? "").slice(0, 240),
-        date,
-        unread: (msg.labelIds ?? []).includes("UNREAD"),
-        link: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
-      } satisfies GmailPreview;
+      if (!listRes.ok) {
+        const body = await listRes.text();
+        throw new Error(`Gmail list falhou [${listRes.status}]: ${body.slice(0, 300)}`);
+      }
+      const list = (await listRes.json()) as { messages?: { id: string }[] };
+      const ids = (list.messages ?? []).slice(0, limit).map((m) => m.id);
+      if (ids.length === 0) return [] as GmailPreview[];
+
+      const results = await Promise.allSettled(
+        ids.map(async (id) => {
+          const r = await fetch(
+            `${GATEWAY}/users/me/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+            { headers: h },
+          );
+          if (!r.ok) throw new Error(String(r.status));
+          const msg = (await r.json()) as {
+            id: string;
+            snippet?: string;
+            labelIds?: string[];
+            payload?: { headers?: { name?: string; value?: string }[] };
+            internalDate?: string;
+          };
+          const hdrs = msg.payload?.headers;
+          const from = parseFrom(headerValue(hdrs, "From"));
+          const subject = headerValue(hdrs, "Subject") || "(sem assunto)";
+          const dateHdr = headerValue(hdrs, "Date");
+          const date = dateHdr || (msg.internalDate ? new Date(Number(msg.internalDate)).toISOString() : "");
+          return {
+            id: msg.id,
+            from: from.name,
+            fromEmail: from.email,
+            subject,
+            snippet: (msg.snippet ?? "").slice(0, 240),
+            date,
+            unread: (msg.labelIds ?? []).includes("UNREAD"),
+            link: `https://mail.google.com/mail/u/0/#inbox/${msg.id}`,
+          } satisfies GmailPreview;
+        }),
+      );
+      return results
+        .filter((r): r is PromiseFulfilledResult<GmailPreview> => r.status === "fulfilled")
+        .map((r) => r.value);
     }),
   );
 
-  return results
-    .filter((r): r is PromiseFulfilledResult<GmailPreview> => r.status === "fulfilled")
-    .map((r) => r.value);
+  const out: GmailPreview[] = [];
+  const seen = new Set<string>();
+  for (const box of perBox) {
+    if (box.status !== "fulfilled") continue;
+    for (const e of box.value) {
+      if (seen.has(e.id)) continue;
+      seen.add(e.id);
+      out.push(e);
+    }
+  }
+  return out;
 }
+
 
 /**
  * Uses the AI gateway to filter promotional / spam / newsletter noise
