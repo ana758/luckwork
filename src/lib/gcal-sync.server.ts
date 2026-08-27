@@ -429,6 +429,23 @@ export async function runCalendarPush(
 }
 
 
+/** Cópia do evento na agenda pessoal, se existir. */
+async function findMirrorRef(supabase: any, googleEventId: string) {
+  for (const table of ["meetings", "tasks"] as const) {
+    const { data } = await supabase
+      .from(table)
+      .select("mirror_event_id, mirror_account")
+      .eq("google_event_id", googleEventId)
+      .not("mirror_event_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+    if (data?.mirror_event_id && data?.mirror_account) {
+      return { eventId: data.mirror_event_id as string, account: data.mirror_account as string };
+    }
+  }
+  return null;
+}
+
 
 export async function runMoveGoogleEvent(
   supabase: any,
