@@ -42,6 +42,8 @@ async function loadImportantEmails(supabase?: any): Promise<{ emails: ImportantE
           link: e.link,
         });
       }
+      }
+
     } catch (err) {
       errors.push(err instanceof Error ? err.message : "Falha ao ler Gmail.");
     }
