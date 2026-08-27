@@ -25,10 +25,12 @@ async function loadImportantEmails(supabase?: any): Promise<{ emails: ImportantE
     link: string;
   }> = [];
 
-  if (process.env.GOOGLE_MAIL_API_KEY) {
+  {
     try {
-      const { fetchRecentInbox } = await import("./gmail.server");
+      const { fetchRecentInbox, hasReadableGmail } = await import("./gmail.server");
+      if (await hasReadableGmail()) {
       const g = await fetchRecentInbox(40);
+
       for (const e of g) {
         inbox.push({
           id: `gmail:${e.id}`,
