@@ -130,11 +130,12 @@ export async function runListAccounts() {
 export async function runCalendarSync(supabase: any, userId: string) {
   await assertMember(supabase, userId);
 
-  const accounts = connectedAccounts();
+  const accounts = await resolvedAccounts();
   if (accounts.length === 0) {
     // Sem conta ligada: não quebra a tela — apenas não importa nada.
     return { imported: 0, accounts: [] as { email: string; count: number }[], notConnected: true as const };
   }
+
 
   const now = new Date();
   const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
