@@ -55,11 +55,12 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
 
           // Link da chamada: usa o salvo; se faltar, procura nos e-mails conectados.
           let link = m.external_url;
-          if (!link && process.env.GOOGLE_MAIL_API_KEY) {
+          if (!link) {
             try {
               const { findMeetingLink } = await import("@/lib/gmail.server");
               link = await findMeetingLink(m.title);
               if (link) await sb.from("meetings").update({ external_url: link }).eq("id", m.id);
+
             } catch {
               link = null;
             }
