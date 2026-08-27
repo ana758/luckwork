@@ -300,22 +300,20 @@ export async function runCalendarSync(supabase: any, userId: string) {
 }
 
 
-// Roteia por empresa → conta do Google.
-// Angi e Devore vão para ana@devoresnacks.com (GOOGLE_CALENDAR_API_KEY).
-// Bruna e Pessoal vão para anaduquek@gmail.com (GOOGLE_CALENDAR_API_KEY_1).
-function pickAccountBySource(source?: string | null) {
-  const accs = connectedAccounts();
-  const wantsAngi = source === "angi";
-  const wantsDevore = source === "devore" || source === "angi";
-  const wantsPessoal = source === "bruna" || source === "pessoal";
-  const preferredEnv = wantsAngi && accs.some((a) => a.envVar === "GOOGLE_CALENDAR_API_KEY_2")
-    ? "GOOGLE_CALENDAR_API_KEY_2"
-    : wantsDevore
-    ? "GOOGLE_CALENDAR_API_KEY"
-    : wantsPessoal
-      ? "GOOGLE_CALENDAR_API_KEY_1"
-      : null;
-  return (preferredEnv && accs.find((a) => a.envVar === preferredEnv)) || accs[0] || null;
+// Roteia por empresa → conta do Google (pelo e-mail da conta, não pela ordem
+// em que foi conectada):
+//   angi   → ana@angisaude.com
+//   devore → ana@devoresnacks.com
+//   demais → anaduquek@gmail.com
+// Além disso, TUDO ganha uma cópia em anaduquek@gmail.com (agenda pessoal).
+function pickAccountBySource(accounts: ResolvedAccount[], source?: string | null) {
+  const want = source === "angi" ? "angi" : source === "devore" ? "devore" : "pessoal";
+  return (
+    accounts.find((a) => sourceForEmail(a.email) === want) ??
+    personalAccount(accounts) ??
+    accounts[0] ??
+    null
+  );
 }
 
 export async function runCalendarPush(
@@ -338,13 +336,14 @@ export async function runCalendarPush(
 ) {
   await assertMember(supabase, userId);
 
-  const accounts = connectedAccounts();
+  const accounts = await resolvedAccounts();
   const acc = data.account
-    ? accounts.find((a) => a.envVar === data.account)
-    : pickAccountBySource(data.source);
+    ? accounts.find((a) => a.envVar === data.account || a.email === data.account)
+    : pickAccountBySource(accounts, data.source);
   if (!acc) throw new Error("Conta do Google Agenda não encontrada.");
 
-  const calendarId = await primaryCalendarId(acc.key);
+  const calendarId = acc.email;
+
 
   const body: Record<string, unknown> = {
     summary: data.title,
