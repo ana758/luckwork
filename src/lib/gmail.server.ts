@@ -1,21 +1,65 @@
 /**
  * Server-only Gmail access through Lovable connector gateway.
- * Uses the GOOGLE_MAIL connector linked to the workspace.
+ * Uses the GOOGLE_MAIL connectors linked to the workspace.
+ *
+ * IMPORTANTE: a caixa pessoal anaduquek@gmail.com NÃO é analisada
+ * (a agenda dela continua conectada normalmente).
  */
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_mail/gmail/v1";
 
-function headers() {
+/** Contas cujo e-mail não deve ser lido/analisado pela LUCK. */
+export const EXCLUDED_MAIL_ACCOUNTS = ["anaduquek@gmail.com"];
+
+function headersFor(connKey: string) {
   const apiKey = process.env.LOVABLE_API_KEY;
-  const connKey = process.env.GOOGLE_MAIL_API_KEY;
   if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada.");
-  if (!connKey) throw new Error("Conector Gmail não ligado.");
   return {
     Authorization: `Bearer ${apiKey}`,
     "X-Connection-Api-Key": connKey,
     "Content-Type": "application/json",
   };
 }
+
+const accountEmailCache = new Map<string, string>();
+
+function allGmailKeys(): string[] {
+  return Object.entries(process.env)
+    .filter(([k, v]) => /^GOOGLE_MAIL_API_KEY(_\d+)?$/.test(k) && typeof v === "string" && v)
+    .map(([, v]) => v as string);
+}
+
+async function accountEmail(connKey: string): Promise<string> {
+  const cached = accountEmailCache.get(connKey);
+  if (cached) return cached;
+  try {
+    const r = await fetch(`${GATEWAY}/users/me/profile`, { headers: headersFor(connKey) });
+    if (!r.ok) return "";
+    const j = (await r.json()) as { emailAddress?: string };
+    const email = (j.emailAddress ?? "").toLowerCase();
+    if (email) accountEmailCache.set(connKey, email);
+    return email;
+  } catch {
+    return "";
+  }
+}
+
+/** Conexões de Gmail que podem ser lidas (exclui as contas bloqueadas). */
+export async function readableGmailKeys(): Promise<string[]> {
+  const keys = allGmailKeys();
+  const out: string[] = [];
+  for (const k of keys) {
+    const email = await accountEmail(k);
+    if (email && EXCLUDED_MAIL_ACCOUNTS.includes(email)) continue;
+    out.push(k);
+  }
+  return out;
+}
+
+export async function hasReadableGmail(): Promise<boolean> {
+  return (await readableGmailKeys()).length > 0;
+}
+
 
 export type GmailPreview = {
   id: string;
