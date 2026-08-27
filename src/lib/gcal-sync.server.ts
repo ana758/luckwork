@@ -538,19 +538,36 @@ export async function runDeleteGoogleEvent(
 ) {
   await assertMember(supabase, userId);
   const accounts = connectedAccounts();
+  const mirror = await findMirrorRef(supabase, data.googleEventId);
+  const removeMirror = async () => {
+    if (!mirror) return;
+    for (const a of accounts) {
+      try {
+        await deleteEvent(a.key, mirror.account, mirror.eventId);
+        return;
+      } catch {
+        /* tenta a próxima conta */
+      }
+    }
+  };
   let lastErr: unknown = null;
   for (const acc of accounts) {
     try {
       await deleteEvent(acc.key, data.googleAccount, data.googleEventId);
+      await removeMirror();
       return { ok: true };
     } catch (e) {
       const msg = (e as Error)?.message ?? "";
       // Já apagado/inexistente no Google → sucesso idempotente.
-      if (/\[(404|410)\]/.test(msg)) return { ok: true, alreadyGone: true };
+      if (/\[(404|410)\]/.test(msg)) {
+        await removeMirror();
+        return { ok: true, alreadyGone: true };
+      }
       lastErr = e;
     }
   }
   throw new Error(`Não consegui apagar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
+
 }
 
 
