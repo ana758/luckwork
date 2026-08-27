@@ -170,8 +170,10 @@ export async function runCalendarSync(supabase: any, userId: string) {
   const rulesMap = new Map<string, string>();
   for (const r of rulesData ?? []) rulesMap.set(r.title_key as string, r.source as string);
 
+  const seenSignatures = new Set<string>(); // evita o mesmo evento vindo de 2 contas
+
   for (const acc of accounts) {
-    const accountEmail = await primaryCalendarId(acc.key);
+    const accountEmail = acc.email;
     const calendars = (await listCalendars(acc.key)).filter(
       (c) => c.selected !== false && c.accessRole && c.accessRole !== "freeBusyReader",
     );
@@ -190,29 +192,29 @@ export async function runCalendarSync(supabase: any, userId: string) {
           const startsAt = eventStart(e);
           if (!startsAt) return [];
           const title = e.summary?.trim() || "(sem título)";
+          const sig = meetingSignature(title, startsAt);
           if (
             hiddenExactPairs.has(`${cal.id}::${e.id}`) ||
-            hiddenSignatures.has(meetingSignature(title, startsAt))
+            hiddenSignatures.has(sig)
           ) {
             return [];
           }
-          // A aba Reuniões não é espelho da agenda inteira. Do Google, só entra
-          // o que está nomeado como reunião/call no título. Convite, link do
-          // Meet ou agenda chamada "reuniões" não bastam, porque isso estava
-          // puxando pagamentos, lembretes e tarefas para Reuniões.
-          const titleLooksLikeMeeting = isMeetingTitle(title);
-          if (!titleLooksLikeMeeting) {
-            return [];
-          }
+          // Todo compromisso das agendas conectadas entra no calendário da LUCK.
+          // A aba Reuniões continua mostrando só o que é reunião de verdade
+          // (is_meeting), para não virar espelho da agenda inteira.
+          if (seenSignatures.has(sig)) return [];
+          seenSignatures.add(sig);
           const learned = rulesMap.get(normalizeTitleKey(title));
           const inferred = inferSourceFromTitle(title);
           const source = learned ?? inferred ?? defaultSource;
+          const isMeeting = isMeetingTitle(title);
           return [{
             title,
             source,
             starts_at: startsAt,
             ends_at: eventEnd(e),
-            meeting_type: "Reunião",
+            is_meeting: isMeeting,
+            meeting_type: isMeeting ? "Reunião" : "Compromisso",
             people: eventPeople(e),
             location: e.location ?? null,
             notes: e.description?.slice(0, 4000) ?? null,
@@ -222,6 +224,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
             synced_at: new Date().toISOString(),
           }];
         });
+
 
 
       if (rows.length > 0) {
