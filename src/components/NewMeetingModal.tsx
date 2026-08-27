@@ -103,6 +103,8 @@ export function NewMeetingModal({ onClose }: { onClose: () => void }) {
               .update({
                 google_event_id: res.eventId ?? null,
                 google_account: res.calendarId ?? null,
+                mirror_event_id: res.mirrorEventId ?? null,
+                mirror_account: res.mirrorAccount ?? null,
                 external_url: res.meetLink ?? res.url ?? null,
               })
               .eq("id", inserted.id);

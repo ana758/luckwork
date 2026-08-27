@@ -97,11 +97,15 @@ export function QuickAdd() {
           const patch: {
             google_event_id: string;
             google_account: string | null;
+            mirror_event_id?: string | null;
+            mirror_account?: string | null;
             external_url?: string | null;
             external_system?: string | null;
           } = {
             google_event_id: res.eventId,
             google_account: res.calendarId ?? null,
+            mirror_event_id: res.mirrorEventId ?? null,
+            mirror_account: res.mirrorAccount ?? null,
           };
           if (payload.source !== "angi" && payload.source !== "devore") {
             patch.external_url = res.url;
@@ -164,6 +168,8 @@ export function QuickAdd() {
               .update({
                 google_event_id: res.eventId ?? null,
                 google_account: res.calendarId ?? null,
+                mirror_event_id: res.mirrorEventId ?? null,
+                mirror_account: res.mirrorAccount ?? null,
                 external_url: res.meetLink ?? res.url ?? null,
               })
               .eq("id", inserted.id);
