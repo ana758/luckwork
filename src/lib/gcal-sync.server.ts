@@ -47,11 +47,52 @@ async function assertMember(supabase: any, userId: string) {
 }
 
 
+/**
+ * Todas as conexões de Google Agenda ligadas ao projeto.
+ * Aceita GOOGLE_CALENDAR_API_KEY, _1, _2, _3... (a ordem do link não importa,
+ * a conta é identificada pelo e-mail da agenda principal).
+ */
 function connectedAccounts() {
-  return GOOGLE_ACCOUNTS.map((a) => ({ ...a, key: process.env[a.envVar] })).filter(
-    (a): a is (typeof GOOGLE_ACCOUNTS)[number] & { key: string } => Boolean(a.key),
-  );
+  const known = new Map(GOOGLE_ACCOUNTS.map((a) => [a.envVar, a.defaultSource]));
+  return Object.keys(process.env)
+    .filter((k) => /^GOOGLE_CALENDAR_API_KEY(_\d+)?$/.test(k) && process.env[k])
+    .sort()
+    .map((envVar) => ({
+      envVar,
+      defaultSource: known.get(envVar) ?? ("pessoal" as const),
+      key: process.env[envVar] as string,
+    }));
 }
+
+/** Empresa dona de cada conta, pelo e-mail. */
+function sourceForEmail(email: string) {
+  const e = email.toLowerCase();
+  if (e.includes("angisaude")) return "angi" as const;
+  if (e.includes("devoresnacks")) return "devore" as const;
+  return "pessoal" as const;
+}
+
+type ResolvedAccount = ReturnType<typeof connectedAccounts>[number] & { email: string };
+
+/** Contas conectadas já com o e-mail da agenda principal resolvido. */
+async function resolvedAccounts(): Promise<ResolvedAccount[]> {
+  const out: ResolvedAccount[] = [];
+  for (const acc of connectedAccounts()) {
+    try {
+      const email = await primaryCalendarId(acc.key);
+      out.push({ ...acc, email, defaultSource: sourceForEmail(email) });
+    } catch {
+      // conta indisponível
+    }
+  }
+  return out;
+}
+
+/** Agenda pessoal (anaduquek@gmail.com) — recebe cópia de tudo. */
+function personalAccount(accounts: ResolvedAccount[]) {
+  return accounts.find((a) => sourceForEmail(a.email) === "pessoal") ?? null;
+}
+
 
 function normalizedMeetingTitle(title: string) {
   return title
