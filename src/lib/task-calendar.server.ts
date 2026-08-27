@@ -79,9 +79,12 @@ export async function runSyncTaskToCalendar(supabase: any, userId: string, taskI
       .update({
         google_event_id: res.eventId,
         google_account: res.calendarId,
+        mirror_event_id: res.mirrorEventId ?? null,
+        mirror_account: res.mirrorAccount ?? null,
         external_url: res.url ?? null,
       })
       .eq("id", task.id);
   }
+
   return { synced: true as const };
 }
