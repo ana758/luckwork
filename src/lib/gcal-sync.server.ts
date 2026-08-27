@@ -508,9 +508,20 @@ export async function runPatchGoogleEvent(
     body.end = { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" };
   }
   let lastErr: unknown = null;
+  const mirror = await findMirrorRef(supabase, data.googleEventId);
   for (const acc of accounts) {
     try {
       await patchEvent(acc.key, data.googleAccount, data.googleEventId, body);
+      if (mirror) {
+        for (const a of accounts) {
+          try {
+            await patchEvent(a.key, mirror.account, mirror.eventId, body);
+            break;
+          } catch {
+            /* tenta a próxima conta */
+          }
+        }
+      }
       return { ok: true };
     } catch (e) {
       lastErr = e;
@@ -518,6 +529,7 @@ export async function runPatchGoogleEvent(
   }
   throw new Error(`Não consegui atualizar no Google: ${(lastErr as Error)?.message ?? "erro"}`);
 }
+
 
 export async function runDeleteGoogleEvent(
   supabase: any,
