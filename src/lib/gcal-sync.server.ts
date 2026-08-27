@@ -393,13 +393,39 @@ export async function runCalendarPush(
       ?.uri ??
     data.meetLink ??
     null;
+
+  // Cópia na agenda pessoal (anaduquek@gmail.com), onde a Ana controla tudo.
+  let mirrorEventId: string | null = null;
+  let mirrorAccount: string | null = null;
+  const personal = personalAccount(accounts);
+  if (personal && personal.email !== acc.email) {
+    try {
+      const mirrorBody = { ...body } as Record<string, unknown>;
+      delete mirrorBody.conferenceData;
+      delete mirrorBody.attendees;
+      if (meetLink) {
+        mirrorBody.description = [data.notes ?? "", `Link: ${meetLink}`]
+          .filter(Boolean)
+          .join("\n\n");
+      }
+      const copy = await createEvent(personal.key, personal.email, mirrorBody);
+      mirrorEventId = copy.id ?? null;
+      mirrorAccount = personal.email;
+    } catch {
+      // cópia é best-effort — não bloqueia o evento principal
+    }
+  }
+
   return {
     ok: true,
     eventId: created.id,
     calendarId,
     url: created.htmlLink ?? null,
     meetLink,
+    mirrorEventId,
+    mirrorAccount,
   };
+
 }
 
 
