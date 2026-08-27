@@ -256,21 +256,25 @@ export async function findMeetingLink(title: string): Promise<string | null> {
   if (words.length === 0) return null;
 
   const q = encodeURIComponent(`newer_than:60d (${words.join(" ")})`);
-  const listRes = await fetch(`${GATEWAY}/users/me/messages?maxResults=5&q=${q}`, {
-    headers: headers(),
-  });
-  if (!listRes.ok) return null;
-  const list = (await listRes.json()) as { messages?: { id: string }[] };
-  for (const m of list.messages ?? []) {
-    const r = await fetch(`${GATEWAY}/users/me/messages/${m.id}?format=full`, {
-      headers: headers(),
+  for (const connKey of await readableGmailKeys()) {
+    const h = headersFor(connKey);
+    const listRes = await fetch(`${GATEWAY}/users/me/messages?maxResults=5&q=${q}`, {
+      headers: h,
     });
-    if (!r.ok) continue;
-    const msg = (await r.json()) as { snippet?: string; payload?: any };
-    const chunks: string[] = [msg.snippet ?? ""];
-    collectText(msg.payload, chunks);
-    const found = chunks.join("\n").match(MEETING_LINK_RE);
-    if (found) return found[1];
+    if (!listRes.ok) continue;
+    const list = (await listRes.json()) as { messages?: { id: string }[] };
+    for (const m of list.messages ?? []) {
+      const r = await fetch(`${GATEWAY}/users/me/messages/${m.id}?format=full`, {
+        headers: h,
+      });
+      if (!r.ok) continue;
+      const msg = (await r.json()) as { snippet?: string; payload?: any };
+      const chunks: string[] = [msg.snippet ?? ""];
+      collectText(msg.payload, chunks);
+      const found = chunks.join("\n").match(MEETING_LINK_RE);
+      if (found) return found[1];
+    }
   }
   return null;
+
 }
