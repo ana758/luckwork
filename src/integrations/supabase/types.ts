@@ -177,8 +177,11 @@ export type Database = {
           google_event_id: string | null
           hidden: boolean
           id: string
+          is_meeting: boolean
           location: string | null
           meeting_type: string | null
+          mirror_account: string | null
+          mirror_event_id: string | null
           notes: string | null
           people: string | null
           source: Database["public"]["Enums"]["source_key"]
@@ -198,8 +201,11 @@ export type Database = {
           google_event_id?: string | null
           hidden?: boolean
           id?: string
+          is_meeting?: boolean
           location?: string | null
           meeting_type?: string | null
+          mirror_account?: string | null
+          mirror_event_id?: string | null
           notes?: string | null
           people?: string | null
           source?: Database["public"]["Enums"]["source_key"]
@@ -219,8 +225,11 @@ export type Database = {
           google_event_id?: string | null
           hidden?: boolean
           id?: string
+          is_meeting?: boolean
           location?: string | null
           meeting_type?: string | null
+          mirror_account?: string | null
+          mirror_event_id?: string | null
           notes?: string | null
           people?: string | null
           source?: Database["public"]["Enums"]["source_key"]
@@ -406,6 +415,8 @@ export type Database = {
           google_account: string | null
           google_event_id: string | null
           id: string
+          mirror_account: string | null
+          mirror_event_id: string | null
           notes: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           recurrence: Database["public"]["Enums"]["recurrence_kind"]
@@ -431,6 +442,8 @@ export type Database = {
           google_account?: string | null
           google_event_id?: string | null
           id?: string
+          mirror_account?: string | null
+          mirror_event_id?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           recurrence?: Database["public"]["Enums"]["recurrence_kind"]
@@ -456,6 +469,8 @@ export type Database = {
           google_account?: string | null
           google_event_id?: string | null
           id?: string
+          mirror_account?: string | null
+          mirror_event_id?: string | null
           notes?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           recurrence?: Database["public"]["Enums"]["recurrence_kind"]
