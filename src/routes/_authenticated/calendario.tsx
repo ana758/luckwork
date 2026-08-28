@@ -343,7 +343,7 @@ function CalendarPage() {
             }}
             aria-label="Marcar como concluído"
             className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${
-              item.done ? "border-success bg-success text-background" : "border-foreground/30 bg-background/60"
+              item.done ? "border-success bg-success text-success-foreground" : "border-foreground/30 bg-background/60"
             }`}
           >
             {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
