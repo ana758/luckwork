@@ -2,16 +2,19 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
+import { NewMeetingModal } from "@/components/NewMeetingModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent } from "@/lib/gcal.functions";
-import { SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { spawnNextOccurrence } from "@/lib/recurrence";
+import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
+
 
 
 
