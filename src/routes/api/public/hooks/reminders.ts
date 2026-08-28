@@ -85,6 +85,35 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         }
 
 
+        // 1b) Tarefas com horário marcado — um aviso 1h antes
+        const todayKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const { data: timedTasks } = await sb
+          .from("tasks")
+          .select("id, title, source, due_date, due_time")
+          .eq("due_date", todayKey)
+          .neq("status", "done")
+          .not("due_time", "is", null);
+
+        for (const t of timedTasks ?? []) {
+          const start = new Date(`${t.due_date}T${(t.due_time as string).slice(0, 5)}:00-03:00`);
+          const minutes = Math.round((start.getTime() - now.getTime()) / 60000);
+          if (minutes <= 0 || minutes > 60) continue;
+          const tag = `task-60-${t.id}`;
+          const { data: already } = await sb
+            .from("pending_pushes")
+            .select("tag")
+            .eq("tag", tag)
+            .limit(1);
+          if ((already ?? []).length > 0) continue;
+          await notifyAll({
+            title: `⏰ Em ${minutes} min — ${SOURCE_LABEL[t.source] || t.source}`,
+            body: `${(t.due_time as string).slice(0, 5)} · ${t.title}`,
+            url: "/tarefas",
+            tag,
+          });
+          sent.push(`task:${t.id}`);
+        }
+
         // 2) Tarefas atrasadas — vencidas e sem movimentação de board (7 dias de tolerância
         // para o que já saiu de "a fazer") — resumo agregado por empresa
         const today = now.toISOString().slice(0, 10);
