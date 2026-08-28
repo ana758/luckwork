@@ -225,7 +225,32 @@ function CalendarPage() {
         .then(({ transitionNotionPage }) => transitionNotionPage({ data: { pageId: externalId, status: nextStatus } }))
         .catch((e) => console.warn("Notion:", e));
     }
+    // Tarefa recorrente concluída → já cria a próxima ocorrência.
+    if (!wasDone) void spawnNextOccurrence(t).then(() => qc.invalidateQueries({ queryKey: ["tasks"] }));
   }
+
+  /** Move uma tarefa para outro dia (arrastar no calendário). */
+  async function moveTaskToDate(t: Task, targetKey: string) {
+    if (t.due_date === targetKey) return;
+    qc.setQueryData<Task[]>(["tasks"], (old) =>
+      (old ?? []).map((x) => (x.id === t.id ? ({ ...x, due_date: targetKey } as Task) : x)),
+    );
+    const { error } = await supabase.from("tasks").update({ due_date: targetKey }).eq("id", t.id);
+    if (error) {
+      toast.error("Não movi: " + error.message);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      return;
+    }
+    const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+    try {
+      await syncTaskToCalendar({ data: { taskId: t.id } });
+      toast.success("Tarefa movida (LUCK + Google)");
+    } catch {
+      toast.success("Tarefa movida");
+    }
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+  }
+
 
 
   async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
