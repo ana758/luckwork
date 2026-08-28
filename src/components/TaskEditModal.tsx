@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGoogleEvent } from "@/lib/gcal.functions";
 import { syncTaskToCalendar } from "@/lib/task-calendar.functions";
-import { SOURCES, SOURCE_DOT, type Task, type SourceKey } from "@/lib/sources";
+import { SOURCES, SOURCE_DOT, RECURRENCE_LABEL, type Task, type SourceKey, type Recurrence } from "@/lib/sources";
 
 export function TaskEditModal({
   task,
@@ -19,6 +19,7 @@ export function TaskEditModal({
   const [dueTime, setDueTime] = useState((task.due_time ?? "").slice(0, 5));
   const [source, setSource] = useState<SourceKey>(task.source);
   const [notes, setNotes] = useState(task.notes ?? "");
+  const [recurrence, setRecurrence] = useState<Recurrence>(task.recurrence ?? "none");
   const initialDest =
     (task as unknown as { crm_destination?: "jira" | "crm" | "none" | null }).crm_destination ??
     (task.external_system === "crm_angi" ? "crm" : task.external_system === "jira" ? "jira" : "none");
@@ -38,6 +39,7 @@ export function TaskEditModal({
           notes: notes.trim() || null,
           due_date: dueDate || null,
           due_time: dueDate && dueTime ? `${dueTime}:00` : null,
+          recurrence,
           crm_destination: source === "angi" ? angiDest : null,
         })
         .eq("id", task.id);
@@ -142,6 +144,20 @@ export function TaskEditModal({
             />
           </div>
         </div>
+
+        <label className="text-xs text-muted-foreground">Repetição</label>
+        <select
+          value={recurrence}
+          onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+          className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        >
+          {(Object.keys(RECURRENCE_LABEL) as Recurrence[]).map((r) => (
+            <option key={r} value={r}>
+              {RECURRENCE_LABEL[r]}
+            </option>
+          ))}
+        </select>
+
 
         <label className="text-xs text-muted-foreground">Empresa</label>
         <div className="mb-3 mt-1 grid grid-cols-4 gap-1">

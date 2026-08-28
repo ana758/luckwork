@@ -22,9 +22,15 @@ const WEEKDAYS: { key: string; label: string }[] = [
   { key: "SA", label: "S" },
 ];
 
-export function NewMeetingModal({ onClose }: { onClose: () => void }) {
+export function NewMeetingModal({
+  onClose,
+  defaultDate,
+}: {
+  onClose: () => void;
+  defaultDate?: string;
+}) {
   const [title, setTitle] = useState("");
-  const [when, setWhen] = useState(nowLocalInput());
+  const [when, setWhen] = useState(defaultDate ? `${defaultDate}T09:00` : nowLocalInput());
   const [durationMin, setDurationMin] = useState(60);
   const [source, setSource] = useState<SourceKey>("pessoal");
   const [location, setLocation] = useState("");
@@ -34,10 +40,12 @@ export function NewMeetingModal({ onClose }: { onClose: () => void }) {
   const [meetLink, setMeetLink] = useState("");
   const [attendees, setAttendees] = useState("");
   const [recurrent, setRecurrent] = useState(false);
+  const [recMode, setRecMode] = useState<"weekly" | "monthly">("weekly");
   const [days, setDays] = useState<string[]>([]);
   const [weeks, setWeeks] = useState(8);
   const qc = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
+
 
   function toggleDay(k: string) {
     setDays((d) => (d.includes(k) ? d.filter((x) => x !== k) : [...d, k]));
@@ -56,13 +64,18 @@ export function NewMeetingModal({ onClose }: { onClose: () => void }) {
         .filter((s) => /.+@.+\..+/.test(s));
 
       const recurrence: string[] = [];
-      if (recurrent && days.length) {
+      if (recurrent && recMode === "monthly") {
+        recurrence.push(
+          `RRULE:FREQ=MONTHLY;BYMONTHDAY=${new Date(when).getDate()};COUNT=${Math.max(1, weeks)}`,
+        );
+      } else if (recurrent && days.length) {
         recurrence.push(
           `RRULE:FREQ=WEEKLY;BYDAY=${days.join(",")};COUNT=${Math.max(1, weeks) * days.length}`,
         );
       } else if (recurrent) {
         recurrence.push(`RRULE:FREQ=WEEKLY;COUNT=${Math.max(1, weeks)}`);
       }
+
 
       const { data: inserted, error } = await supabase
         .from("meetings")
@@ -247,27 +260,55 @@ export function NewMeetingModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => setRecurrent(e.target.checked)}
             className="h-4 w-4"
           />
-          Recorrente semanal
+          Repetir automaticamente
         </label>
         {recurrent && (
           <div className="mb-3 rounded-md border bg-background/40 p-2">
-            <div className="mb-2 text-xs text-muted-foreground">Dias da semana</div>
-            <div className="mb-3 grid grid-cols-7 gap-1">
-              {WEEKDAYS.map((d) => (
+            <div className="mb-2 grid grid-cols-2 gap-1">
+              {(
+                [
+                  { key: "weekly", label: "Semanal" },
+                  { key: "monthly", label: "Mensal" },
+                ] as const
+              ).map((o) => (
                 <button
-                  key={d.key}
-                  onClick={() => toggleDay(d.key)}
-                  className={`rounded-md border px-1 py-1.5 text-xs ${
-                    days.includes(d.key)
-                      ? "border-foreground bg-accent font-medium"
-                      : "text-muted-foreground"
+                  key={o.key}
+                  onClick={() => setRecMode(o.key)}
+                  className={`rounded-md border px-2 py-1.5 text-xs ${
+                    recMode === o.key ? "border-foreground font-medium" : "text-muted-foreground"
                   }`}
                 >
-                  {d.label}
+                  {o.label}
                 </button>
               ))}
             </div>
-            <label className="text-xs text-muted-foreground">Repetir por (semanas)</label>
+            {recMode === "weekly" ? (
+              <>
+                <div className="mb-2 text-xs text-muted-foreground">Dias da semana</div>
+                <div className="mb-3 grid grid-cols-7 gap-1">
+                  {WEEKDAYS.map((d) => (
+                    <button
+                      key={d.key}
+                      onClick={() => toggleDay(d.key)}
+                      className={`rounded-md border px-1 py-1.5 text-xs ${
+                        days.includes(d.key)
+                          ? "border-foreground bg-accent font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="mb-3 text-[11px] text-muted-foreground">
+                Repete todo dia {new Date(when).getDate()} do mês.
+              </p>
+            )}
+            <label className="text-xs text-muted-foreground">
+              {recMode === "weekly" ? "Repetir por (semanas)" : "Repetir por (meses)"}
+            </label>
             <input
               type="number"
               min={1}
@@ -281,6 +322,7 @@ export function NewMeetingModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
         )}
+
 
         <label className="text-xs text-muted-foreground">Notas</label>
         <textarea

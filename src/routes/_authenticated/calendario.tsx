@@ -2,16 +2,19 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
+import { NewMeetingModal } from "@/components/NewMeetingModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent } from "@/lib/gcal.functions";
-import { SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { spawnNextOccurrence } from "@/lib/recurrence";
+import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
+
 
 
 
@@ -38,9 +41,26 @@ function fmtKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-type CalItem =
-  | { kind: "meeting"; id: string; title: string; dot: string; meeting: Meeting }
-  | { kind: "task"; id: string; title: string; dot: string; task: Task };
+type CalItem = {
+  kind: "meeting" | "task";
+  id: string;
+  title: string;
+  dot: string;
+  tint: string;
+  time: string | null;
+  sortKey: string;
+  notes: string | null;
+  place: string | null;
+  recurring: boolean;
+  done: boolean;
+  meeting?: Meeting;
+  task?: Task;
+};
+
+function hhmm(iso: string) {
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
 
 
 function CalendarPage() {
@@ -53,6 +73,9 @@ function CalendarPage() {
   const [filter, setFilter] = useState<SourceKey | "all">("all");
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
+
 
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const { data: tasks = [] } = useTasks();
@@ -68,22 +91,46 @@ function CalendarPage() {
   const visibleTasks = filter === "all" ? tasks : tasks.filter((t) => t.source === filter);
 
   function itemsFor(key: string): CalItem[] {
-    return [
+    const items: CalItem[] = [
       ...visibleMeetings
-        .filter((m) => m.starts_at.slice(0, 10) === key)
-        .map<CalItem>((m) => ({
-          kind: "meeting",
-          id: m.id,
-          title: m.title,
-          // Reunião de verdade fica vermelho; senão usa a cor da empresa.
-          dot: m.meeting_type === "Reunião" ? "bg-reuniao" : SOURCE_DOT[m.source],
-          meeting: m,
-        })),
+        .filter((m) => fmtKey(new Date(m.starts_at)) === key)
+        .map<CalItem>((m) => {
+          const isMeeting = m.meeting_type === "Reunião";
+          return {
+            kind: "meeting",
+            id: m.id,
+            title: m.title,
+            dot: isMeeting ? "bg-reuniao" : SOURCE_DOT[m.source],
+            tint: isMeeting ? "bg-reuniao-soft border-reuniao/40" : SOURCE_TINT[m.source],
+            time: hhmm(m.starts_at),
+            sortKey: hhmm(m.starts_at),
+            notes: m.notes ?? null,
+            place: m.location ?? null,
+            recurring: false,
+            done: Boolean(m.completed_at),
+            meeting: m,
+          };
+        }),
       ...visibleTasks
         .filter((t) => t.due_date === key)
-        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source], task: t })),
+        .map<CalItem>((t) => ({
+          kind: "task",
+          id: t.id,
+          title: t.title,
+          dot: SOURCE_DOT[t.source],
+          tint: SOURCE_TINT[t.source],
+          time: t.due_time ? t.due_time.slice(0, 5) : null,
+          sortKey: t.due_time ? t.due_time.slice(0, 5) : "99:99",
+          notes: t.notes ?? null,
+          place: null,
+          recurring: Boolean(t.recurrence && t.recurrence !== "none"),
+          done: t.status === "done",
+          task: t,
+        })),
     ];
+    return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }
+
 
 
   function shift(dir: -1 | 1) {
@@ -131,9 +178,10 @@ function CalendarPage() {
 
 
   function openItem(item: CalItem) {
-    if (item.kind === "meeting") setEditing(item.meeting);
-    else setEditingTask(item.task);
+    if (item.kind === "meeting" && item.meeting) setEditing(item.meeting);
+    else if (item.task) setEditingTask(item.task);
   }
+
 
   async function toggleMeetingDone(m: Meeting) {
     const wasDone = Boolean((m as any).completed_at);
@@ -180,7 +228,32 @@ function CalendarPage() {
         .then(({ transitionNotionPage }) => transitionNotionPage({ data: { pageId: externalId, status: nextStatus } }))
         .catch((e) => console.warn("Notion:", e));
     }
+    // Tarefa recorrente concluída → já cria a próxima ocorrência.
+    if (!wasDone) void spawnNextOccurrence(t).then(() => qc.invalidateQueries({ queryKey: ["tasks"] }));
   }
+
+  /** Move uma tarefa para outro dia (arrastar no calendário). */
+  async function moveTaskToDate(t: Task, targetKey: string) {
+    if (t.due_date === targetKey) return;
+    qc.setQueryData<Task[]>(["tasks"], (old) =>
+      (old ?? []).map((x) => (x.id === t.id ? ({ ...x, due_date: targetKey } as Task) : x)),
+    );
+    const { error } = await supabase.from("tasks").update({ due_date: targetKey }).eq("id", t.id);
+    if (error) {
+      toast.error("Não movi: " + error.message);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      return;
+    }
+    const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+    try {
+      await syncTaskToCalendar({ data: { taskId: t.id } });
+      toast.success("Tarefa movida (LUCK + Google)");
+    } catch {
+      toast.success("Tarefa movida");
+    }
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+  }
+
 
 
   async function moveMeetingToDate(m: Meeting & { google_event_id?: string | null; google_account?: string | null }, targetKey: string) {
@@ -228,24 +301,93 @@ function CalendarPage() {
     }
   }
 
-  function onDragStart(ev: React.DragEvent, itemId: string) {
-    ev.dataTransfer.setData("text/luck-meeting", itemId);
+  function onDragStart(ev: React.DragEvent, item: CalItem) {
+    ev.dataTransfer.setData("text/luck-item", `${item.kind}:${item.id}`);
     ev.dataTransfer.effectAllowed = "move";
   }
   function onDragOver(ev: React.DragEvent, key: string) {
-    if (ev.dataTransfer.types.includes("text/luck-meeting")) {
+    if (ev.dataTransfer.types.includes("text/luck-item")) {
       ev.preventDefault();
       ev.dataTransfer.dropEffect = "move";
       if (dragOverKey !== key) setDragOverKey(key);
     }
   }
   function onDrop(ev: React.DragEvent, key: string) {
-    const id = ev.dataTransfer.getData("text/luck-meeting");
+    const raw = ev.dataTransfer.getData("text/luck-item");
     setDragOverKey(null);
-    if (!id) return;
-    const m = meetings.find((x) => x.id === id);
-    if (m) moveMeetingToDate(m as any, key);
+    if (!raw) return;
+    const [kind, id] = raw.split(":");
+    if (kind === "meeting") {
+      const m = meetings.find((x) => x.id === id);
+      if (m) moveMeetingToDate(m as any, key);
+    } else {
+      const t = tasks.find((x) => x.id === id);
+      if (t) moveTaskToDate(t, key);
+    }
   }
+
+  /** Bloco colorido do compromisso — igual ao Google, mas com as cores da LUCK. */
+  function ItemBlock({ item, compact }: { item: CalItem; compact?: boolean }) {
+    const expanded = expandedId === item.id;
+    return (
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, item)}
+        className={`group rounded-md border px-2 py-1.5 text-left transition ${item.tint} ${
+          item.done ? "opacity-60" : ""
+        }`}
+      >
+        <div className="flex items-start gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (item.kind === "meeting" && item.meeting) toggleMeetingDone(item.meeting);
+              else if (item.task) toggleTaskDone(item.task);
+            }}
+            aria-label="Marcar como concluído"
+            className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${
+              item.done ? "border-success bg-success text-success-foreground" : "border-foreground/30 bg-background/60"
+            }`}
+          >
+            {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+          </button>
+          <button
+            onClick={() => setExpandedId(expanded ? null : item.id)}
+            onDoubleClick={() => openItem(item)}
+            className="min-w-0 flex-1 text-left"
+          >
+            <div className={`truncate text-xs font-medium ${item.done ? "line-through" : ""}`}>
+              {item.time && <span className="mr-1 tabular-nums opacity-70">{item.time}</span>}
+              {item.title}
+            </div>
+            {!compact && item.place && (
+              <div className="mt-0.5 flex items-center gap-1 truncate text-[10px] opacity-70">
+                <MapPin className="h-3 w-3" /> {item.place}
+              </div>
+            )}
+          </button>
+          {item.recurring && <Repeat className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />}
+          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
+        </div>
+        {expanded && (
+          <div className="mt-1.5 border-t border-foreground/10 pt-1.5">
+            {item.notes ? (
+              <p className="whitespace-pre-wrap text-[11px] leading-relaxed opacity-80">{item.notes}</p>
+            ) : (
+              <p className="text-[11px] opacity-60">Sem notas.</p>
+            )}
+            <button
+              onClick={() => openItem(item)}
+              className="mt-1.5 rounded border border-foreground/20 bg-background/60 px-2 py-1 text-[11px] font-medium"
+            >
+              Abrir e editar
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
 
 
   return (
@@ -346,46 +488,17 @@ function CalendarPage() {
                   >
                     {d.getDate()}
                   </span>
-                  <div className="mt-1 space-y-0.5">
-                    {items.slice(0, 3).map((i) => {
-                      const done = i.kind === "meeting"
-                        ? Boolean((i.meeting as any).completed_at)
-                        : i.task.status === "done";
-                      return (
-                        <div key={i.id} className="flex items-center gap-1">
-                          <button
-                            draggable={i.kind === "meeting"}
-                            onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
-                            onClick={() => openItem(i)}
-                            className="flex min-w-0 flex-1 items-center gap-1 rounded px-0.5 text-left hover:bg-accent/60"
-                          >
-                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
-                            <span className="truncate text-[10px] text-muted-foreground">
-                              {i.title}
-                            </span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (i.kind === "meeting") toggleMeetingDone(i.meeting);
-                              else toggleTaskDone(i.task);
-                            }}
-                            aria-label={done ? "Desmarcar" : "Marcar concluído"}
-                            className={`flex h-3 w-3 shrink-0 items-center justify-center rounded-full border ${
-                              done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40"
-                            }`}
-                          >
-                            {done && <Check className="h-2 w-2" strokeWidth={4} />}
-                          </button>
-                        </div>
-                      );
-                    })}
+                  <div className="mt-1 space-y-1">
+                    {items.slice(0, 3).map((i) => (
+                      <ItemBlock key={i.id} item={i} compact />
+                    ))}
                     {items.length > 3 && (
                       <span className="text-[10px] text-muted-foreground">
                         +{items.length - 3}
                       </span>
                     )}
                   </div>
+
                 </div>
               );
 
@@ -432,47 +545,21 @@ function CalendarPage() {
                   onDrop={(e) => onDrop(e, key)}
                   className={`min-h-[60vh] space-y-1 border-r p-2 last:border-r-0 ${dragOverKey === key ? "bg-accent/60" : ""}`}
                 >
+                  <button
+                    onClick={() => setNewMeetingDay(key)}
+                    className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed py-1 text-[11px] text-muted-foreground hover:bg-accent"
+                  >
+                    <Plus className="h-3 w-3" /> Novo
+                  </button>
                   {items.length === 0 && (
                     <div className="pt-4 text-center text-[11px] text-muted-foreground">
                       Sem itens
                     </div>
                   )}
-                  {items.map((i) => {
-                    const done = i.kind === "meeting"
-                      ? Boolean((i.meeting as any).completed_at)
-                      : i.task.status === "done";
-                    return (
-                      <div
-                        key={i.id}
-                        className="flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5"
-                      >
-                        <button
-                          draggable={i.kind === "meeting"}
-                          onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
-                          onClick={() => openItem(i)}
-                          className="flex min-w-0 flex-1 items-start gap-1.5 text-left hover:bg-accent/60 rounded"
-                        >
-                          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
-                          <span className="min-w-0 flex-1 break-words text-xs leading-tight">
-                            {i.title}
-                          </span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (i.kind === "meeting") toggleMeetingDone(i.meeting);
-                            else toggleTaskDone(i.task);
-                          }}
-                          aria-label={done ? "Desmarcar" : "Marcar concluído"}
-                          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                            done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40 hover:border-emerald-500"
-                          }`}
-                        >
-                          {done && <Check className="h-2.5 w-2.5" strokeWidth={4} />}
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {items.map((i) => (
+                    <ItemBlock key={i.id} item={i} />
+                  ))}
+
                 </div>
               );
             })}
@@ -483,6 +570,10 @@ function CalendarPage() {
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
       {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
+      {newMeetingDay && (
+        <NewMeetingModal defaultDate={newMeetingDay} onClose={() => setNewMeetingDay(null)} />
+      )}
+
 
     </div>
   );
