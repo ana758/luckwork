@@ -542,47 +542,21 @@ function CalendarPage() {
                   onDrop={(e) => onDrop(e, key)}
                   className={`min-h-[60vh] space-y-1 border-r p-2 last:border-r-0 ${dragOverKey === key ? "bg-accent/60" : ""}`}
                 >
+                  <button
+                    onClick={() => setNewMeetingDay(key)}
+                    className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed py-1 text-[11px] text-muted-foreground hover:bg-accent"
+                  >
+                    <Plus className="h-3 w-3" /> Novo
+                  </button>
                   {items.length === 0 && (
                     <div className="pt-4 text-center text-[11px] text-muted-foreground">
                       Sem itens
                     </div>
                   )}
-                  {items.map((i) => {
-                    const done = i.kind === "meeting"
-                      ? Boolean((i.meeting as any).completed_at)
-                      : i.task.status === "done";
-                    return (
-                      <div
-                        key={i.id}
-                        className="flex w-full min-w-0 items-start gap-1.5 overflow-hidden rounded-md border bg-background p-1.5"
-                      >
-                        <button
-                          draggable={i.kind === "meeting"}
-                          onDragStart={(e) => i.kind === "meeting" && onDragStart(e, i.id)}
-                          onClick={() => openItem(i)}
-                          className="flex min-w-0 flex-1 items-start gap-1.5 text-left hover:bg-accent/60 rounded"
-                        >
-                          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${i.dot}`} />
-                          <span className="min-w-0 flex-1 break-words text-xs leading-tight">
-                            {i.title}
-                          </span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (i.kind === "meeting") toggleMeetingDone(i.meeting);
-                            else toggleTaskDone(i.task);
-                          }}
-                          aria-label={done ? "Desmarcar" : "Marcar concluído"}
-                          className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                            done ? "border-emerald-500 bg-emerald-500 text-white" : "border-muted-foreground/40 hover:border-emerald-500"
-                          }`}
-                        >
-                          {done && <Check className="h-2.5 w-2.5" strokeWidth={4} />}
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {items.map((i) => (
+                    <ItemBlock key={i.id} item={i} />
+                  ))}
+
                 </div>
               );
             })}
