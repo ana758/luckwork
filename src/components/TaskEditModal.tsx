@@ -143,6 +143,20 @@ export function TaskEditModal({
           </div>
         </div>
 
+        <label className="text-xs text-muted-foreground">Repetição</label>
+        <select
+          value={recurrence}
+          onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+          className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        >
+          {(Object.keys(RECURRENCE_LABEL) as Recurrence[]).map((r) => (
+            <option key={r} value={r}>
+              {RECURRENCE_LABEL[r]}
+            </option>
+          ))}
+        </select>
+
+
         <label className="text-xs text-muted-foreground">Empresa</label>
         <div className="mb-3 mt-1 grid grid-cols-4 gap-1">
           {SOURCES.map((s) => (
