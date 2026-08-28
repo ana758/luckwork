@@ -73,6 +73,9 @@ function CalendarPage() {
   const [filter, setFilter] = useState<SourceKey | "all">("all");
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
+
 
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const { data: tasks = [] } = useTasks();
