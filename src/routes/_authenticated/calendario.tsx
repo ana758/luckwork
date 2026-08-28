@@ -175,9 +175,10 @@ function CalendarPage() {
 
 
   function openItem(item: CalItem) {
-    if (item.kind === "meeting") setEditing(item.meeting);
-    else setEditingTask(item.task);
+    if (item.kind === "meeting" && item.meeting) setEditing(item.meeting);
+    else if (item.task) setEditingTask(item.task);
   }
+
 
   async function toggleMeetingDone(m: Meeting) {
     const wasDone = Boolean((m as any).completed_at);
