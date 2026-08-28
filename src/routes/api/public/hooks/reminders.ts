@@ -22,7 +22,9 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
       POST: async () => {
         const sb = admin();
         const now = new Date();
-        const in36 = new Date(now.getTime() + 36 * 60 * 1000);
+        const in66 = new Date(now.getTime() + 66 * 60 * 1000);
+        // Lembretes insistentes: 1h, 30min, 15min e 5min antes.
+        const CHECKPOINTS = [60, 30, 15, 5];
         const sent: string[] = [];
 
         // 1) Reuniões que começam nos próximos 36 min (janela do lembrete de 30 min)
@@ -30,25 +32,32 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
           .from("meetings")
           .select("id, title, source, starts_at, external_url, location")
           .gte("starts_at", now.toISOString())
-          .lte("starts_at", in36.toISOString())
+          .lte("starts_at", in66.toISOString())
           .neq("hidden", true);
 
         const upcoming = meetings ?? [];
-        // Dedupe: nunca repete o lembrete da mesma reunião
-        const tags30 = upcoming.map((m) => `meeting-30-${m.id}`);
+        // Cada reunião recebe um lembrete por checkpoint (1h, 30, 15 e 5 min).
+        const candidates = upcoming
+          .map((m) => {
+            const minutes = Math.max(
+              1,
+              Math.round((new Date(m.starts_at).getTime() - now.getTime()) / 60000),
+            );
+            const cp = CHECKPOINTS.find((c) => minutes <= c) ?? null;
+            return cp === null ? null : { m, minutes, cp };
+          })
+          .filter((x): x is { m: (typeof upcoming)[number]; minutes: number; cp: number } => x !== null);
+
         const seen = new Set<string>();
-        if (tags30.length > 0) {
-          const { data: already } = await sb.from("pending_pushes").select("tag").in("tag", tags30);
+        const allTags = candidates.map((c) => `meeting-${c.cp}-${c.m.id}`);
+        if (allTags.length > 0) {
+          const { data: already } = await sb.from("pending_pushes").select("tag").in("tag", allTags);
           for (const r of already ?? []) if (r.tag) seen.add(r.tag);
         }
 
-        for (const m of upcoming) {
-          const tag = `meeting-30-${m.id}`;
+        for (const { m, minutes, cp } of candidates) {
+          const tag = `meeting-${cp}-${m.id}`;
           if (seen.has(tag)) continue;
-          const minutes = Math.max(
-            1,
-            Math.round((new Date(m.starts_at).getTime() - now.getTime()) / 60000),
-          );
           const label = SOURCE_LABEL[m.source] || m.source;
           const when = new Date(m.starts_at);
           const hh = when.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
