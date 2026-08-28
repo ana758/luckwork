@@ -22,9 +22,15 @@ const WEEKDAYS: { key: string; label: string }[] = [
   { key: "SA", label: "S" },
 ];
 
-export function NewMeetingModal({ onClose }: { onClose: () => void }) {
+export function NewMeetingModal({
+  onClose,
+  defaultDate,
+}: {
+  onClose: () => void;
+  defaultDate?: string;
+}) {
   const [title, setTitle] = useState("");
-  const [when, setWhen] = useState(nowLocalInput());
+  const [when, setWhen] = useState(defaultDate ? `${defaultDate}T09:00` : nowLocalInput());
   const [durationMin, setDurationMin] = useState(60);
   const [source, setSource] = useState<SourceKey>("pessoal");
   const [location, setLocation] = useState("");
@@ -34,10 +40,12 @@ export function NewMeetingModal({ onClose }: { onClose: () => void }) {
   const [meetLink, setMeetLink] = useState("");
   const [attendees, setAttendees] = useState("");
   const [recurrent, setRecurrent] = useState(false);
+  const [recMode, setRecMode] = useState<"weekly" | "monthly">("weekly");
   const [days, setDays] = useState<string[]>([]);
   const [weeks, setWeeks] = useState(8);
   const qc = useQueryClient();
   const pushGoogle = useServerFn(pushToGoogleCalendar);
+
 
   function toggleDay(k: string) {
     setDays((d) => (d.includes(k) ? d.filter((x) => x !== k) : [...d, k]));
