@@ -260,27 +260,55 @@ export function NewMeetingModal({
             onChange={(e) => setRecurrent(e.target.checked)}
             className="h-4 w-4"
           />
-          Recorrente semanal
+          Repetir automaticamente
         </label>
         {recurrent && (
           <div className="mb-3 rounded-md border bg-background/40 p-2">
-            <div className="mb-2 text-xs text-muted-foreground">Dias da semana</div>
-            <div className="mb-3 grid grid-cols-7 gap-1">
-              {WEEKDAYS.map((d) => (
+            <div className="mb-2 grid grid-cols-2 gap-1">
+              {(
+                [
+                  { key: "weekly", label: "Semanal" },
+                  { key: "monthly", label: "Mensal" },
+                ] as const
+              ).map((o) => (
                 <button
-                  key={d.key}
-                  onClick={() => toggleDay(d.key)}
-                  className={`rounded-md border px-1 py-1.5 text-xs ${
-                    days.includes(d.key)
-                      ? "border-foreground bg-accent font-medium"
-                      : "text-muted-foreground"
+                  key={o.key}
+                  onClick={() => setRecMode(o.key)}
+                  className={`rounded-md border px-2 py-1.5 text-xs ${
+                    recMode === o.key ? "border-foreground font-medium" : "text-muted-foreground"
                   }`}
                 >
-                  {d.label}
+                  {o.label}
                 </button>
               ))}
             </div>
-            <label className="text-xs text-muted-foreground">Repetir por (semanas)</label>
+            {recMode === "weekly" ? (
+              <>
+                <div className="mb-2 text-xs text-muted-foreground">Dias da semana</div>
+                <div className="mb-3 grid grid-cols-7 gap-1">
+                  {WEEKDAYS.map((d) => (
+                    <button
+                      key={d.key}
+                      onClick={() => toggleDay(d.key)}
+                      className={`rounded-md border px-1 py-1.5 text-xs ${
+                        days.includes(d.key)
+                          ? "border-foreground bg-accent font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="mb-3 text-[11px] text-muted-foreground">
+                Repete todo dia {new Date(when).getDate()} do mês.
+              </p>
+            )}
+            <label className="text-xs text-muted-foreground">
+              {recMode === "weekly" ? "Repetir por (semanas)" : "Repetir por (meses)"}
+            </label>
             <input
               type="number"
               min={1}
@@ -294,6 +322,7 @@ export function NewMeetingModal({
             </p>
           </div>
         )}
+
 
         <label className="text-xs text-muted-foreground">Notas</label>
         <textarea
