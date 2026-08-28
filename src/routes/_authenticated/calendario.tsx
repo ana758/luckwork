@@ -298,24 +298,93 @@ function CalendarPage() {
     }
   }
 
-  function onDragStart(ev: React.DragEvent, itemId: string) {
-    ev.dataTransfer.setData("text/luck-meeting", itemId);
+  function onDragStart(ev: React.DragEvent, item: CalItem) {
+    ev.dataTransfer.setData("text/luck-item", `${item.kind}:${item.id}`);
     ev.dataTransfer.effectAllowed = "move";
   }
   function onDragOver(ev: React.DragEvent, key: string) {
-    if (ev.dataTransfer.types.includes("text/luck-meeting")) {
+    if (ev.dataTransfer.types.includes("text/luck-item")) {
       ev.preventDefault();
       ev.dataTransfer.dropEffect = "move";
       if (dragOverKey !== key) setDragOverKey(key);
     }
   }
   function onDrop(ev: React.DragEvent, key: string) {
-    const id = ev.dataTransfer.getData("text/luck-meeting");
+    const raw = ev.dataTransfer.getData("text/luck-item");
     setDragOverKey(null);
-    if (!id) return;
-    const m = meetings.find((x) => x.id === id);
-    if (m) moveMeetingToDate(m as any, key);
+    if (!raw) return;
+    const [kind, id] = raw.split(":");
+    if (kind === "meeting") {
+      const m = meetings.find((x) => x.id === id);
+      if (m) moveMeetingToDate(m as any, key);
+    } else {
+      const t = tasks.find((x) => x.id === id);
+      if (t) moveTaskToDate(t, key);
+    }
   }
+
+  /** Bloco colorido do compromisso — igual ao Google, mas com as cores da LUCK. */
+  function ItemBlock({ item, compact }: { item: CalItem; compact?: boolean }) {
+    const expanded = expandedId === item.id;
+    return (
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, item)}
+        className={`group rounded-md border px-2 py-1.5 text-left transition ${item.tint} ${
+          item.done ? "opacity-60" : ""
+        }`}
+      >
+        <div className="flex items-start gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (item.kind === "meeting" && item.meeting) toggleMeetingDone(item.meeting);
+              else if (item.task) toggleTaskDone(item.task);
+            }}
+            aria-label="Marcar como concluído"
+            className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-[4px] border ${
+              item.done ? "border-success bg-success text-background" : "border-foreground/30 bg-background/60"
+            }`}
+          >
+            {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
+          </button>
+          <button
+            onClick={() => setExpandedId(expanded ? null : item.id)}
+            onDoubleClick={() => openItem(item)}
+            className="min-w-0 flex-1 text-left"
+          >
+            <div className={`truncate text-xs font-medium ${item.done ? "line-through" : ""}`}>
+              {item.time && <span className="mr-1 tabular-nums opacity-70">{item.time}</span>}
+              {item.title}
+            </div>
+            {!compact && item.place && (
+              <div className="mt-0.5 flex items-center gap-1 truncate text-[10px] opacity-70">
+                <MapPin className="h-3 w-3" /> {item.place}
+              </div>
+            )}
+          </button>
+          {item.recurring && <Repeat className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />}
+          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
+        </div>
+        {expanded && (
+          <div className="mt-1.5 border-t border-foreground/10 pt-1.5">
+            {item.notes ? (
+              <p className="whitespace-pre-wrap text-[11px] leading-relaxed opacity-80">{item.notes}</p>
+            ) : (
+              <p className="text-[11px] opacity-60">Sem notas.</p>
+            )}
+            <button
+              onClick={() => openItem(item)}
+              className="mt-1.5 rounded border border-foreground/20 bg-background/60 px-2 py-1 text-[11px] font-medium"
+            >
+              Abrir e editar
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
 
 
   return (
