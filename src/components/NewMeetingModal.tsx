@@ -64,13 +64,18 @@ export function NewMeetingModal({
         .filter((s) => /.+@.+\..+/.test(s));
 
       const recurrence: string[] = [];
-      if (recurrent && days.length) {
+      if (recurrent && recMode === "monthly") {
+        recurrence.push(
+          `RRULE:FREQ=MONTHLY;BYMONTHDAY=${new Date(when).getDate()};COUNT=${Math.max(1, weeks)}`,
+        );
+      } else if (recurrent && days.length) {
         recurrence.push(
           `RRULE:FREQ=WEEKLY;BYDAY=${days.join(",")};COUNT=${Math.max(1, weeks) * days.length}`,
         );
       } else if (recurrent) {
         recurrence.push(`RRULE:FREQ=WEEKLY;COUNT=${Math.max(1, weeks)}`);
       }
+
 
       const { data: inserted, error } = await supabase
         .from("meetings")
