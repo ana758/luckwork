@@ -41,9 +41,26 @@ function fmtKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-type CalItem =
-  | { kind: "meeting"; id: string; title: string; dot: string; meeting: Meeting }
-  | { kind: "task"; id: string; title: string; dot: string; task: Task };
+type CalItem = {
+  kind: "meeting" | "task";
+  id: string;
+  title: string;
+  dot: string;
+  tint: string;
+  time: string | null;
+  sortKey: string;
+  notes: string | null;
+  place: string | null;
+  recurring: boolean;
+  done: boolean;
+  meeting?: Meeting;
+  task?: Task;
+};
+
+function hhmm(iso: string) {
+  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
 
 
 function CalendarPage() {
