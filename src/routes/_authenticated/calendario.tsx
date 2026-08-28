@@ -88,22 +88,46 @@ function CalendarPage() {
   const visibleTasks = filter === "all" ? tasks : tasks.filter((t) => t.source === filter);
 
   function itemsFor(key: string): CalItem[] {
-    return [
+    const items: CalItem[] = [
       ...visibleMeetings
-        .filter((m) => m.starts_at.slice(0, 10) === key)
-        .map<CalItem>((m) => ({
-          kind: "meeting",
-          id: m.id,
-          title: m.title,
-          // Reunião de verdade fica vermelho; senão usa a cor da empresa.
-          dot: m.meeting_type === "Reunião" ? "bg-reuniao" : SOURCE_DOT[m.source],
-          meeting: m,
-        })),
+        .filter((m) => fmtKey(new Date(m.starts_at)) === key)
+        .map<CalItem>((m) => {
+          const isMeeting = m.meeting_type === "Reunião";
+          return {
+            kind: "meeting",
+            id: m.id,
+            title: m.title,
+            dot: isMeeting ? "bg-reuniao" : SOURCE_DOT[m.source],
+            tint: isMeeting ? "bg-reuniao-soft border-reuniao/40" : SOURCE_TINT[m.source],
+            time: hhmm(m.starts_at),
+            sortKey: hhmm(m.starts_at),
+            notes: m.notes ?? null,
+            place: m.location ?? null,
+            recurring: false,
+            done: Boolean(m.completed_at),
+            meeting: m,
+          };
+        }),
       ...visibleTasks
         .filter((t) => t.due_date === key)
-        .map<CalItem>((t) => ({ kind: "task", id: t.id, title: t.title, dot: SOURCE_DOT[t.source], task: t })),
+        .map<CalItem>((t) => ({
+          kind: "task",
+          id: t.id,
+          title: t.title,
+          dot: SOURCE_DOT[t.source],
+          tint: SOURCE_TINT[t.source],
+          time: t.due_time ? t.due_time.slice(0, 5) : null,
+          sortKey: t.due_time ? t.due_time.slice(0, 5) : "99:99",
+          notes: t.notes ?? null,
+          place: null,
+          recurring: Boolean(t.recurrence && t.recurrence !== "none"),
+          done: t.status === "done",
+          task: t,
+        })),
     ];
+    return items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   }
+
 
 
   function shift(dir: -1 | 1) {
