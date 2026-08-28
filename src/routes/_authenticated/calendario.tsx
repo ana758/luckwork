@@ -570,6 +570,10 @@ function CalendarPage() {
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
       {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
+      {newMeetingDay && (
+        <NewMeetingModal defaultDate={newMeetingDay} onClose={() => setNewMeetingDay(null)} />
+      )}
+
 
     </div>
   );
