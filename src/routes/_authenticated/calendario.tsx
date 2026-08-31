@@ -453,13 +453,15 @@ function CalendarPage() {
                 position: "absolute",
                 top: ((item.startMin ?? 0) / 60) * HOUR_H,
                 minHeight: expanded ? undefined : Math.max(22, height ?? 22),
+                height: "auto",
+                overflow: "visible",
                 left: 2,
                 right: 2,
                 zIndex: expanded ? 20 : 10,
               }
             : undefined
         }
-        className={`group cursor-grab rounded-md border px-2 py-1 text-left shadow-sm transition active:cursor-grabbing ${item.tint} ${
+        className={`group cursor-grab overflow-visible rounded-md border px-2 py-1 text-left shadow-sm transition hover:z-20 active:cursor-grabbing ${item.tint} ${
           item.done ? "opacity-60" : ""
         }`}
       >
@@ -480,9 +482,13 @@ function CalendarPage() {
           <button
             onClick={() => setExpandedId(expanded ? null : item.id)}
             onDoubleClick={() => openItem(item)}
-            className="min-w-0 flex-1 text-left"
+            className="min-w-0 flex-1 overflow-visible text-left"
           >
-            <div className={`whitespace-pre-wrap break-words text-xs font-medium leading-tight ${item.done ? "line-through" : ""}`}>
+            <div
+              className={`h-auto w-full whitespace-pre-wrap break-all text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
+                item.done ? "line-through" : ""
+              }`}
+            >
               {item.title}
             </div>
             {!small && item.time && (
