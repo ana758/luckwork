@@ -217,10 +217,9 @@ function TasksPage() {
 
       return { previous, key };
     },
-    onSuccess: (_d, v) => {
-      queryClient.invalidateQueries({
-        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
     },
     onError: (e: Error, _v, context) => {
       if (context?.previous) queryClient.setQueryData(context.key, context.previous);
@@ -349,7 +348,7 @@ function TasksPage() {
         }
       }
     },
-    onSuccess: (_d, v) => {
+    onSuccess: () => {
       toast.success("Tarefa atualizada");
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
