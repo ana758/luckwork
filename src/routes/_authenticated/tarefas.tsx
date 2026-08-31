@@ -217,10 +217,9 @@ function TasksPage() {
 
       return { previous, key };
     },
-    onSuccess: (_d, v) => {
-      queryClient.invalidateQueries({
-        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
     },
     onError: (e: Error, _v, context) => {
       if (context?.previous) queryClient.setQueryData(context.key, context.previous);
@@ -338,14 +337,24 @@ function TasksPage() {
             });
         }
       }
+
+      // Qualquer alteração (nome, data) reflete no calendário da LUCK e no Google.
+      if (!isMeeting) {
+        try {
+          const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+          await syncTaskToCalendar({ data: { taskId: realId } });
+        } catch (e) {
+          console.warn("Calendário:", e);
+        }
+      }
     },
-    onSuccess: (_d, v) => {
+    onSuccess: () => {
       toast.success("Tarefa atualizada");
-      queryClient.invalidateQueries({
-        queryKey: [v.id.startsWith("m:") ? "meetings" : "tasks"],
-      });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
       setEditingId(null);
     },
+
     onError: (e: Error) => toast.error(e.message),
   });
 

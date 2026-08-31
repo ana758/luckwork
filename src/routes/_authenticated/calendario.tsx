@@ -138,7 +138,7 @@ function CalendarPage() {
             notes: m.notes ?? null,
             place: m.location ?? null,
             recurring: false,
-            done: Boolean(m.completed_at),
+            done: Boolean(m.completed_at) || (m as any).status === "done",
             meeting: m,
           };
         }),
@@ -222,20 +222,25 @@ function CalendarPage() {
   }
 
   async function toggleMeetingDone(m: Meeting) {
-    const wasDone = Boolean((m as any).completed_at);
+    const wasDone = Boolean((m as any).completed_at) || (m as any).status === "done";
     const nextCompleted = wasDone ? null : new Date().toISOString();
+    const nextStatus = wasDone ? "todo" : "done";
     qc.setQueryData<Meeting[]>(["meetings"], (old) =>
-      (old ?? []).map((x) => (x.id === m.id ? ({ ...x, completed_at: nextCompleted } as Meeting) : x)),
+      (old ?? []).map((x) =>
+        x.id === m.id ? ({ ...x, completed_at: nextCompleted, status: nextStatus } as Meeting) : x,
+      ),
     );
+    // Marcar concluído no calendário move o card para "Concluída" na aba Tarefas.
     const { error } = await supabase
       .from("meetings")
-      .update({ completed_at: nextCompleted })
+      .update({ completed_at: nextCompleted, status: nextStatus })
       .eq("id", m.id);
     if (error) {
       toast.error(error.message);
-      qc.invalidateQueries({ queryKey: ["meetings"] });
     }
+    qc.invalidateQueries({ queryKey: ["meetings"] });
   }
+
 
   async function toggleTaskDone(t: Task) {
     const wasDone = t.status === "done";
