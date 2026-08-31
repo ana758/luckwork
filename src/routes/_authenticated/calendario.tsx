@@ -142,31 +142,36 @@ function CalendarPage() {
             meeting: m,
           };
         }),
-      ...visibleTasks
-        .filter((t) => t.due_date === key)
-        .map<CalItem>((t) => {
-          const hm = t.due_time ? t.due_time.slice(0, 5) : null;
-          const startMin = hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null;
-          return {
-            kind: "task",
-            id: t.id,
-            title: t.title,
-            dot: SOURCE_DOT[t.source],
-            tint: SOURCE_TINT[t.source],
-            startMin,
-            durationMin: DEFAULT_TASK_MIN,
-            time: hm,
-            notes: t.notes ?? null,
-            place: null,
-            recurring: Boolean(t.recurrence && t.recurrence !== "none"),
-            done: t.status === "done",
-            task: t,
-          };
-        }),
+      ...visibleTasks.filter((t) => t.due_date === key).map<CalItem>(taskItem),
     ];
     // Sempre em ordem de horário — quem não tem horário fica no topo (dia inteiro).
     return items.sort((a, b) => (a.startMin ?? -1) - (b.startMin ?? -1));
   }
+
+  /** Tarefa → bloco do calendário. */
+  function taskItem(t: Task): CalItem {
+    const hm = t.due_time ? t.due_time.slice(0, 5) : null;
+    const startMin = hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null;
+    return {
+      kind: "task",
+      id: t.id,
+      title: t.title,
+      dot: SOURCE_DOT[t.source],
+      tint: SOURCE_TINT[t.source],
+      startMin,
+      durationMin: DEFAULT_TASK_MIN,
+      time: hm,
+      notes: t.notes ?? null,
+      place: null,
+      recurring: Boolean(t.recurrence && t.recurrence !== "none"),
+      done: t.status === "done",
+      task: t,
+    };
+  }
+
+  /** Tarefas ainda sem data — ficam numa faixa própria para não sumirem. */
+  const undatedTasks = visibleTasks.filter((t) => !t.due_date && t.status !== "done");
+
 
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
@@ -442,15 +447,14 @@ function CalendarPage() {
             ? {
                 position: "absolute",
                 top: ((item.startMin ?? 0) / 60) * HOUR_H,
-                height: expanded ? undefined : height,
-                minHeight: 22,
+                minHeight: expanded ? undefined : Math.max(22, height ?? 22),
                 left: 2,
                 right: 2,
                 zIndex: expanded ? 20 : 10,
               }
             : undefined
         }
-        className={`group cursor-grab overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition active:cursor-grabbing ${item.tint} ${
+        className={`group cursor-grab rounded-md border px-2 py-1 text-left shadow-sm transition active:cursor-grabbing ${item.tint} ${
           item.done ? "opacity-60" : ""
         }`}
       >
@@ -473,7 +477,7 @@ function CalendarPage() {
             onDoubleClick={() => openItem(item)}
             className="min-w-0 flex-1 text-left"
           >
-            <div className={`truncate text-xs font-medium leading-tight ${item.done ? "line-through" : ""}`}>
+            <div className={`whitespace-pre-wrap break-words text-xs font-medium leading-tight ${item.done ? "line-through" : ""}`}>
               {item.title}
             </div>
             {!small && item.time && (
@@ -487,7 +491,7 @@ function CalendarPage() {
               </div>
             )}
             {!compact && !small && item.place && (
-              <div className="mt-0.5 flex items-center gap-1 truncate text-[10px] opacity-70">
+              <div className="mt-0.5 flex items-center gap-1 break-words text-[10px] opacity-70">
                 <MapPin className="h-3 w-3" /> {item.place}
               </div>
             )}
@@ -673,6 +677,17 @@ function CalendarPage() {
               );
             })}
           </div>
+
+          {undatedTasks.length > 0 && (
+            <div className="flex flex-wrap items-start gap-1 border-b bg-secondary/40 p-1.5">
+              <span className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">sem data</span>
+              {undatedTasks.map((t) => (
+                <div key={t.id} className="w-52 max-w-full">
+                  <ItemBlock item={taskItem(t)} compact />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Faixa de dia inteiro (sem horário) */}
           <div
