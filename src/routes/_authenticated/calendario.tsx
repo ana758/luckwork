@@ -138,7 +138,7 @@ function CalendarPage() {
             notes: m.notes ?? null,
             place: m.location ?? null,
             recurring: false,
-            done: Boolean(m.completed_at),
+            done: Boolean(m.completed_at) || (m as any).status === "done",
             meeting: m,
           };
         }),
