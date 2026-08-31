@@ -142,31 +142,36 @@ function CalendarPage() {
             meeting: m,
           };
         }),
-      ...visibleTasks
-        .filter((t) => t.due_date === key)
-        .map<CalItem>((t) => {
-          const hm = t.due_time ? t.due_time.slice(0, 5) : null;
-          const startMin = hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null;
-          return {
-            kind: "task",
-            id: t.id,
-            title: t.title,
-            dot: SOURCE_DOT[t.source],
-            tint: SOURCE_TINT[t.source],
-            startMin,
-            durationMin: DEFAULT_TASK_MIN,
-            time: hm,
-            notes: t.notes ?? null,
-            place: null,
-            recurring: Boolean(t.recurrence && t.recurrence !== "none"),
-            done: t.status === "done",
-            task: t,
-          };
-        }),
+      ...visibleTasks.filter((t) => t.due_date === key).map<CalItem>(taskItem),
     ];
     // Sempre em ordem de horário — quem não tem horário fica no topo (dia inteiro).
     return items.sort((a, b) => (a.startMin ?? -1) - (b.startMin ?? -1));
   }
+
+  /** Tarefa → bloco do calendário. */
+  function taskItem(t: Task): CalItem {
+    const hm = t.due_time ? t.due_time.slice(0, 5) : null;
+    const startMin = hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null;
+    return {
+      kind: "task",
+      id: t.id,
+      title: t.title,
+      dot: SOURCE_DOT[t.source],
+      tint: SOURCE_TINT[t.source],
+      startMin,
+      durationMin: DEFAULT_TASK_MIN,
+      time: hm,
+      notes: t.notes ?? null,
+      place: null,
+      recurring: Boolean(t.recurrence && t.recurrence !== "none"),
+      done: t.status === "done",
+      task: t,
+    };
+  }
+
+  /** Tarefas ainda sem data — ficam numa faixa própria para não sumirem. */
+  const undatedTasks = visibleTasks.filter((t) => !t.due_date && t.status !== "done");
+
 
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
