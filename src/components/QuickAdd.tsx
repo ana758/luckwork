@@ -135,18 +135,19 @@ export function QuickAdd() {
       const payload = { title: title.trim(), source, when, time: taskTime, dest };
 
       if (kind === "task") {
-        const { data: inserted, error } = await supabase
-          .from("tasks")
-          .insert({
-            title: payload.title,
-            source,
-            due_date: when || null,
-            due_time: when && taskTime ? `${taskTime}:00` : null,
-            crm_destination: source === "angi" ? dest : null,
-          })
-          .select("id")
-          .single();
-        if (error) throw new Error(error.message);
+        const inserted = await withAuthRetry<{ id: string }>(() =>
+          supabase
+            .from("tasks")
+            .insert({
+              title: payload.title,
+              source,
+              due_date: when || null,
+              due_time: when && taskTime ? `${taskTime}:00` : null,
+              crm_destination: source === "angi" ? dest : null,
+            })
+            .select("id")
+            .maybeSingle(),
+        );
         // Roda integrações em background — não bloqueia o fechamento.
         if (inserted?.id) {
           void syncTaskIntegrations(inserted.id, payload);
@@ -157,12 +158,14 @@ export function QuickAdd() {
       // meeting
       if (!when) throw new Error("Escolha a data e hora da reunião.");
       const startsAt = new Date(when).toISOString();
-      const { data: inserted, error } = await supabase
-        .from("meetings")
-        .insert({ title: payload.title, source, starts_at: startsAt })
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
+      const inserted = await withAuthRetry<{ id: string }>(() =>
+        supabase
+          .from("meetings")
+          .insert({ title: payload.title, source, starts_at: startsAt })
+          .select("id")
+          .maybeSingle(),
+      );
+
 
       // Google em background
       if (inserted?.id) {
