@@ -5,7 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
  * do clique — a requisição sai sem usuário e o banco recusa com "row-level
  * security". Aqui a gente renova a sessão e tenta de novo, uma única vez.
  */
-export async function withAuthRetry<T>(run: () => Promise<{ data: T | null; error: { message: string } | null }>) {
+export async function withAuthRetry<T>(
+  run: () => PromiseLike<{ data: T | null; error: { message: string } | null }>,
+) {
   let res = await run();
   if (res.error && /row-level security|JWT|not authenticated/i.test(res.error.message)) {
     await supabase.auth.refreshSession().catch(() => null);
