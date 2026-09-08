@@ -38,7 +38,9 @@ export function TaskEditModal({
           source,
           notes: notes.trim() || null,
           due_date: dueDate || null,
+          start_date: dueDate || null,
           due_time: dueDate && dueTime ? `${dueTime}:00` : null,
+
           recurrence,
           crm_destination: source === "angi" ? angiDest : null,
         })
