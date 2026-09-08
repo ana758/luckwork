@@ -83,6 +83,7 @@ function CalendarPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
   const [newTaskAt, setNewTaskAt] = useState<{ date: string; time: string | null } | null>(null);
+  const [newMeetingTime, setNewMeetingTime] = useState<string | null>(null);
   /** Escolha "Tarefa ou Reunião?" ao clicar duas vezes / no botão Novo. */
   const [chooser, setChooser] = useState<{ date: string; time: string | null } | null>(null);
 
@@ -821,7 +822,13 @@ function CalendarPage() {
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
       {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
-      {newMeetingDay && <NewMeetingModal defaultDate={newMeetingDay} onClose={() => setNewMeetingDay(null)} />}
+      {newMeetingDay && (
+        <NewMeetingModal
+          defaultDate={newMeetingDay}
+          defaultTime={newMeetingTime}
+          onClose={() => setNewMeetingDay(null)}
+        />
+      )}
       {newTaskAt && (
         <NewTaskModal
           defaultDate={newTaskAt.date}
@@ -855,6 +862,7 @@ function CalendarPage() {
               </button>
               <button
                 onClick={() => {
+                  setNewMeetingTime(chooser.time);
                   setNewMeetingDay(chooser.date);
                   setChooser(null);
                 }}
