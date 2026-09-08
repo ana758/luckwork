@@ -25,12 +25,16 @@ const WEEKDAYS: { key: string; label: string }[] = [
 export function NewMeetingModal({
   onClose,
   defaultDate,
+  defaultTime,
 }: {
   onClose: () => void;
   defaultDate?: string;
+  defaultTime?: string | null;
 }) {
   const [title, setTitle] = useState("");
-  const [when, setWhen] = useState(defaultDate ? `${defaultDate}T09:00` : nowLocalInput());
+  const [when, setWhen] = useState(
+    defaultDate ? `${defaultDate}T${defaultTime ?? "09:00"}` : nowLocalInput(),
+  );
   const [durationMin, setDurationMin] = useState(60);
   const [source, setSource] = useState<SourceKey>("pessoal");
   const [location, setLocation] = useState("");

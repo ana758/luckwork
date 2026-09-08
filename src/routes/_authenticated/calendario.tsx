@@ -8,6 +8,7 @@ import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
 import { TaskEditModal } from "@/components/TaskEditModal";
 import { NewMeetingModal } from "@/components/NewMeetingModal";
+import { NewTaskModal } from "@/components/NewTaskModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent } from "@/lib/gcal.functions";
@@ -81,6 +82,11 @@ function CalendarPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
+  const [newTaskAt, setNewTaskAt] = useState<{ date: string; time: string | null } | null>(null);
+  const [newMeetingTime, setNewMeetingTime] = useState<string | null>(null);
+  /** Escolha "Tarefa ou Reunião?" ao clicar duas vezes / no botão Novo. */
+  const [chooser, setChooser] = useState<{ date: string; time: string | null } | null>(null);
+
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [nowMin, setNowMin] = useState(() => new Date().getHours() * 60 + new Date().getMinutes());
 
@@ -159,7 +165,7 @@ function CalendarPage() {
       dot: SOURCE_DOT[t.source],
       tint: SOURCE_TINT[t.source],
       startMin,
-      durationMin: DEFAULT_TASK_MIN,
+      durationMin: (t as unknown as { duration_min?: number | null }).duration_min ?? DEFAULT_TASK_MIN,
       time: hm,
       notes: t.notes ?? null,
       place: null,
@@ -384,6 +390,21 @@ function CalendarPage() {
     qc.invalidateQueries({ queryKey: ["meetings"] });
   }
 
+  /** Aumenta/diminui quanto tempo a tarefa ocupa no calendário. */
+  async function resizeTask(t: Task, newDurationMin: number) {
+    qc.setQueryData<Task[]>(["tasks"], (old) =>
+      (old ?? []).map((x) =>
+        x.id === t.id ? ({ ...x, duration_min: newDurationMin } as unknown as Task) : x,
+      ),
+    );
+    const { error } = await supabase
+      .from("tasks")
+      .update({ duration_min: newDurationMin } as never)
+      .eq("id", t.id);
+    if (error) toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+  }
+
   function onDragStart(ev: React.DragEvent, item: CalItem, offsetMin = 0) {
     ev.dataTransfer.setData("text/luck-item", `${item.kind}:${item.id}`);
     ev.dataTransfer.effectAllowed = "move";
@@ -527,7 +548,7 @@ function CalendarPage() {
           </div>
         )}
 
-        {absolute && item.kind === "meeting" && item.meeting && !expanded && (
+        {absolute && (item.meeting || item.task) && !expanded && (
           <div
             role="separator"
             aria-label="Aumentar duração"
@@ -547,7 +568,10 @@ function CalendarPage() {
                 document.removeEventListener("mouseup", onUp);
                 const delta = Math.round((((ev.clientY - startY) / HOUR_H) * 60) / 15) * 15;
                 const next = Math.max(15, startDur + delta);
-                if (next !== startDur && item.meeting) resizeMeeting(item.meeting as any, next);
+                if (next !== startDur) {
+                  if (item.meeting) resizeMeeting(item.meeting as any, next);
+                  else if (item.task) resizeTask(item.task, next);
+                }
               };
               document.addEventListener("mousemove", onMove);
               document.addEventListener("mouseup", onUp);
@@ -721,7 +745,7 @@ function CalendarPage() {
                     <ItemBlock key={i.id} item={i} compact />
                   ))}
                   <button
-                    onClick={() => setNewMeetingDay(key)}
+                    onClick={() => setChooser({ date: key, time: null })}
                     className="flex w-full items-center justify-center gap-1 rounded border border-dashed py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
                   >
                     <Plus className="h-3 w-3" /> Novo
@@ -760,7 +784,12 @@ function CalendarPage() {
                     onDragOver={(e) => onDragOver(e, key)}
                     onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
                     onDrop={(e) => onDropGrid(e, key)}
-                    onDoubleClick={() => setNewMeetingDay(key)}
+                    onDoubleClick={(e) => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const raw = Math.round((((e.clientY - rect.top) / HOUR_H) * 60) / 15) * 15;
+                      const mins = Math.max(0, Math.min(23 * 60 + 45, raw));
+                      setChooser({ date: key, time: `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}` });
+                    }}
                     className={`relative border-r last:border-r-0 ${dragOverKey === key ? "bg-accent/40" : ""}`}
                     style={{ height: 24 * HOUR_H }}
                   >
@@ -793,7 +822,58 @@ function CalendarPage() {
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
       {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
-      {newMeetingDay && <NewMeetingModal defaultDate={newMeetingDay} onClose={() => setNewMeetingDay(null)} />}
+      {newMeetingDay && (
+        <NewMeetingModal
+          defaultDate={newMeetingDay}
+          defaultTime={newMeetingTime}
+          onClose={() => setNewMeetingDay(null)}
+        />
+      )}
+      {newTaskAt && (
+        <NewTaskModal
+          defaultDate={newTaskAt.date}
+          defaultTime={newTaskAt.time}
+          onClose={() => setNewTaskAt(null)}
+        />
+      )}
+      {chooser && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/20 p-4 md:items-center"
+          onClick={() => setChooser(null)}
+        >
+          <div
+            className="w-full max-w-xs rounded-xl border bg-card p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-1 text-sm font-medium">O que você quer criar?</h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {chooser.date.split("-").reverse().join("/")}
+              {chooser.time ? ` · ${chooser.time}` : ""}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  setNewTaskAt(chooser);
+                  setChooser(null);
+                }}
+                className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
+              >
+                Tarefa
+              </button>
+              <button
+                onClick={() => {
+                  setNewMeetingTime(chooser.time);
+                  setNewMeetingDay(chooser.date);
+                  setChooser(null);
+                }}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                Reunião
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

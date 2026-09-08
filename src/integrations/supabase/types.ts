@@ -409,6 +409,7 @@ export type Database = {
           crm_lead_id: string | null
           due_date: string | null
           due_time: string | null
+          duration_min: number | null
           external_id: string | null
           external_system: string | null
           external_url: string | null
@@ -436,6 +437,7 @@ export type Database = {
           crm_lead_id?: string | null
           due_date?: string | null
           due_time?: string | null
+          duration_min?: number | null
           external_id?: string | null
           external_system?: string | null
           external_url?: string | null
@@ -463,6 +465,7 @@ export type Database = {
           crm_lead_id?: string | null
           due_date?: string | null
           due_time?: string | null
+          duration_min?: number | null
           external_id?: string | null
           external_system?: string | null
           external_url?: string | null
