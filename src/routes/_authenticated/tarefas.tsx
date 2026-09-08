@@ -575,17 +575,25 @@ function TasksPage() {
 
       {editingId &&
         (() => {
-          const task = visible.find((t) => t.id === editingId);
-          if (!task) return null;
+          const item = visible.find((t) => t.id === editingId);
+          if (!item) return null;
+          // Tarefa de verdade: usa o editor completo (nome, dia, horário,
+          // empresa, repetição e notas) que já reflete tudo no calendário.
+          if (!editingId.startsWith("m:")) {
+            const real = tasks.find((t) => t.id === editingId);
+            if (real)
+              return <TaskEditModal task={real} onClose={() => setEditingId(null)} />;
+          }
           return (
             <EditTaskModal
-              task={task}
+              task={item}
               onClose={() => setEditingId(null)}
               saving={editTask.isPending}
               onSave={(p) => editTask.mutate({ id: editingId, ...p })}
             />
           );
         })()}
+
     </div>
   );
 }
