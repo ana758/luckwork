@@ -81,6 +81,10 @@ function CalendarPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
+  const [newTaskAt, setNewTaskAt] = useState<{ date: string; time: string | null } | null>(null);
+  /** Escolha "Tarefa ou Reunião?" ao clicar duas vezes / no botão Novo. */
+  const [chooser, setChooser] = useState<{ date: string; time: string | null } | null>(null);
+
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [nowMin, setNowMin] = useState(() => new Date().getHours() * 60 + new Date().getMinutes());
 
