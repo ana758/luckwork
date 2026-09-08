@@ -724,6 +724,50 @@ function CalendarPage() {
             </div>
           )}
 
+      {view === "5day" ? (
+        <div className="max-h-[70vh] overflow-y-auto">
+          <div className="grid" style={{ gridTemplateColumns: `48px repeat(5, minmax(0, 1fr))` }}>
+            <div />
+            {rangeDays.map((d) => {
+              const key = fmtKey(d);
+              const items = itemsFor(key);
+              return (
+                <div
+                  key={key}
+                  onDragOver={(e) => onDragOver(e, key)}
+                  onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
+                  onDrop={(e) => onDropDay(e, key)}
+                  onDoubleClick={() => setChooser({ date: key, time: null })}
+                  className={`min-h-40 border-r last:border-r-0 p-1.5 ${dragOverKey === key ? "bg-accent/40" : ""}`}
+                >
+                  {items.length === 0 && (
+                    <button
+                      onClick={() => setChooser({ date: key, time: null })}
+                      className="flex w-full items-center justify-center gap-1 rounded border border-dashed py-1 text-[10px] text-muted-foreground hover:bg-accent"
+                    >
+                      <Plus className="h-3 w-3" /> Novo
+                    </button>
+                  )}
+                  <div className="space-y-1">
+                    {items.map((i) => (
+                      <ItemBlock key={i.id} item={i} compact />
+                    ))}
+                  </div>
+                  {items.length > 0 && (
+                    <button
+                      onClick={() => setChooser({ date: key, time: null })}
+                      className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-dashed py-1 text-[10px] text-muted-foreground hover:bg-accent"
+                    >
+                      <Plus className="h-3 w-3" /> Novo
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <>
           {/* Faixa de dia inteiro (sem horário) */}
           <div
             className="grid border-b bg-secondary/20"
@@ -817,6 +861,8 @@ function CalendarPage() {
               })}
             </div>
           </div>
+        </>
+      )}
         </div>
       )}
 
