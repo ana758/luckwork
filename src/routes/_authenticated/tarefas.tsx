@@ -22,6 +22,8 @@ import {
   type Recurrence,
 } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
+import { TaskEditModal } from "@/components/TaskEditModal";
+
 
 
 export const Route = createFileRoute("/_authenticated/tarefas")({
