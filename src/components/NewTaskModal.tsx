@@ -26,7 +26,7 @@ export function NewTaskModal({
   const save = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Título é obrigatório.");
-      const { data, error } = await withAuthRetry(() =>
+      const created = await withAuthRetry<{ id: string }>(() =>
         supabase
           .from("tasks")
           .insert({
@@ -41,11 +41,10 @@ export function NewTaskModal({
           .select("id")
           .single(),
       );
-      if (error) throw new Error(error.message);
       // Reflete no Google Agenda quando houver contas conectadas.
       try {
         const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
-        await syncTaskToCalendar({ data: { taskId: (data as { id: string }).id } });
+        await syncTaskToCalendar({ data: { taskId: created.id } });
       } catch {
         /* segue só na LUCK */
       }
