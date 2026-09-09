@@ -18,6 +18,7 @@ export function NewTaskModal({
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState(defaultTime ?? "");
+  const [durationMin, setDurationMin] = useState(60);
   const [source, setSource] = useState<SourceKey>("pessoal");
   const [recurrence, setRecurrence] = useState<Recurrence>("none");
   const [notes, setNotes] = useState("");
@@ -37,6 +38,7 @@ export function NewTaskModal({
             start_date: date || null,
             due_time: date && time ? `${time}:00` : null,
             recurrence,
+            duration_min: date && time ? durationMin : null,
           })
           .select("id")
           .single(),
@@ -96,6 +98,19 @@ export function NewTaskModal({
             />
           </div>
         </div>
+
+        <label className="text-xs text-muted-foreground">Duração</label>
+        <select
+          value={durationMin}
+          onChange={(e) => setDurationMin(Number(e.target.value))}
+          className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        >
+          {[15, 30, 45, 60, 90, 120, 180, 240].map((m) => (
+            <option key={m} value={m}>
+              {m < 60 ? `${m} min` : m % 60 === 0 ? `${m / 60}h` : `${Math.floor(m / 60)}h${m % 60}`}
+            </option>
+          ))}
+        </select>
 
         <label className="text-xs text-muted-foreground">Repetição</label>
         <select
