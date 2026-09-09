@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +18,7 @@ import { AiPanel } from "./AiPanel";
 import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
 import { useOverdueScan } from "@/hooks/useOverdueScan";
 import { useDesktopReminders } from "@/lib/desktop-notify";
+import { fetchMeetings, fetchTasks } from "@/lib/queries";
 
 
 const NAV = [

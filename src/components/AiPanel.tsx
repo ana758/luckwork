@@ -46,7 +46,8 @@ export function AiPanel() {
   const suggestionsQuery = useQuery({
     queryKey: ["ai-suggestions"],
     queryFn: () => listAiSuggestions(),
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const dismissSuggestion = useMutation({
@@ -59,7 +60,7 @@ export function AiPanel() {
   const staleQuery = useQuery({
     queryKey: ["stale-tasks"],
     queryFn: () => listStaleTasks(),
-    refetchInterval: 300_000,
+    refetchInterval: 120_000,
     select: (rows) => rows.filter((r) => !ignoredStale.includes(r.id)).slice(0, 3),
   });
 
@@ -103,6 +104,21 @@ export function AiPanel() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Sugestão nova da IA aparece na hora, mesmo com o painel fechado.
+  const announced = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const list = suggestionsQuery.data ?? [];
+    for (const s of list) {
+      if (announced.current.has(s.id)) continue;
+      announced.current.add(s.id);
+      if (open) continue;
+      toast("LUCK AI tem uma ideia", {
+        description: s.title.replace(/^\u{1F916}\s*/u, ""),
+        action: { label: "Ver", onClick: () => setOpen(true) },
+      });
+    }
+  }, [suggestionsQuery.data, open]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -207,6 +223,9 @@ export function AiPanel() {
     }
   }
 
+  const pendingCount =
+    (suggestionsQuery.data ?? []).length + (staleQuery.data ?? []).length;
+
   return (
     <>
       <button
@@ -215,6 +234,11 @@ export function AiPanel() {
         aria-label="Abrir LUCK AI"
       >
         <Sparkles className="h-4 w-4" /> LUCK AI
+        {pendingCount > 0 && (
+          <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-reuniao px-1 text-[10px] font-semibold text-white">
+            {pendingCount}
+          </span>
+        )}
       </button>
 
       {open && (
