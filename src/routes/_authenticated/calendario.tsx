@@ -70,6 +70,83 @@ function hhmm(iso: string) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/**
+ * Cartãozinho de edição rápida dentro do próprio bloco — estilo Google Agenda.
+ * Permite mudar nome, dia e horário sem abrir nenhuma janela.
+ */
+function QuickEdit({
+  item,
+  dateKey,
+  onSave,
+  onMore,
+  onClose,
+}: {
+  item: CalItem;
+  dateKey: string;
+  onSave: (v: { title: string; date: string; time: string | null }) => Promise<void>;
+  onMore: () => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(item.title);
+  const [date, setDate] = useState(dateKey);
+  const [time, setTime] = useState(item.time ?? "");
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      draggable={false}
+      onDragStart={(e) => e.stopPropagation()}
+      className="mt-1.5 space-y-1.5 rounded-md border border-foreground/15 bg-background/95 p-1.5 shadow-md"
+    >
+      <textarea
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        rows={2}
+        className="w-full resize-y rounded border bg-background px-1.5 py-1 text-[11px]"
+        placeholder="Nome"
+      />
+      <div className="flex gap-1">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="min-w-0 flex-1 rounded border bg-background px-1 py-1 text-[11px]"
+        />
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className="w-[74px] rounded border bg-background px-1 py-1 text-[11px]"
+        />
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          disabled={saving}
+          onClick={async () => {
+            if (!title.trim()) return;
+            setSaving(true);
+            await onSave({ title: title.trim(), date, time: time || null });
+            setSaving(false);
+            onClose();
+          }}
+          className="rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
+        >
+          {saving ? "Salvando…" : "Salvar"}
+        </button>
+        <button onClick={onClose} className="rounded border px-2 py-1 text-[11px]">
+          Cancelar
+        </button>
+        <button onClick={onMore} className="ml-auto rounded px-1.5 py-1 text-[11px] underline opacity-70">
+          Mais opções
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function CalendarPage() {
   // Abre sempre na visão de 5 dias — é a que a Ana usa no dia a dia.
   const [view, setView] = useState<ViewMode>("5day");
