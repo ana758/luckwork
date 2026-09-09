@@ -19,7 +19,7 @@ export async function runJiraSync(supabase: any, userId: string) {
   // única no LUCK, senão cada login recria uma cópia.
   const { data: existing } = await supabase
     .from("tasks")
-    .select("id, external_id, status, completed_at")
+    .select("id, external_id, status, completed_at, locally_managed")
     .eq("external_system", "jira");
 
   const byKey = new Map<string, any>();
@@ -88,6 +88,9 @@ export async function runJiraSync(supabase: any, userId: string) {
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
+    // Depois de uma edição manual, Jira continua recebendo o status, mas não
+    // pode devolver título/data antigos e desfazer a organização feita no LUCK.
+    if (local.locally_managed) continue;
     const { error } = await supabase
       .from("tasks")
       .update({

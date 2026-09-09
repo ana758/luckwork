@@ -43,6 +43,7 @@ export function TaskEditModal({
 
           recurrence,
           crm_destination: source === "angi" ? angiDest : null,
+          locally_managed: true,
         })
         .eq("id", task.id);
       if (error) throw new Error(error.message);

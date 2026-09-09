@@ -75,6 +75,24 @@ export function AppShell() {
     void queryClient.prefetchQuery({ queryKey: ["meetings"], queryFn: fetchMeetings });
   }, [membership?.status, queryClient]);
 
+  // Uma edição em qualquer página aparece imediatamente nas demais páginas
+  // e também em outras abas/dispositivos conectados à mesma conta.
+  useEffect(() => {
+    if (membership?.status !== "active") return;
+    const channel = supabase
+      .channel("luck-shared-pages")
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
+        void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "meetings" }, () => {
+        void queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [membership?.status, queryClient]);
+
 
 
   async function signOut() {

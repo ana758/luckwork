@@ -22,7 +22,7 @@ export async function runNotionSync(supabase: any, userId: string) {
 
   const { data: existing } = await supabase
     .from("tasks")
-    .select("id, external_id, status")
+    .select("id, external_id, status, locally_managed")
     .eq("external_system", "notion");
 
   const byKey = new Map<string, any>();
@@ -114,6 +114,8 @@ export async function runNotionSync(supabase: any, userId: string) {
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
+    // Edições manuais de nome/data feitas no LUCK têm prioridade.
+    if (local.locally_managed) continue;
     // Não sobrescreve status local — LUCK manda no status.
     const { error } = await supabase
       .from("tasks")
