@@ -416,6 +416,7 @@ export type Database = {
           google_account: string | null
           google_event_id: string | null
           id: string
+          locally_managed: boolean
           mirror_account: string | null
           mirror_event_id: string | null
           notes: string | null
@@ -444,6 +445,7 @@ export type Database = {
           google_account?: string | null
           google_event_id?: string | null
           id?: string
+          locally_managed?: boolean
           mirror_account?: string | null
           mirror_event_id?: string | null
           notes?: string | null
@@ -472,6 +474,7 @@ export type Database = {
           google_account?: string | null
           google_event_id?: string | null
           id?: string
+          locally_managed?: boolean
           mirror_account?: string | null
           mirror_event_id?: string | null
           notes?: string | null

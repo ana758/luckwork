@@ -288,7 +288,7 @@ function CalendarPage() {
     );
     const { error } = await supabase
       .from("tasks")
-      .update({ due_date: targetKey, due_time: nextTime })
+      .update({ due_date: targetKey, start_date: targetKey, due_time: nextTime, locally_managed: true })
       .eq("id", t.id);
     if (error) {
       toast.error("Não movi: " + error.message);

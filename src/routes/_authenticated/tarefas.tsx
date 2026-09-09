@@ -266,7 +266,9 @@ function TasksPage() {
         .eq("id", realId)
         .maybeSingle();
       if (readErr) throw new Error(readErr.message);
-      const { error } = await supabase.from(table).update({ source }).eq("id", realId);
+      const { error } = isMeeting
+        ? await supabase.from("meetings").update({ source }).eq("id", realId)
+        : await supabase.from("tasks").update({ source, locally_managed: true }).eq("id", realId);
       if (error) throw new Error(error.message);
       if (row?.title) {
         const { learnSourceRule } = await import("@/lib/learn-source");
@@ -314,6 +316,7 @@ function TasksPage() {
           start_date: payload.due_date,
           priority: payload.priority,
           recurrence: payload.recurrence,
+          locally_managed: true,
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);

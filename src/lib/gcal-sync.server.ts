@@ -173,6 +173,19 @@ export async function runCalendarSync(supabase: any, userId: string) {
       .map((r: any) => `${r.google_account}::${googleSeriesId(r.google_event_id)}`),
   );
 
+  // Eventos criados por tarefas já pertencem à tabela de tarefas. Não os
+  // reimporta como compromissos, pois isso criaria uma segunda cópia que pode
+  // continuar exibindo nome/data antigos depois de uma edição.
+  const { data: linkedTasks } = await supabase
+    .from("tasks")
+    .select("google_account, google_event_id")
+    .not("google_event_id", "is", null);
+  const linkedTaskPairs = new Set(
+    (linkedTasks ?? [])
+      .filter((r: any) => r.google_account && r.google_event_id)
+      .map((r: any) => `${r.google_account}::${r.google_event_id}`),
+  );
+
   // Carrega regras aprendidas (título → empresa correta).
   const { normalizeTitleKey, inferSourceFromTitle } = await import("./source-rules");
   const { data: rulesData } = await supabase.from("source_rules").select("title_key, source");
@@ -203,6 +216,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
           const title = e.summary?.trim() || "(sem título)";
           const sig = meetingSignature(title, startsAt);
           if (
+            linkedTaskPairs.has(`${cal.id}::${e.id}`) ||
             hiddenExactPairs.has(`${cal.id}::${e.id}`) ||
             hiddenSeries.has(`${cal.id}::${googleSeriesId(e.id)}`) ||
             hiddenSignatures.has(sig)
@@ -268,6 +282,21 @@ export async function runCalendarSync(supabase: any, userId: string) {
     .map((r: any) => r.id);
   if (orphans.length > 0) {
     await supabase.from("meetings").delete().in("id", orphans);
+  }
+
+  // Remove cópias históricas que já foram importadas como compromisso apesar
+  // de serem a representação de uma tarefa vinculada ao Google.
+  if (linkedTaskPairs.size > 0) {
+    const { data: linkedMeetingRows } = await supabase
+      .from("meetings")
+      .select("id, google_account, google_event_id")
+      .not("google_event_id", "is", null);
+    const duplicateTaskMeetings = (linkedMeetingRows ?? [])
+      .filter((r: any) => linkedTaskPairs.has(`${r.google_account}::${r.google_event_id}`))
+      .map((r: any) => r.id);
+    if (duplicateTaskMeetings.length > 0) {
+      await supabase.from("meetings").delete().in("id", duplicateTaskMeetings);
+    }
   }
 
   // Se o mesmo compromisso já tinha sido importado por outra agenda antes do
