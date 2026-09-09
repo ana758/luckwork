@@ -85,6 +85,7 @@ function QuickEdit({
   item,
   dateKey,
   onSave,
+  onDelete,
   onMore,
   onClose,
 }: {
