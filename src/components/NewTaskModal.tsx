@@ -43,13 +43,12 @@ export function NewTaskModal({
           .select("id")
           .single(),
       );
-      // Reflete no Google Agenda quando houver contas conectadas.
-      try {
-        const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
-        await syncTaskToCalendar({ data: { taskId: created.id } });
-      } catch {
-        /* segue só na LUCK */
-      }
+      // Reflete no Google Agenda em segundo plano — não trava o salvamento.
+      void import("@/lib/task-calendar.functions")
+        .then(({ syncTaskToCalendar }) => syncTaskToCalendar({ data: { taskId: created.id } }))
+        .catch(() => {
+          /* segue só na LUCK */
+        });
     },
     onSuccess: () => {
       toast.success("Tarefa criada");
