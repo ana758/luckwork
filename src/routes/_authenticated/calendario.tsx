@@ -616,8 +616,10 @@ function CalendarPage() {
     absolute?: boolean;
   }) {
     const expanded = expandedId === item.id;
+    const quick = quickId === item.id;
     const height = absolute ? (item.durationMin / 60) * HOUR_H : undefined;
     const small = absolute && item.durationMin <= 30;
+
     return (
       <div
         draggable
