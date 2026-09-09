@@ -48,6 +48,10 @@ export function useMeetings() {
         return !deletedGoogleSignatures.has(signature(m));
       }) as Meeting[];
     },
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 45_000,
+    placeholderData: (prev) => prev,
   });
 }
 
