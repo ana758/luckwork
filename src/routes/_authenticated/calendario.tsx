@@ -482,10 +482,14 @@ function CalendarPage() {
               }
             : undefined
         }
-        className={`group cursor-grab overflow-visible rounded-md border px-2 py-1 text-left shadow-sm transition hover:z-20 active:cursor-grabbing ${item.tint} ${
+        className={`group relative cursor-grab overflow-visible rounded-md border px-2 py-1 text-left shadow-sm transition hover:z-20 active:cursor-grabbing ${item.tint} ${
           item.done ? "opacity-60" : ""
         }`}
       >
+        {/* Bola lateral vermelha para reuniões */}
+        {item.kind === "meeting" && (
+          <span className="absolute -left-1.5 top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-reuniao shadow-sm" />
+        )}
         <div className="flex items-start gap-1.5">
           <button
             onClick={(e) => {
@@ -504,7 +508,6 @@ function CalendarPage() {
             onClick={() => setExpandedId(expanded ? null : item.id)}
             onDoubleClick={() => openItem(item)}
             className="min-w-0 flex-1 overflow-visible text-left"
-          >
             <div
               className={`h-auto w-full whitespace-pre-wrap break-all text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
                 item.done ? "line-through" : ""
