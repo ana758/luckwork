@@ -90,14 +90,14 @@ function QuickEdit({
 }: {
   item: CalItem;
   dateKey: string;
-  onSave: (v: { title: string; date: string; time: string | null }) => Promise<void>;
+  onSave: (v: { title: string; date: string; time: string | null }) => void;
+  onDelete: () => void;
   onMore: () => void;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(item.title);
   const [date, setDate] = useState(dateKey);
   const [time, setTime] = useState(item.time ?? "");
-  const [saving, setSaving] = useState(false);
 
   return (
     <div
