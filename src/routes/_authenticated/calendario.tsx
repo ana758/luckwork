@@ -485,6 +485,83 @@ function CalendarPage() {
     qc.invalidateQueries({ queryKey: ["tasks"] });
   }
 
+  /** Salva nome/dia/horário direto no cartão, sem abrir janela. */
+  async function saveQuick(item: CalItem, v: { title: string; date: string; time: string | null }) {
+    if (item.kind === "task" && item.task) {
+      const t = item.task;
+      const dueTime = v.time ? `${v.time}:00` : null;
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: v.title,
+          due_date: v.date,
+          start_date: v.date,
+          due_time: dueTime,
+          locally_managed: true,
+        } as never)
+        .eq("id", t.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      try {
+        const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+        await syncTaskToCalendar({ data: { taskId: t.id } });
+      } catch {
+        /* mantém local */
+      }
+      toast.success("Tarefa atualizada");
+      return;
+    }
+
+    const m = item.meeting as (Meeting & { google_event_id?: string | null; google_account?: string | null }) | undefined;
+    if (!m) return;
+    const oldStart = new Date(m.starts_at);
+    const [y, mo, d] = v.date.split("-").map(Number);
+    const newStart = new Date(oldStart);
+    newStart.setFullYear(y, mo - 1, d);
+    if (v.time) {
+      const [h, mi] = v.time.split(":").map(Number);
+      newStart.setHours(h, mi, 0, 0);
+    }
+    const startIso = newStart.toISOString();
+    let endIso = m.ends_at ?? null;
+    if (m.ends_at) {
+      const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
+      endIso = new Date(newStart.getTime() + diff).toISOString();
+    }
+    const { error } = await supabase
+      .from("meetings")
+      .update({ title: v.title, starts_at: startIso, ends_at: endIso })
+      .eq("id", m.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["meetings"] });
+    if (m.google_event_id && m.google_account) {
+      try {
+        await patchGoogle({
+          data: {
+            googleAccount: m.google_account,
+            googleEventId: m.google_event_id,
+            title: v.title,
+            startsAt: startIso,
+            notes: m.notes ?? null,
+          },
+        });
+        toast.success("Atualizado no LUCK e no Google");
+        return;
+      } catch {
+        toast.error("Salvo no LUCK, mas não sincronizou com o Google");
+        return;
+      }
+    }
+    toast.success("Atualizado");
+  }
+
+
   function onDragStart(ev: React.DragEvent, item: CalItem, offsetMin = 0) {
     ev.dataTransfer.setData("text/luck-item", `${item.kind}:${item.id}`);
     ev.dataTransfer.effectAllowed = "move";
