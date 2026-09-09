@@ -97,9 +97,7 @@ export async function runNotionSync(supabase: any, userId: string) {
           const { error: updateError } = await supabase
             .from("tasks")
             .update({
-              title: r.title,
               priority: r.priority,
-              due_date: r.due_date,
               external_url: r.external_url,
               updated_at: r.updated_at,
             })
@@ -114,21 +112,18 @@ export async function runNotionSync(supabase: any, userId: string) {
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
-    // Edições manuais de nome/data feitas no LUCK têm prioridade.
-    if (local.locally_managed) continue;
-    // Não sobrescreve status local — LUCK manda no status.
+    // Depois de importada, nome e data pertencem ao LUCK — o Notion não reescreve.
     const { error } = await supabase
       .from("tasks")
       .update({
-        title: r.title,
         priority: r.priority,
-        due_date: r.due_date,
         external_url: r.external_url,
         updated_at: r.updated_at,
       })
       .eq("id", local.id);
     if (error) throw new Error(`Falha ao atualizar página Notion ${r.external_id}: ${error.message}`);
   }
+
 
   return { imported: rows.length, pushed };
 }
