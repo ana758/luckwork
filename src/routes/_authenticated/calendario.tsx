@@ -15,6 +15,7 @@ import { moveGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { spawnNextOccurrence } from "@/lib/recurrence";
 import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -164,6 +165,7 @@ function QuickEdit({
 function CalendarPage() {
   // Abre sempre na visão de 5 dias — é a que a Ana usa no dia a dia.
   const [view, setView] = useState<ViewMode>("5day");
+  const isMobile = useIsMobile();
   const [cursor, setCursor] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
