@@ -2,17 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { AccessEntry, Meeting, Task } from "./sources";
 
+export async function fetchTasks(): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .order("due_date", { ascending: true, nullsFirst: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Task[];
+}
+
 export function useTasks() {
   return useQuery({
     queryKey: ["tasks"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("due_date", { ascending: true, nullsFirst: false });
-      if (error) throw new Error(error.message);
-      return (data ?? []) as Task[];
-    },
+    queryFn: fetchTasks,
     staleTime: 15_000,
     refetchOnWindowFocus: true,
     refetchInterval: 45_000,
