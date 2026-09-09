@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Outlet, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +18,7 @@ import { AiPanel } from "./AiPanel";
 import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
 import { useOverdueScan } from "@/hooks/useOverdueScan";
 import { useDesktopReminders } from "@/lib/desktop-notify";
+import { fetchMeetings, fetchTasks } from "@/lib/queries";
 
 
 const NAV = [
@@ -64,6 +66,14 @@ export function AppShell() {
   useAutoSyncGoogle();
   useOverdueScan();
   useDesktopReminders();
+
+  // Deixa Tarefas, Calendário e Reuniões já carregados em memória:
+  // trocar de página passa a ser instantâneo.
+  useEffect(() => {
+    if (membership?.status !== "active") return;
+    void queryClient.prefetchQuery({ queryKey: ["tasks"], queryFn: fetchTasks });
+    void queryClient.prefetchQuery({ queryKey: ["meetings"], queryFn: fetchMeetings });
+  }, [membership?.status, queryClient]);
 
 
 
