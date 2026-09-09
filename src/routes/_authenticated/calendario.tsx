@@ -508,6 +508,7 @@ function CalendarPage() {
             onClick={() => setExpandedId(expanded ? null : item.id)}
             onDoubleClick={() => openItem(item)}
             className="min-w-0 flex-1 overflow-visible text-left"
+          >
             <div
               className={`h-auto w-full whitespace-pre-wrap break-all text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
                 item.done ? "line-through" : ""
