@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
@@ -11,7 +11,7 @@ import { NewMeetingModal } from "@/components/NewMeetingModal";
 import { NewTaskModal } from "@/components/NewTaskModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
-import { moveGoogleEvent } from "@/lib/gcal.functions";
+import { moveGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { spawnNextOccurrence } from "@/lib/recurrence";
 import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
@@ -70,6 +70,90 @@ function hhmm(iso: string) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** Dia atual do item, no formato do input de data. */
+function itemDateKey(item: CalItem) {
+  if (item.kind === "meeting" && item.meeting) return fmtKey(new Date(item.meeting.starts_at));
+  return item.task?.due_date ?? fmtKey(new Date());
+}
+
+
+/**
+ * Cartãozinho de edição rápida dentro do próprio bloco — estilo Google Agenda.
+ * Permite mudar nome, dia e horário sem abrir nenhuma janela.
+ */
+function QuickEdit({
+  item,
+  dateKey,
+  onSave,
+  onMore,
+  onClose,
+}: {
+  item: CalItem;
+  dateKey: string;
+  onSave: (v: { title: string; date: string; time: string | null }) => Promise<void>;
+  onMore: () => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(item.title);
+  const [date, setDate] = useState(dateKey);
+  const [time, setTime] = useState(item.time ?? "");
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      draggable={false}
+      onDragStart={(e) => e.stopPropagation()}
+      className="mt-1.5 space-y-1.5 rounded-md border border-foreground/15 bg-background/95 p-1.5 shadow-md"
+    >
+      <textarea
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        rows={2}
+        className="w-full resize-y rounded border bg-background px-1.5 py-1 text-[11px]"
+        placeholder="Nome"
+      />
+      <div className="flex gap-1">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="min-w-0 flex-1 rounded border bg-background px-1 py-1 text-[11px]"
+        />
+        <input
+          type="time"
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          className="w-[74px] rounded border bg-background px-1 py-1 text-[11px]"
+        />
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          disabled={saving}
+          onClick={async () => {
+            if (!title.trim()) return;
+            setSaving(true);
+            await onSave({ title: title.trim(), date, time: time || null });
+            setSaving(false);
+            onClose();
+          }}
+          className="rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
+        >
+          {saving ? "Salvando…" : "Salvar"}
+        </button>
+        <button onClick={onClose} className="rounded border px-2 py-1 text-[11px]">
+          Cancelar
+        </button>
+        <button onClick={onMore} className="ml-auto rounded px-1.5 py-1 text-[11px] underline opacity-70">
+          Mais opções
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function CalendarPage() {
   // Abre sempre na visão de 5 dias — é a que a Ana usa no dia a dia.
   const [view, setView] = useState<ViewMode>("5day");
@@ -81,6 +165,9 @@ function CalendarPage() {
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  /** Bloco em edição rápida (lápis no canto do cartão). */
+  const [quickId, setQuickId] = useState<string | null>(null);
+
   const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
   const [newTaskAt, setNewTaskAt] = useState<{ date: string; time: string | null } | null>(null);
   const [newMeetingTime, setNewMeetingTime] = useState<string | null>(null);
@@ -100,6 +187,8 @@ function CalendarPage() {
   const { visibleSources } = useArchivedSources();
   const qc = useQueryClient();
   const moveGoogle = useServerFn(moveGoogleEvent);
+  const patchGoogle = useServerFn(patchGoogleEvent);
+
 
   const todayKey = fmtKey(new Date());
 
@@ -405,6 +494,83 @@ function CalendarPage() {
     qc.invalidateQueries({ queryKey: ["tasks"] });
   }
 
+  /** Salva nome/dia/horário direto no cartão, sem abrir janela. */
+  async function saveQuick(item: CalItem, v: { title: string; date: string; time: string | null }) {
+    if (item.kind === "task" && item.task) {
+      const t = item.task;
+      const dueTime = v.time ? `${v.time}:00` : null;
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          title: v.title,
+          due_date: v.date,
+          start_date: v.date,
+          due_time: dueTime,
+          locally_managed: true,
+        } as never)
+        .eq("id", t.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      try {
+        const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+        await syncTaskToCalendar({ data: { taskId: t.id } });
+      } catch {
+        /* mantém local */
+      }
+      toast.success("Tarefa atualizada");
+      return;
+    }
+
+    const m = item.meeting as (Meeting & { google_event_id?: string | null; google_account?: string | null }) | undefined;
+    if (!m) return;
+    const oldStart = new Date(m.starts_at);
+    const [y, mo, d] = v.date.split("-").map(Number);
+    const newStart = new Date(oldStart);
+    newStart.setFullYear(y, mo - 1, d);
+    if (v.time) {
+      const [h, mi] = v.time.split(":").map(Number);
+      newStart.setHours(h, mi, 0, 0);
+    }
+    const startIso = newStart.toISOString();
+    let endIso = m.ends_at ?? null;
+    if (m.ends_at) {
+      const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
+      endIso = new Date(newStart.getTime() + diff).toISOString();
+    }
+    const { error } = await supabase
+      .from("meetings")
+      .update({ title: v.title, starts_at: startIso, ends_at: endIso })
+      .eq("id", m.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["meetings"] });
+    if (m.google_event_id && m.google_account) {
+      try {
+        await patchGoogle({
+          data: {
+            googleAccount: m.google_account,
+            googleEventId: m.google_event_id,
+            title: v.title,
+            startsAt: startIso,
+            notes: m.notes ?? null,
+          },
+        });
+        toast.success("Atualizado no LUCK e no Google");
+        return;
+      } catch {
+        toast.error("Salvo no LUCK, mas não sincronizou com o Google");
+        return;
+      }
+    }
+    toast.success("Atualizado");
+  }
+
+
   function onDragStart(ev: React.DragEvent, item: CalItem, offsetMin = 0) {
     ev.dataTransfer.setData("text/luck-item", `${item.kind}:${item.id}`);
     ev.dataTransfer.effectAllowed = "move";
@@ -459,8 +625,10 @@ function CalendarPage() {
     absolute?: boolean;
   }) {
     const expanded = expandedId === item.id;
+    const quick = quickId === item.id;
     const height = absolute ? (item.durationMin / 60) * HOUR_H : undefined;
     const small = absolute && item.durationMin <= 30;
+
     return (
       <div
         draggable
@@ -533,10 +701,35 @@ function CalendarPage() {
             )}
           </button>
           {item.recurring && <Repeat className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />}
-          <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <span className={`mt-1 h-2 w-2 rounded-full ${item.dot}`} />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuickId(quick ? null : item.id);
+              }}
+              aria-label="Editar rápido"
+              className="grid h-4 w-4 place-items-center rounded-[4px] border border-foreground/25 bg-background/70 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+            >
+              <Pencil className="h-2.5 w-2.5" />
+            </button>
+          </div>
         </div>
 
-        {expanded && (
+        {quick && (
+          <QuickEdit
+            item={item}
+            dateKey={itemDateKey(item)}
+            onSave={(v) => saveQuick(item, v)}
+            onMore={() => {
+              setQuickId(null);
+              openItem(item);
+            }}
+            onClose={() => setQuickId(null)}
+          />
+        )}
+
+        {expanded && !quick && (
           <div className="mt-1.5 border-t border-foreground/10 pt-1.5">
             {item.notes ? (
               <p className="whitespace-pre-wrap text-[11px] leading-relaxed opacity-80">{item.notes}</p>
@@ -544,13 +737,14 @@ function CalendarPage() {
               <p className="text-[11px] opacity-60">Sem notas.</p>
             )}
             <button
-              onClick={() => openItem(item)}
+              onClick={() => setQuickId(item.id)}
               className="mt-1.5 rounded border border-foreground/20 bg-background/60 px-2 py-1 text-[11px] font-medium"
             >
-              Abrir e editar
+              Editar aqui
             </button>
           </div>
         )}
+
 
         {absolute && (item.meeting || item.task) && !expanded && (
           <div
