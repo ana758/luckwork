@@ -66,13 +66,13 @@ export async function runJiraSync(supabase: any, userId: string) {
       const { error } = await supabase.from("tasks").insert(r);
       if (error) {
         if (/duplicate key|unique/i.test(error.message)) {
+          // Já existe no LUCK: só atualiza o que o Jira manda (status/prioridade/link).
+          // Nome e data pertencem ao LUCK depois que a tarefa foi importada.
           const { error: updateError } = await supabase
             .from("tasks")
             .update({
-              title: r.title,
               status: r.status,
               priority: r.priority,
-              due_date: r.due_date,
               completed_at: r.completed_at,
               external_url: r.external_url,
               updated_at: r.updated_at,
@@ -88,23 +88,23 @@ export async function runJiraSync(supabase: any, userId: string) {
   }
   for (const r of toUpdate) {
     const local = byKey.get(r.external_id);
-    // Depois de uma edição manual, Jira continua recebendo o status, mas não
-    // pode devolver título/data antigos e desfazer a organização feita no LUCK.
-    if (local.locally_managed) continue;
-    const { error } = await supabase
-      .from("tasks")
-      .update({
-        title: r.title,
-        status: r.status,
-        priority: r.priority,
-        due_date: r.due_date,
-        completed_at: r.completed_at,
-        external_url: r.external_url,
-        updated_at: r.updated_at,
-      })
-      .eq("id", local.id);
+    // Tarefa já existe no LUCK: o Jira nunca reescreve nome nem data.
+    // Quem organiza a agenda é a LUCK; o Jira só atualiza status/prioridade/link.
+    const patch: Record<string, unknown> = {
+      status: r.status,
+      priority: r.priority,
+      completed_at: r.completed_at,
+      external_url: r.external_url,
+      updated_at: r.updated_at,
+    };
+    if (local.locally_managed) {
+      delete patch['status'];
+      delete patch['completed_at'];
+    }
+    const { error } = await supabase.from("tasks").update(patch).eq("id", local.id);
     if (error) throw new Error(`Falha ao atualizar tarefa Jira ${r.external_id}: ${error.message}`);
   }
+
 
 
   return { imported: rows.length, pushed };
