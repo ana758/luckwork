@@ -314,6 +314,7 @@ function TasksPage() {
           start_date: payload.due_date,
           priority: payload.priority,
           recurrence: payload.recurrence,
+          locally_managed: true,
         })
         .eq("id", realId);
       if (error) throw new Error(error.message);

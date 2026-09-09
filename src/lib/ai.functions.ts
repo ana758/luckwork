@@ -891,7 +891,12 @@ export const refreshStaleTask = createServerFn({ method: "POST" })
     const todayStr = new Date().toISOString().slice(0, 10);
     const { error } = await context.supabase
       .from("tasks")
-      .update({ due_date: todayStr, status_changed_at: new Date().toISOString() })
+      .update({
+        due_date: todayStr,
+        start_date: todayStr,
+        status_changed_at: new Date().toISOString(),
+        locally_managed: true,
+      })
       .eq("id", data.taskId);
     if (error) throw new Error(error.message);
     try {
