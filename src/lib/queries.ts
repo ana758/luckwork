@@ -13,6 +13,10 @@ export function useTasks() {
       if (error) throw new Error(error.message);
       return (data ?? []) as Task[];
     },
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 45_000,
+    placeholderData: (prev) => prev,
   });
 }
 
