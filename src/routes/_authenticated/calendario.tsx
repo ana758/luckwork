@@ -907,7 +907,57 @@ function CalendarPage() {
         ))}
       </div>
 
-      {view === "month" ? (
+      {isMobile && (view === "2day" || view === "5day") ? (
+        /* Celular: lista por dia — evita colunas estreitas e texto empilhado. */
+        <div className="space-y-3">
+          {undatedTasks.length > 0 && (
+            <div className="rounded-xl border bg-secondary/40 p-2">
+              <p className="mb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                sem data
+              </p>
+              <div className="space-y-1.5">
+                {undatedTasks.map((t) => (
+                  <ItemBlock key={t.id} item={taskItem(t)} compact />
+                ))}
+              </div>
+            </div>
+          )}
+          {rangeDays.map((d) => {
+            const key = fmtKey(d);
+            const items = itemsFor(key);
+            const isToday = key === todayKey;
+            return (
+              <div key={key} className="overflow-hidden rounded-xl border bg-card">
+                <div className="flex items-center gap-2 border-b px-3 py-2">
+                  <span
+                    className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-semibold ${
+                      isToday ? "bg-primary text-primary-foreground" : "bg-secondary"
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm capitalize">
+                    {d.toLocaleDateString("pt-BR", { weekday: "long", month: "short" })}
+                  </span>
+                  <button
+                    onClick={() => setChooser({ date: key, time: null })}
+                    className="flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-[11px] text-muted-foreground"
+                  >
+                    <Plus className="h-3 w-3" /> Novo
+                  </button>
+                </div>
+                <div className="space-y-1.5 p-2">
+                  {items.length === 0 ? (
+                    <p className="px-1 py-2 text-xs text-muted-foreground">Nada marcado.</p>
+                  ) : (
+                    items.map((i) => <ItemBlock key={i.id} item={i} />)
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : view === "month" ? (
         <div className="overflow-hidden rounded-xl border bg-card">
           <div className="grid grid-cols-7 border-b text-center text-[11px] text-muted-foreground">
             {WEEKDAYS.map((d) => (
