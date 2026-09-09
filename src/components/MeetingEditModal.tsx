@@ -110,14 +110,14 @@ export function MeetingEditModal({
       // outra agenda compartilhada com outro ID do Google.
       const { data: matches, error: readError } = await supabase
         .from("meetings")
-        .select("id, title, google_event_id, google_account")
+        .select("id, title, starts_at, google_event_id, google_account")
         .limit(1000);
       if (readError) throw new Error(readError.message);
 
       const sig = meetingSignature(meeting.title, meeting.starts_at);
       const seriesId = meeting.google_event_id ? googleSeriesId(meeting.google_event_id) : null;
       const normalizedMatches = (matches ?? []).filter((m) =>
-        meetingSignature((m as any).title ?? meeting.title, meeting.starts_at) === sig ||
+        meetingSignature(m.title ?? meeting.title, m.starts_at) === sig ||
         Boolean(
           seriesId &&
             m.google_account === meeting.google_account &&
@@ -135,8 +135,9 @@ export function MeetingEditModal({
       const linkedMap = new Map<string, { google_event_id: string; google_account: string }>();
       for (const item of normalizedMatches) {
         if (!item.google_event_id || !item.google_account) continue;
-        linkedMap.set(`${item.google_account}::${item.google_event_id}`, {
-          google_event_id: item.google_event_id,
+        const eventToDelete = googleSeriesId(item.google_event_id);
+        linkedMap.set(`${item.google_account}::${eventToDelete}`, {
+          google_event_id: eventToDelete,
           google_account: item.google_account,
         });
       }
