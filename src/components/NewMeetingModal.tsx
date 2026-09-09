@@ -133,8 +133,9 @@ export function NewMeetingModal({
                 ? "Reunião criada com link do Meet"
                 : "Reunião criada no Google Agenda",
             );
-          } catch (e) {
-            toast.error(`Google Agenda: ${(e as Error).message}`);
+          } catch {
+            // A reunião já está salva na LUCK; só o envio ao Google falhou.
+            toast("Reunião salva na LUCK (Google Agenda não está conectado)");
           }
         })();
       }
