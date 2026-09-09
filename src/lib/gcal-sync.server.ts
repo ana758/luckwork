@@ -340,7 +340,19 @@ export async function runCalendarPush(
   const acc = data.account
     ? accounts.find((a) => a.envVar === data.account || a.email === data.account)
     : pickAccountBySource(accounts, data.source);
-  if (!acc) throw new Error("Conta do Google Agenda não encontrada.");
+  // Nenhuma agenda Google vinculada: salva só na LUCK, sem quebrar a tela.
+  if (!acc) {
+    return {
+      ok: false as const,
+      skipped: "no_account" as const,
+      eventId: null,
+      calendarId: null,
+      url: null,
+      meetLink: data.meetLink ?? null,
+      mirrorEventId: null,
+      mirrorAccount: null,
+    };
+  }
 
   const calendarId = acc.email;
 
