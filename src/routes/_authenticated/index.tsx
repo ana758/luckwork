@@ -79,6 +79,22 @@ function Dashboard() {
   }, [tasks, meetings, today]);
 
 
+  const todayMeetings = useMemo(
+    () =>
+      meetings
+        .filter((x) => x.starts_at.slice(0, 10) === today)
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+        .map((x) => ({
+          id: x.id,
+          title: x.title,
+          time: new Date(x.starts_at).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        })),
+    [meetings, today],
+  );
+
   const weekTasks = useMemo(() => {
     const keys = visibleSources.map((s) => s.key);
     return tasks.filter((t) => inWeek(t) && keys.includes(t.source));
@@ -173,6 +189,30 @@ function Dashboard() {
         })}
       </section>
 
+      {/* Reuniões de hoje */}
+      <section className="rounded-xl border bg-card p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-reuniao" />
+          <h2 className="text-sm font-medium">Reuniões de hoje</h2>
+          <span className="ml-auto text-xs text-muted-foreground">{todayMeetings.length}</span>
+        </div>
+        {todayMeetings.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma reunião hoje.</p>
+        ) : (
+          <ul className="space-y-2">
+            {todayMeetings.map((m) => (
+              <li key={m.id} className="flex items-start gap-2 text-sm">
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-reuniao" />
+                <span className="min-w-0 flex-1 break-words">{m.title}</span>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {m.time}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* Memória da IA */}
       <AiMemoryCard />
 
@@ -180,7 +220,7 @@ function Dashboard() {
       <AiConsole compact />
 
       {/* Atrasadas + Hoje */}
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {overdueTasks.length > 0 && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
             <div className="mb-2 flex items-center gap-2 text-destructive">
