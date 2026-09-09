@@ -70,6 +70,13 @@ function hhmm(iso: string) {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+/** Dia atual do item, no formato do input de data. */
+function itemDateKey(item: CalItem) {
+  if (item.kind === "meeting" && item.meeting) return fmtKey(new Date(item.meeting.starts_at));
+  return item.task?.due_date ?? fmtKey(new Date());
+}
+
+
 /**
  * Cartãozinho de edição rápida dentro do próprio bloco — estilo Google Agenda.
  * Permite mudar nome, dia e horário sem abrir nenhuma janela.
