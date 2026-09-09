@@ -220,7 +220,7 @@ function Dashboard() {
       <AiConsole compact />
 
       {/* Atrasadas + Hoje */}
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {overdueTasks.length > 0 && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
             <div className="mb-2 flex items-center gap-2 text-destructive">
