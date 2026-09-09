@@ -69,26 +69,8 @@ export function AppShell() {
   // trocar de página passa a ser instantâneo.
   useEffect(() => {
     if (membership?.status !== "active") return;
-    void queryClient.prefetchQuery({
-      queryKey: ["tasks"],
-      queryFn: async () => {
-        const { data } = await supabase
-          .from("tasks")
-          .select("*")
-          .order("due_date", { ascending: true, nullsFirst: false });
-        return data ?? [];
-      },
-    });
-    void queryClient.prefetchQuery({
-      queryKey: ["meetings"],
-      queryFn: async () => {
-        const { data } = await supabase
-          .from("meetings")
-          .select("*")
-          .order("starts_at", { ascending: true });
-        return data ?? [];
-      },
-    });
+    void queryClient.prefetchQuery({ queryKey: ["tasks"], queryFn: fetchTasks });
+    void queryClient.prefetchQuery({ queryKey: ["meetings"], queryFn: fetchMeetings });
   }, [membership?.status, queryClient]);
 
 
