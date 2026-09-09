@@ -126,7 +126,6 @@ function CalendarPage() {
       ...visibleMeetings
         .filter((m) => fmtKey(new Date(m.starts_at)) === key)
         .map<CalItem>((m) => {
-          const isMeeting = m.meeting_type === "Reunião";
           const start = new Date(m.starts_at);
           const startMin = start.getHours() * 60 + start.getMinutes();
           const durationMin = m.ends_at
@@ -136,8 +135,9 @@ function CalendarPage() {
             kind: "meeting",
             id: m.id,
             title: m.title,
-            dot: isMeeting ? "bg-reuniao" : SOURCE_DOT[m.source],
-            tint: isMeeting ? "bg-reuniao-soft border-reuniao/40" : SOURCE_TINT[m.source],
+            // Reuniões são sempre vermelho forte, independente da marca.
+            dot: "bg-reuniao",
+            tint: "bg-reuniao/35 border-reuniao/70",
             startMin,
             durationMin,
             time: hhmm(m.starts_at),
@@ -482,10 +482,14 @@ function CalendarPage() {
               }
             : undefined
         }
-        className={`group cursor-grab overflow-visible rounded-md border px-2 py-1 text-left shadow-sm transition hover:z-20 active:cursor-grabbing ${item.tint} ${
+        className={`group relative cursor-grab overflow-visible rounded-md border px-2 py-1 text-left shadow-sm transition hover:z-20 active:cursor-grabbing ${item.tint} ${
           item.done ? "opacity-60" : ""
         }`}
       >
+        {/* Bola lateral vermelha para reuniões */}
+        {item.kind === "meeting" && (
+          <span className="absolute -left-1.5 top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-reuniao shadow-sm" />
+        )}
         <div className="flex items-start gap-1.5">
           <button
             onClick={(e) => {
