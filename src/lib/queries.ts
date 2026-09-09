@@ -39,10 +39,17 @@ export async function fetchMeetings(): Promise<Meeting[]> {
   const deletedGoogleSignatures = new Set(
     rows.filter((m) => m.hidden && m.google_event_id).map((m) => signature(m)),
   );
+  const seriesKey = (m: { google_account?: string | null; google_event_id?: string | null }) =>
+    m.google_account && m.google_event_id
+      ? `${m.google_account}::${m.google_event_id.replace(/_\d{8}T\d{6}Z$/, "")}`
+      : null;
+  const deletedGoogleSeries = new Set(
+    rows.filter((m) => m.hidden && m.google_event_id).map(seriesKey).filter(Boolean),
+  );
   return rows.filter((m) => {
     if (m.hidden) return false;
     if (!m.google_event_id) return true;
-    return !deletedGoogleSignatures.has(signature(m));
+    return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));
   }) as Meeting[];
 }
 

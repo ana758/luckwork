@@ -107,6 +107,10 @@ function meetingSignature(title: string, startsAt: string) {
   return `${normalizedMeetingTitle(title)}::${new Date(startsAt).toISOString()}`;
 }
 
+function googleSeriesId(eventId: string) {
+  return eventId.replace(/_\d{8}T\d{6}Z$/, "");
+}
+
 function isMeetingTitle(title: string) {
   return /\b(reuni[aã]o|reuniao|meeting|call)\b/i.test(title);
 }
@@ -163,6 +167,11 @@ export async function runCalendarSync(supabase: any, userId: string) {
       .filter((r: any) => r.title && r.starts_at)
       .map((r: any) => meetingSignature(r.title, r.starts_at)),
   );
+  const hiddenSeries = new Set(
+    (hiddenTombstones ?? [])
+      .filter((r: any) => r.google_account && r.google_event_id)
+      .map((r: any) => `${r.google_account}::${googleSeriesId(r.google_event_id)}`),
+  );
 
   // Carrega regras aprendidas (título → empresa correta).
   const { normalizeTitleKey, inferSourceFromTitle } = await import("./source-rules");
@@ -174,9 +183,9 @@ export async function runCalendarSync(supabase: any, userId: string) {
 
   for (const acc of accounts) {
     const accountEmail = acc.email;
-    const calendars = (await listCalendars(acc.key)).filter(
-      (c) => c.selected !== false && c.accessRole && c.accessRole !== "freeBusyReader",
-    );
+    // Importa somente a agenda principal de cada conta conectada. Agendas
+    // compartilhadas/assinadas antigas não devem alimentar a LUCK.
+    const calendars = (await listCalendars(acc.key)).filter((c) => c.primary);
 
     let accountCount = 0;
 
@@ -195,6 +204,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
           const sig = meetingSignature(title, startsAt);
           if (
             hiddenExactPairs.has(`${cal.id}::${e.id}`) ||
+            hiddenSeries.has(`${cal.id}::${googleSeriesId(e.id)}`) ||
             hiddenSignatures.has(sig)
           ) {
             return [];

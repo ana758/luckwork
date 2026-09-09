@@ -25,6 +25,10 @@ function meetingSignature(titleValue: string, startsAt: string) {
     .trim()}::${new Date(startsAt).toISOString()}`;
 }
 
+function googleSeriesId(eventId: string) {
+  return eventId.replace(/_\d{8}T\d{6}Z$/, "");
+}
+
 export function MeetingEditModal({
   meeting,
   onClose,
@@ -107,12 +111,19 @@ export function MeetingEditModal({
       const { data: matches, error: readError } = await supabase
         .from("meetings")
         .select("id, title, google_event_id, google_account")
-        .eq("starts_at", meeting.starts_at);
+        .limit(1000);
       if (readError) throw new Error(readError.message);
 
       const sig = meetingSignature(meeting.title, meeting.starts_at);
+      const seriesId = meeting.google_event_id ? googleSeriesId(meeting.google_event_id) : null;
       const normalizedMatches = (matches ?? []).filter((m) =>
-        meetingSignature((m as any).title ?? meeting.title, meeting.starts_at) === sig,
+        meetingSignature((m as any).title ?? meeting.title, meeting.starts_at) === sig ||
+        Boolean(
+          seriesId &&
+            m.google_account === meeting.google_account &&
+            m.google_event_id &&
+            googleSeriesId(m.google_event_id) === seriesId,
+        ),
       );
       const idsToHide = Array.from(new Set([meeting.id, ...normalizedMatches.map((m) => m.id)]));
       const { error } = await supabase
@@ -130,8 +141,9 @@ export function MeetingEditModal({
         });
       }
       if (meeting.google_event_id && meeting.google_account) {
-        linkedMap.set(`${meeting.google_account}::${meeting.google_event_id}`, {
-          google_event_id: meeting.google_event_id,
+        const eventToDelete = googleSeriesId(meeting.google_event_id);
+        linkedMap.set(`${meeting.google_account}::${eventToDelete}`, {
+          google_event_id: eventToDelete,
           google_account: meeting.google_account,
         });
       }
