@@ -126,7 +126,6 @@ function CalendarPage() {
       ...visibleMeetings
         .filter((m) => fmtKey(new Date(m.starts_at)) === key)
         .map<CalItem>((m) => {
-          const isMeeting = m.meeting_type === "Reunião";
           const start = new Date(m.starts_at);
           const startMin = start.getHours() * 60 + start.getMinutes();
           const durationMin = m.ends_at
@@ -136,8 +135,9 @@ function CalendarPage() {
             kind: "meeting",
             id: m.id,
             title: m.title,
-            dot: isMeeting ? "bg-reuniao" : SOURCE_DOT[m.source],
-            tint: isMeeting ? "bg-reuniao-soft border-reuniao/40" : SOURCE_TINT[m.source],
+            // Reuniões são sempre vermelho forte, independente da marca.
+            dot: "bg-reuniao",
+            tint: "bg-reuniao/20 border-reuniao/60",
             startMin,
             durationMin,
             time: hhmm(m.starts_at),
