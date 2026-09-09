@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { withAuthRetry } from "@/lib/auth-retry";
 import { pushToGoogleCalendar } from "@/lib/gcal.functions";
 import { SOURCES, SOURCE_DOT, type SourceKey } from "@/lib/sources";
 
@@ -81,7 +82,8 @@ export function NewMeetingModal({
       }
 
 
-      const { data: inserted, error } = await supabase
+      const inserted = await withAuthRetry<{ id: string }>(() =>
+        supabase
         .from("meetings")
         .insert({
           title: title.trim(),
@@ -95,8 +97,8 @@ export function NewMeetingModal({
           external_url: !withMeet && meetLink.trim() ? meetLink.trim() : null,
         })
         .select("id")
-        .single();
-      if (error) throw new Error(error.message);
+        .single(),
+      );
 
       if (inserted?.id) {
         void (async () => {
