@@ -745,7 +745,7 @@ function CalendarPage() {
             className="min-w-0 flex-1 overflow-visible text-left"
           >
             <div
-              className={`h-auto w-full whitespace-pre-wrap break-all text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
+              className={`h-auto w-full whitespace-pre-wrap break-words text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
                 item.done ? "line-through" : ""
               }`}
             >
