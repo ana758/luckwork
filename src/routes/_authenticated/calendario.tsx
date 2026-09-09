@@ -129,22 +129,28 @@ function QuickEdit({
           className="w-[74px] rounded border bg-background px-1 py-1 text-[11px]"
         />
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <button
-          disabled={saving}
-          onClick={async () => {
+          onClick={() => {
             if (!title.trim()) return;
-            setSaving(true);
-            await onSave({ title: title.trim(), date, time: time || null });
-            setSaving(false);
+            onSave({ title: title.trim(), date, time: time || null });
             onClose();
           }}
-          className="rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
+          className="rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground"
         >
-          {saving ? "Salvando…" : "Salvar"}
+          Salvar
         </button>
         <button onClick={onClose} className="rounded border px-2 py-1 text-[11px]">
           Cancelar
+        </button>
+        <button
+          onClick={() => {
+            onDelete();
+            onClose();
+          }}
+          className="rounded border border-destructive/40 px-2 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10"
+        >
+          Excluir
         </button>
         <button onClick={onMore} className="ml-auto rounded px-1.5 py-1 text-[11px] underline opacity-70">
           Mais opções
