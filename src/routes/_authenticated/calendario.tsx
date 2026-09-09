@@ -158,6 +158,9 @@ function CalendarPage() {
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  /** Bloco em edição rápida (lápis no canto do cartão). */
+  const [quickId, setQuickId] = useState<string | null>(null);
+
   const [newMeetingDay, setNewMeetingDay] = useState<string | null>(null);
   const [newTaskAt, setNewTaskAt] = useState<{ date: string; time: string | null } | null>(null);
   const [newMeetingTime, setNewMeetingTime] = useState<string | null>(null);
