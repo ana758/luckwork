@@ -137,7 +137,7 @@ function CalendarPage() {
             title: m.title,
             // Reuniões são sempre vermelho forte, independente da marca.
             dot: "bg-reuniao",
-            tint: "bg-reuniao/20 border-reuniao/60",
+            tint: "bg-reuniao/35 border-reuniao/70",
             startMin,
             durationMin,
             time: hhmm(m.starts_at),
