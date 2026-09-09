@@ -11,7 +11,7 @@ import { NewMeetingModal } from "@/components/NewMeetingModal";
 import { NewTaskModal } from "@/components/NewTaskModal";
 import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
-import { moveGoogleEvent } from "@/lib/gcal.functions";
+import { moveGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { spawnNextOccurrence } from "@/lib/recurrence";
 import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
