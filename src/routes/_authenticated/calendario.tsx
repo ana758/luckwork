@@ -85,19 +85,20 @@ function QuickEdit({
   item,
   dateKey,
   onSave,
+  onDelete,
   onMore,
   onClose,
 }: {
   item: CalItem;
   dateKey: string;
-  onSave: (v: { title: string; date: string; time: string | null }) => Promise<void>;
+  onSave: (v: { title: string; date: string; time: string | null }) => void;
+  onDelete: () => void;
   onMore: () => void;
   onClose: () => void;
 }) {
   const [title, setTitle] = useState(item.title);
   const [date, setDate] = useState(dateKey);
   const [time, setTime] = useState(item.time ?? "");
-  const [saving, setSaving] = useState(false);
 
   return (
     <div
@@ -128,22 +129,28 @@ function QuickEdit({
           className="w-[74px] rounded border bg-background px-1 py-1 text-[11px]"
         />
       </div>
-      <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         <button
-          disabled={saving}
-          onClick={async () => {
+          onClick={() => {
             if (!title.trim()) return;
-            setSaving(true);
-            await onSave({ title: title.trim(), date, time: time || null });
-            setSaving(false);
+            onSave({ title: title.trim(), date, time: time || null });
             onClose();
           }}
-          className="rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground disabled:opacity-60"
+          className="rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground"
         >
-          {saving ? "Salvando…" : "Salvar"}
+          Salvar
         </button>
         <button onClick={onClose} className="rounded border px-2 py-1 text-[11px]">
           Cancelar
+        </button>
+        <button
+          onClick={() => {
+            onDelete();
+            onClose();
+          }}
+          className="rounded border border-destructive/40 px-2 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10"
+        >
+          Excluir
         </button>
         <button onClick={onMore} className="ml-auto rounded px-1.5 py-1 text-[11px] underline opacity-70">
           Mais opções
@@ -494,33 +501,45 @@ function CalendarPage() {
     qc.invalidateQueries({ queryKey: ["tasks"] });
   }
 
-  /** Salva nome/dia/horário direto no cartão, sem abrir janela. */
-  async function saveQuick(item: CalItem, v: { title: string; date: string; time: string | null }) {
+  /**
+   * Salva nome/dia/horário direto no cartão, sem abrir janela.
+   * A tela muda na hora; o envio ao banco e ao Google acontece em segundo plano.
+   */
+  function saveQuick(item: CalItem, v: { title: string; date: string; time: string | null }) {
     if (item.kind === "task" && item.task) {
       const t = item.task;
       const dueTime = v.time ? `${v.time}:00` : null;
-      const { error } = await supabase
-        .from("tasks")
-        .update({
-          title: v.title,
-          due_date: v.date,
-          start_date: v.date,
-          due_time: dueTime,
-          locally_managed: true,
-        } as never)
-        .eq("id", t.id);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      qc.invalidateQueries({ queryKey: ["tasks"] });
-      try {
-        const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
-        await syncTaskToCalendar({ data: { taskId: t.id } });
-      } catch {
-        /* mantém local */
-      }
-      toast.success("Tarefa atualizada");
+      qc.setQueryData<Task[]>(["tasks"], (old) =>
+        (old ?? []).map((x) =>
+          x.id === t.id
+            ? ({ ...x, title: v.title, due_date: v.date, start_date: v.date, due_time: dueTime } as Task)
+            : x,
+        ),
+      );
+      void (async () => {
+        const { error } = await supabase
+          .from("tasks")
+          .update({
+            title: v.title,
+            due_date: v.date,
+            start_date: v.date,
+            due_time: dueTime,
+            locally_managed: true,
+          } as never)
+          .eq("id", t.id);
+        if (error) {
+          toast.error(error.message);
+          qc.invalidateQueries({ queryKey: ["tasks"] });
+          return;
+        }
+        try {
+          const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+          await syncTaskToCalendar({ data: { taskId: t.id } });
+        } catch {
+          /* mantém local */
+        }
+        qc.invalidateQueries({ queryKey: ["tasks"] });
+      })();
       return;
     }
 
@@ -540,34 +559,80 @@ function CalendarPage() {
       const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
       endIso = new Date(newStart.getTime() + diff).toISOString();
     }
-    const { error } = await supabase
-      .from("meetings")
-      .update({ title: v.title, starts_at: startIso, ends_at: endIso })
-      .eq("id", m.id);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    qc.invalidateQueries({ queryKey: ["meetings"] });
-    if (m.google_event_id && m.google_account) {
-      try {
-        await patchGoogle({
-          data: {
-            googleAccount: m.google_account,
-            googleEventId: m.google_event_id,
-            title: v.title,
-            startsAt: startIso,
-            notes: m.notes ?? null,
-          },
-        });
-        toast.success("Atualizado no LUCK e no Google");
-        return;
-      } catch {
-        toast.error("Salvo no LUCK, mas não sincronizou com o Google");
+    qc.setQueryData<Meeting[]>(["meetings"], (old) =>
+      (old ?? []).map((x) =>
+        x.id === m.id ? ({ ...x, title: v.title, starts_at: startIso, ends_at: endIso } as Meeting) : x,
+      ),
+    );
+    void (async () => {
+      const { error } = await supabase
+        .from("meetings")
+        .update({ title: v.title, starts_at: startIso, ends_at: endIso })
+        .eq("id", m.id);
+      if (error) {
+        toast.error(error.message);
+        qc.invalidateQueries({ queryKey: ["meetings"] });
         return;
       }
+      if (m.google_event_id && m.google_account) {
+        try {
+          await patchGoogle({
+            data: {
+              googleAccount: m.google_account,
+              googleEventId: m.google_event_id,
+              title: v.title,
+              startsAt: startIso,
+              notes: m.notes ?? null,
+            },
+          });
+        } catch {
+          toast.error("Salvo na LUCK, mas não sincronizou com o Google");
+        }
+      }
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    })();
+  }
+
+  /** Exclui o compromisso direto do cartão (some na hora da tela). */
+  function deleteQuick(item: CalItem) {
+    if (item.kind === "task" && item.task) {
+      const id = item.task.id;
+      qc.setQueryData<Task[]>(["tasks"], (old) => (old ?? []).filter((x) => x.id !== id));
+      void (async () => {
+        const { error } = await supabase.from("tasks").delete().eq("id", id);
+        if (error) {
+          toast.error(error.message);
+          qc.invalidateQueries({ queryKey: ["tasks"] });
+          return;
+        }
+        toast.success("Tarefa excluída");
+        qc.invalidateQueries({ queryKey: ["tasks"] });
+      })();
+      return;
     }
-    toast.success("Atualizado");
+    const m = item.meeting as (Meeting & { google_event_id?: string | null; google_account?: string | null }) | undefined;
+    if (!m) return;
+    qc.setQueryData<Meeting[]>(["meetings"], (old) => (old ?? []).filter((x) => x.id !== m.id));
+    void (async () => {
+      const { error } = await supabase.from("meetings").update({ hidden: true } as never).eq("id", m.id);
+      if (error) {
+        toast.error(error.message);
+        qc.invalidateQueries({ queryKey: ["meetings"] });
+        return;
+      }
+      if (m.google_event_id && m.google_account) {
+        try {
+          const { deleteGoogleEvent } = await import("@/lib/gcal.functions");
+          await deleteGoogleEvent({
+            data: { googleAccount: m.google_account, googleEventId: m.google_event_id },
+          });
+        } catch {
+          /* já está oculto na LUCK */
+        }
+      }
+      toast.success("Reunião excluída");
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    })();
   }
 
 
@@ -721,6 +786,7 @@ function CalendarPage() {
             item={item}
             dateKey={itemDateKey(item)}
             onSave={(v) => saveQuick(item, v)}
+            onDelete={() => deleteQuick(item)}
             onMore={() => {
               setQuickId(null);
               openItem(item);
