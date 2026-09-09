@@ -786,6 +786,7 @@ function CalendarPage() {
             item={item}
             dateKey={itemDateKey(item)}
             onSave={(v) => saveQuick(item, v)}
+            onDelete={() => deleteQuick(item)}
             onMore={() => {
               setQuickId(null);
               openItem(item);
