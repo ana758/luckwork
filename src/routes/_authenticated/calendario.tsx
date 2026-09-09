@@ -187,6 +187,8 @@ function CalendarPage() {
   const { visibleSources } = useArchivedSources();
   const qc = useQueryClient();
   const moveGoogle = useServerFn(moveGoogleEvent);
+  const patchGoogle = useServerFn(patchGoogleEvent);
+
 
   const todayKey = fmtKey(new Date());
 
