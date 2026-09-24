@@ -228,12 +228,12 @@ function CalendarPage() {
         .map<CalItem>((m) => {
           const start = new Date(m.starts_at);
           const startMin = start.getHours() * 60 + start.getMinutes();
-          // Só o marcador explícito ou o tipo "Reunião" tornam o bloco vermelho.
-          // Registros antigos/importados sem classificação não devem virar reunião
-          // apenas por estarem armazenados junto aos compromissos do calendário.
+          // Regra da Angi: tudo que entrou como compromisso da agenda Angi fica
+          // vermelho. Tarefas comuns da Angi continuam verdes, pois são CalItem task.
           const fromAngiCalendar = m.google_account?.toLowerCase().includes("angisaude.com") === true;
           const meetingColor =
             fromAngiCalendar ||
+            m.source === "angi" ||
             m.is_meeting === true ||
             m.meeting_type?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ===
               "reuniao";
@@ -245,7 +245,7 @@ function CalendarPage() {
             meetingColor,
             id: m.id,
             title: m.title,
-            // Vermelho forte é exclusivo de reuniões. Outros compromissos seguem a empresa.
+            // Reuniões (e compromissos importados da Angi) usam vermelho forte.
             dot: meetingColor ? "bg-reuniao" : SOURCE_DOT[m.source],
             tint: meetingColor ? "bg-reuniao/35 border-reuniao/70" : SOURCE_TINT[m.source],
             startMin,
