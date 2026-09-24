@@ -228,7 +228,13 @@ function CalendarPage() {
         .map<CalItem>((m) => {
           const start = new Date(m.starts_at);
           const startMin = start.getHours() * 60 + start.getMinutes();
-          const meetingColor = m.is_meeting !== false;
+          // Só o marcador explícito ou o tipo "Reunião" tornam o bloco vermelho.
+          // Registros antigos/importados sem classificação não devem virar reunião
+          // apenas por estarem armazenados junto aos compromissos do calendário.
+          const meetingColor =
+            m.is_meeting === true ||
+            m.meeting_type?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ===
+              "reuniao";
           const durationMin = m.ends_at
             ? Math.max(20, Math.round((new Date(m.ends_at).getTime() - start.getTime()) / 60000))
             : DEFAULT_MEETING_MIN;

@@ -94,6 +94,7 @@ export function NewMeetingModal({
           people: [people.trim(), attendeeList.join(", ")].filter(Boolean).join(" · ") || null,
           notes: notes.trim() || null,
           meeting_type: "Reunião",
+           is_meeting: true,
           external_url: !withMeet && meetLink.trim() ? meetLink.trim() : null,
         })
         .select("id")
