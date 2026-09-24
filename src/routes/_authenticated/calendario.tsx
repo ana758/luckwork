@@ -231,7 +231,9 @@ function CalendarPage() {
           // Só o marcador explícito ou o tipo "Reunião" tornam o bloco vermelho.
           // Registros antigos/importados sem classificação não devem virar reunião
           // apenas por estarem armazenados junto aos compromissos do calendário.
+          const fromAngiCalendar = m.google_account?.toLowerCase().includes("angisaude.com") === true;
           const meetingColor =
+            fromAngiCalendar ||
             m.is_meeting === true ||
             m.meeting_type?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ===
               "reuniao";
