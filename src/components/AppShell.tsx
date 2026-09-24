@@ -131,7 +131,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-36 md:pb-0">
+    <div className="min-h-screen bg-background pb-24 md:pb-0">
 
       <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-4 md:px-6">
         {/* Desktop nav */}
@@ -192,7 +192,7 @@ export function AppShell() {
       {/* Mobile nav */}
       <nav
         className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 2.25rem)" }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
 
         {NAV.map((item) => {
@@ -202,12 +202,12 @@ export function AppShell() {
             <Link
               key={item.to}
               to={item.to}
-              className={`relative flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[12px] font-medium ${
+              className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium ${
                 active ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              <item.icon className="h-6 w-6" />
-              <span>{item.label}</span>
+              <item.icon className="h-5 w-5" />
+              <span className="truncate">{item.label}</span>
               {showBadge && (
                 <span className="absolute right-2 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                   {pendingCount}
