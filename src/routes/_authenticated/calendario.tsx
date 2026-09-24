@@ -50,6 +50,8 @@ function pad(n: number) {
 
 type CalItem = {
   kind: "meeting" | "task";
+  /** Só reuniões reais usam o vermelho forte; compromissos comuns seguem a empresa. */
+  meetingColor?: boolean;
   id: string;
   title: string;
   dot: string;
@@ -226,16 +228,18 @@ function CalendarPage() {
         .map<CalItem>((m) => {
           const start = new Date(m.starts_at);
           const startMin = start.getHours() * 60 + start.getMinutes();
+          const meetingColor = m.is_meeting !== false;
           const durationMin = m.ends_at
             ? Math.max(20, Math.round((new Date(m.ends_at).getTime() - start.getTime()) / 60000))
             : DEFAULT_MEETING_MIN;
           return {
             kind: "meeting",
+            meetingColor,
             id: m.id,
             title: m.title,
-            // Reuniões são sempre vermelho forte, independente da marca.
-            dot: "bg-reuniao",
-            tint: "bg-reuniao/35 border-reuniao/70",
+            // Vermelho forte é exclusivo de reuniões. Outros compromissos seguem a empresa.
+            dot: meetingColor ? "bg-reuniao" : SOURCE_DOT[m.source],
+            tint: meetingColor ? "bg-reuniao/35 border-reuniao/70" : SOURCE_TINT[m.source],
             startMin,
             durationMin,
             time: hhmm(m.starts_at),
@@ -721,8 +725,8 @@ function CalendarPage() {
           item.done ? "opacity-60" : ""
         }`}
       >
-        {/* Bola lateral vermelha para reuniões */}
-        {item.kind === "meeting" && (
+        {/* Bola lateral vermelha apenas para reuniões reais */}
+        {item.meetingColor && (
           <span className="absolute -left-1.5 top-1/2 z-10 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-reuniao shadow-sm" />
         )}
         <div className="flex items-start gap-1.5">
