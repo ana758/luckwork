@@ -15,9 +15,9 @@ export function useTasks() {
   return useQuery({
     queryKey: ["tasks"],
     queryFn: fetchTasks,
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 45_000,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 }
@@ -57,9 +57,9 @@ export function useMeetings() {
   return useQuery({
     queryKey: ["meetings"],
     queryFn: fetchMeetings,
-    staleTime: 15_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 45_000,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
     placeholderData: (prev) => prev,
   });
 }
