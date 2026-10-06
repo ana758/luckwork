@@ -9,31 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
-import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
-import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
-import { Route as AuthenticatedReunioesRouteImport } from './routes/_authenticated/reunioes'
 import { Route as AuthenticatedTarefasRouteImport } from './routes/_authenticated/tarefas'
-import { Route as ApiPublicHooksAiProactiveRouteImport } from './routes/api/public/hooks/ai-proactive'
-import { Route as ApiPublicHooksCrmAngiRouteImport } from './routes/api/public/hooks/crm-angi'
-import { Route as ApiPublicHooksDailyBriefingRouteImport } from './routes/api/public/hooks/daily-briefing'
-import { Route as ApiPublicHooksEmailAlertsRouteImport } from './routes/api/public/hooks/email-alerts'
-import { Route as ApiPublicHooksPendingPushesRouteImport } from './routes/api/public/hooks/pending-pushes'
-import { Route as ApiPublicHooksRemindersRouteImport } from './routes/api/public/hooks/reminders'
-import { Route as ApiPublicHooksSyncAllRouteImport } from './routes/api/public/hooks/sync-all'
-import { Route as ApiPublicHooksTaskNudgesRouteImport } from './routes/api/public/hooks/task-nudges'
+import { Route as AuthenticatedReunioesRouteImport } from './routes/_authenticated/reunioes'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
+import { Route as AuthenticatedCalendarioRouteImport } from './routes/_authenticated/calendario'
+import { Route as AuthenticatedAiRouteImport } from './routes/_authenticated/ai'
 import { Route as ApiPublicHooksTestPushRouteImport } from './routes/api/public/hooks/test-push'
+import { Route as ApiPublicHooksTaskNudgesRouteImport } from './routes/api/public/hooks/task-nudges'
+import { Route as ApiPublicHooksSyncAllRouteImport } from './routes/api/public/hooks/sync-all'
+import { Route as ApiPublicHooksRemindersRouteImport } from './routes/api/public/hooks/reminders'
+import { Route as ApiPublicHooksPendingPushesRouteImport } from './routes/api/public/hooks/pending-pushes'
+import { Route as ApiPublicHooksEmailAlertsRouteImport } from './routes/api/public/hooks/email-alerts'
+import { Route as ApiPublicHooksDailyBriefingRouteImport } from './routes/api/public/hooks/daily-briefing'
+import { Route as ApiPublicHooksCrmAngiRouteImport } from './routes/api/public/hooks/crm-angi'
+import { Route as ApiPublicHooksAiProactiveRouteImport } from './routes/api/public/hooks/ai-proactive'
 
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
@@ -41,14 +41,14 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
+const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
-  id: '/calendario',
-  path: '/calendario',
+const AuthenticatedReunioesRoute = AuthenticatedReunioesRouteImport.update({
+  id: '/reunioes',
+  path: '/reunioes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedConfiguracoesRoute =
@@ -57,53 +57,19 @@ const AuthenticatedConfiguracoesRoute =
     path: '/configuracoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedReunioesRoute = AuthenticatedReunioesRouteImport.update({
-  id: '/reunioes',
-  path: '/reunioes',
+const AuthenticatedCalendarioRoute = AuthenticatedCalendarioRouteImport.update({
+  id: '/calendario',
+  path: '/calendario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedTarefasRoute = AuthenticatedTarefasRouteImport.update({
-  id: '/tarefas',
-  path: '/tarefas',
+const AuthenticatedAiRoute = AuthenticatedAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ApiPublicHooksAiProactiveRoute =
-  ApiPublicHooksAiProactiveRouteImport.update({
-    id: '/api/public/hooks/ai-proactive',
-    path: '/api/public/hooks/ai-proactive',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksCrmAngiRoute = ApiPublicHooksCrmAngiRouteImport.update({
-  id: '/api/public/hooks/crm-angi',
-  path: '/api/public/hooks/crm-angi',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicHooksDailyBriefingRoute =
-  ApiPublicHooksDailyBriefingRouteImport.update({
-    id: '/api/public/hooks/daily-briefing',
-    path: '/api/public/hooks/daily-briefing',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksEmailAlertsRoute =
-  ApiPublicHooksEmailAlertsRouteImport.update({
-    id: '/api/public/hooks/email-alerts',
-    path: '/api/public/hooks/email-alerts',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksPendingPushesRoute =
-  ApiPublicHooksPendingPushesRouteImport.update({
-    id: '/api/public/hooks/pending-pushes',
-    path: '/api/public/hooks/pending-pushes',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksRemindersRoute = ApiPublicHooksRemindersRouteImport.update({
-  id: '/api/public/hooks/reminders',
-  path: '/api/public/hooks/reminders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicHooksSyncAllRoute = ApiPublicHooksSyncAllRouteImport.update({
-  id: '/api/public/hooks/sync-all',
-  path: '/api/public/hooks/sync-all',
+const ApiPublicHooksTestPushRoute = ApiPublicHooksTestPushRouteImport.update({
+  id: '/api/public/hooks/test-push',
+  path: '/api/public/hooks/test-push',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksTaskNudgesRoute =
@@ -112,11 +78,45 @@ const ApiPublicHooksTaskNudgesRoute =
     path: '/api/public/hooks/task-nudges',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksTestPushRoute = ApiPublicHooksTestPushRouteImport.update({
-  id: '/api/public/hooks/test-push',
-  path: '/api/public/hooks/test-push',
+const ApiPublicHooksSyncAllRoute = ApiPublicHooksSyncAllRouteImport.update({
+  id: '/api/public/hooks/sync-all',
+  path: '/api/public/hooks/sync-all',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRemindersRoute = ApiPublicHooksRemindersRouteImport.update({
+  id: '/api/public/hooks/reminders',
+  path: '/api/public/hooks/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksPendingPushesRoute =
+  ApiPublicHooksPendingPushesRouteImport.update({
+    id: '/api/public/hooks/pending-pushes',
+    path: '/api/public/hooks/pending-pushes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksEmailAlertsRoute =
+  ApiPublicHooksEmailAlertsRouteImport.update({
+    id: '/api/public/hooks/email-alerts',
+    path: '/api/public/hooks/email-alerts',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksDailyBriefingRoute =
+  ApiPublicHooksDailyBriefingRouteImport.update({
+    id: '/api/public/hooks/daily-briefing',
+    path: '/api/public/hooks/daily-briefing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksCrmAngiRoute = ApiPublicHooksCrmAngiRouteImport.update({
+  id: '/api/public/hooks/crm-angi',
+  path: '/api/public/hooks/crm-angi',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksAiProactiveRoute =
+  ApiPublicHooksAiProactiveRouteImport.update({
+    id: '/api/public/hooks/ai-proactive',
+    path: '/api/public/hooks/ai-proactive',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -248,18 +248,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -269,25 +269,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/ai': {
-      id: '/_authenticated/ai'
-      path: '/ai'
-      fullPath: '/ai'
-      preLoaderRoute: typeof AuthenticatedAiRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/calendario': {
-      id: '/_authenticated/calendario'
-      path: '/calendario'
-      fullPath: '/calendario'
-      preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/configuracoes': {
-      id: '/_authenticated/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
+    '/_authenticated/tarefas': {
+      id: '/_authenticated/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/reunioes': {
@@ -297,60 +283,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReunioesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/tarefas': {
-      id: '/_authenticated/tarefas'
-      path: '/tarefas'
-      fullPath: '/tarefas'
-      preLoaderRoute: typeof AuthenticatedTarefasRouteImport
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/hooks/ai-proactive': {
-      id: '/api/public/hooks/ai-proactive'
-      path: '/api/public/hooks/ai-proactive'
-      fullPath: '/api/public/hooks/ai-proactive'
-      preLoaderRoute: typeof ApiPublicHooksAiProactiveRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/calendario': {
+      id: '/_authenticated/calendario'
+      path: '/calendario'
+      fullPath: '/calendario'
+      preLoaderRoute: typeof AuthenticatedCalendarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/hooks/crm-angi': {
-      id: '/api/public/hooks/crm-angi'
-      path: '/api/public/hooks/crm-angi'
-      fullPath: '/api/public/hooks/crm-angi'
-      preLoaderRoute: typeof ApiPublicHooksCrmAngiRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/ai': {
+      id: '/_authenticated/ai'
+      path: '/ai'
+      fullPath: '/ai'
+      preLoaderRoute: typeof AuthenticatedAiRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/hooks/daily-briefing': {
-      id: '/api/public/hooks/daily-briefing'
-      path: '/api/public/hooks/daily-briefing'
-      fullPath: '/api/public/hooks/daily-briefing'
-      preLoaderRoute: typeof ApiPublicHooksDailyBriefingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/email-alerts': {
-      id: '/api/public/hooks/email-alerts'
-      path: '/api/public/hooks/email-alerts'
-      fullPath: '/api/public/hooks/email-alerts'
-      preLoaderRoute: typeof ApiPublicHooksEmailAlertsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/pending-pushes': {
-      id: '/api/public/hooks/pending-pushes'
-      path: '/api/public/hooks/pending-pushes'
-      fullPath: '/api/public/hooks/pending-pushes'
-      preLoaderRoute: typeof ApiPublicHooksPendingPushesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/reminders': {
-      id: '/api/public/hooks/reminders'
-      path: '/api/public/hooks/reminders'
-      fullPath: '/api/public/hooks/reminders'
-      preLoaderRoute: typeof ApiPublicHooksRemindersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/hooks/sync-all': {
-      id: '/api/public/hooks/sync-all'
-      path: '/api/public/hooks/sync-all'
-      fullPath: '/api/public/hooks/sync-all'
-      preLoaderRoute: typeof ApiPublicHooksSyncAllRouteImport
+    '/api/public/hooks/test-push': {
+      id: '/api/public/hooks/test-push'
+      path: '/api/public/hooks/test-push'
+      fullPath: '/api/public/hooks/test-push'
+      preLoaderRoute: typeof ApiPublicHooksTestPushRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/task-nudges': {
@@ -360,11 +318,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTaskNudgesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/test-push': {
-      id: '/api/public/hooks/test-push'
-      path: '/api/public/hooks/test-push'
-      fullPath: '/api/public/hooks/test-push'
-      preLoaderRoute: typeof ApiPublicHooksTestPushRouteImport
+    '/api/public/hooks/sync-all': {
+      id: '/api/public/hooks/sync-all'
+      path: '/api/public/hooks/sync-all'
+      fullPath: '/api/public/hooks/sync-all'
+      preLoaderRoute: typeof ApiPublicHooksSyncAllRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/reminders': {
+      id: '/api/public/hooks/reminders'
+      path: '/api/public/hooks/reminders'
+      fullPath: '/api/public/hooks/reminders'
+      preLoaderRoute: typeof ApiPublicHooksRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/pending-pushes': {
+      id: '/api/public/hooks/pending-pushes'
+      path: '/api/public/hooks/pending-pushes'
+      fullPath: '/api/public/hooks/pending-pushes'
+      preLoaderRoute: typeof ApiPublicHooksPendingPushesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/email-alerts': {
+      id: '/api/public/hooks/email-alerts'
+      path: '/api/public/hooks/email-alerts'
+      fullPath: '/api/public/hooks/email-alerts'
+      preLoaderRoute: typeof ApiPublicHooksEmailAlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/daily-briefing': {
+      id: '/api/public/hooks/daily-briefing'
+      path: '/api/public/hooks/daily-briefing'
+      fullPath: '/api/public/hooks/daily-briefing'
+      preLoaderRoute: typeof ApiPublicHooksDailyBriefingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/crm-angi': {
+      id: '/api/public/hooks/crm-angi'
+      path: '/api/public/hooks/crm-angi'
+      fullPath: '/api/public/hooks/crm-angi'
+      preLoaderRoute: typeof ApiPublicHooksCrmAngiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/ai-proactive': {
+      id: '/api/public/hooks/ai-proactive'
+      path: '/api/public/hooks/ai-proactive'
+      fullPath: '/api/public/hooks/ai-proactive'
+      preLoaderRoute: typeof ApiPublicHooksAiProactiveRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
