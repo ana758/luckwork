@@ -77,18 +77,29 @@ export function AppShell() {
 
   // Uma edição em qualquer página aparece imediatamente nas demais páginas
   // e também em outras abas/dispositivos conectados à mesma conta.
+  // Agrupa rajadas de eventos (ex.: sync do Google grava centenas de linhas)
+  // em UMA única atualização por tabela, evitando tempestade de requisições.
   useEffect(() => {
     if (membership?.status !== "active") return;
+    const timers: Record<string, ReturnType<typeof setTimeout> | undefined> = {};
+    const schedule = (key: "tasks" | "meetings") => {
+      if (timers[key]) clearTimeout(timers[key]);
+      timers[key] = setTimeout(() => {
+        timers[key] = undefined;
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }, 2000);
+    };
     const channel = supabase
       .channel("luck-shared-pages")
-      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () => {
-        void queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "meetings" }, () => {
-        void queryClient.invalidateQueries({ queryKey: ["meetings"] });
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, () =>
+        schedule("tasks"),
+      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "meetings" }, () =>
+        schedule("meetings"),
+      )
       .subscribe();
     return () => {
+      Object.values(timers).forEach((t) => t && clearTimeout(t));
       void supabase.removeChannel(channel);
     };
   }, [membership?.status, queryClient]);
