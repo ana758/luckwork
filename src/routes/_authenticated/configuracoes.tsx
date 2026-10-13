@@ -64,6 +64,21 @@ function SettingsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const reject = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("workspace_members").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Pedido recusado");
+      queryClient.invalidateQueries({ queryKey: ["workspace_members"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pending = members.filter((m) => m.status !== "active");
+  const active = members.filter((m) => m.status === "active");
+
   const addMailbox = useMutation({
     mutationFn: async () => {
       const email = newEmail.trim().toLowerCase();
@@ -89,30 +104,56 @@ function SettingsPage() {
       </header>
 
       <section className="rounded-xl border bg-card p-4">
-        <h2 className="text-sm font-medium">Quem pode entrar</h2>
+        <h2 className="text-sm font-medium">
+          Pedidos de acesso
+          {pending.length > 0 && (
+            <span className="ml-2 rounded-full bg-destructive px-2 py-0.5 text-[11px] text-destructive-foreground">
+              {pending.length}
+            </span>
+          )}
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Novos e-mails entram como pendentes até você aprovar.
+          Quem pedir para entrar aparece aqui. Aprove ou recuse.
         </p>
-        <ul className="mt-3 space-y-2">
-          {members.map((m) => (
-            <li key={m.id} className="flex items-center gap-2 text-sm">
-              <span className="truncate">{m.email}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{m.status}</span>
-              {m.status !== "active" ? (
+        {pending.length === 0 ? (
+          <p className="mt-3 text-xs text-muted-foreground">Nenhum pedido pendente.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {pending.map((m) => (
+              <li key={m.id} className="flex items-center gap-2 text-sm">
+                <span className="truncate">{m.email}</span>
                 <button
                   onClick={() => approve.mutate({ id: m.id, status: "active" })}
-                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                  className="ml-auto rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground"
                 >
                   Aprovar
                 </button>
-              ) : (
                 <button
-                  onClick={() => approve.mutate({ id: m.id, status: "pending" })}
-                  className="rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+                  onClick={() => {
+                    if (confirm(`Recusar o acesso de ${m.email}?`)) reject.mutate(m.id);
+                  }}
+                  className="rounded-md border px-3 py-1 text-xs text-destructive hover:bg-accent"
                 >
-                  Suspender
+                  Recusar
                 </button>
-              )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-xl border bg-card p-4">
+        <h2 className="text-sm font-medium">Quem já tem acesso</h2>
+        <ul className="mt-3 space-y-2">
+          {active.map((m) => (
+            <li key={m.id} className="flex items-center gap-2 text-sm">
+              <span className="truncate">{m.email}</span>
+              <button
+                onClick={() => approve.mutate({ id: m.id, status: "pending" })}
+                className="ml-auto rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+              >
+                Suspender
+              </button>
             </li>
           ))}
         </ul>
