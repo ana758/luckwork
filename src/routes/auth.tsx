@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import luckHand from "@/assets/luck-hand.jpg";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>) => ({ next: s.next === undefined ? undefined : oauthReturnPath(s.next) } as { next?: string }),
   head: () => ({
     meta: [
       { title: "Entrar · LUCK" },
@@ -33,13 +35,13 @@ function isIosStandalonePwa() {
   return isIos && isStandalone;
 }
 
-function redirectToGoogleLogin() {
+function redirectToGoogleLogin(back: string) {
   const bytes = new Uint8Array(16);
   window.crypto.getRandomValues(bytes);
   const state = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   const params = new URLSearchParams({
     provider: "google",
-    redirect_uri: `${window.location.origin}/auth`,
+    redirect_uri: back,
     state,
   });
   window.location.assign(`/~oauth/initiate?${params.toString()}`);
@@ -47,6 +49,9 @@ function redirectToGoogleLogin() {
 
 function AuthPage() {
   const navigate = useNavigate();
+  const next = Route.useSearch().next ?? "/";
+  const back = next !== "/" ? `${window.location.origin}/auth?next=${encodeURIComponent(next)}` : `${window.location.origin}/auth`;
+  const go = () => (next !== "/" ? window.location.assign(next) : navigate({ to: "/", replace: true }));
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,10 +60,10 @@ function AuthPage() {
   useEffect(() => {
     let active = true;
     void supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) navigate({ to: "/", replace: true });
+      if (active && data.session) go();
     });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) navigate({ to: "/", replace: true });
+      if (event === "SIGNED_IN" && session) go();
     });
     return () => {
       active = false;
@@ -77,11 +82,11 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: new URL(next, window.location.origin).href },
         });
         if (error) throw error;
       }
-      navigate({ to: "/" });
+      go();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível entrar.");
     } finally {
@@ -92,12 +97,12 @@ function AuthPage() {
   async function google() {
     setLoading(true);
     if (isIosStandalonePwa()) {
-      redirectToGoogleLogin();
+      redirectToGoogleLogin(back);
       return;
     }
 
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/auth`,
+      redirect_uri: back,
     });
     if (result.error) {
       toast.error("Não foi possível entrar com o Google.");
@@ -105,7 +110,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/" });
+    go();
   }
 
   return (
