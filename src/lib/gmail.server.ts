@@ -171,8 +171,8 @@ export async function classifyImportantEmails(
   emails: GmailPreview[],
 ): Promise<{ id: string; reason: string; category: string }[]> {
   if (emails.length === 0) return [];
-  const apiKey = process.env.LOVABLE_API_KEY;
-  if (!apiKey) throw new Error("LOVABLE_API_KEY não configurada.");
+  const { aiChat, hasAiProvider } = await import("./ai-fallback.server");
+  if (!hasAiProvider()) throw new Error("IA indisponível no momento.");
 
   const compact = emails.map((e) => ({
     id: e.id,
@@ -193,17 +193,13 @@ export async function classifyImportantEmails(
     "Se nenhum for importante, retorne {\"important\":[]}. Nunca invente ids.",
   ].join("\n");
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "google/gemini-3.5-flash",
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: JSON.stringify(compact) },
-      ],
-    }),
+  const res = await aiChat({
+    model: "google/gemini-3.5-flash",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: JSON.stringify(compact) },
+    ],
   });
   if (!res.ok) return [];
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };

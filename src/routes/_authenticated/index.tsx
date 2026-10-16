@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isAllDay, localDateKey, meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { AlertTriangle, ExternalLink, KeyRound } from "lucide-react";
@@ -53,19 +54,16 @@ function Dashboard() {
   const [showAllToday, setShowAllToday] = useState(false);
   const { visibleSources } = useArchivedSources();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey(new Date());
 
   const todayList = useMemo(() => {
     const m = meetings
-      .filter((x) => x.starts_at.slice(0, 10) === today)
+      .filter((x) => meetingDateKey(x) === today)
       .map((x) => ({
         id: `m-${x.id}`,
         title: x.title,
         dot: "bg-reuniao",
-        time: new Date(x.starts_at).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        time: meetingTimeLabel(x) ?? "",
       }));
     const t = tasks
       .filter((x) => x.due_date === today && x.status !== "done")
@@ -82,15 +80,13 @@ function Dashboard() {
   const todayMeetings = useMemo(
     () =>
       meetings
-        .filter((x) => x.starts_at.slice(0, 10) === today)
-        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+        .filter((x) => meetingDateKey(x) === today)
+        // Dia inteiro primeiro; depois por horário.
+        .sort((a, b) => Number(isAllDay(b)) - Number(isAllDay(a)) || a.starts_at.localeCompare(b.starts_at))
         .map((x) => ({
           id: x.id,
           title: x.title,
-          time: new Date(x.starts_at).toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          time: meetingTimeLabel(x) ?? "dia todo",
         })),
     [meetings, today],
   );

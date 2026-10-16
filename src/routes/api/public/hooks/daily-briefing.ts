@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { localDateKey, meetingTimeLabel } from "@/lib/all-day";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { notifyAll } from "@/lib/notify.server";
@@ -17,21 +18,14 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 async function callGemini(prompt: string): Promise<string> {
-  const key = process.env.LOVABLE_API_KEY;
-  if (!key) return "";
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: "Você é a LUCK, assistente pessoal da Ana. Fale em português, direto e curto." },
-        { role: "user", content: prompt },
-      ],
-    }),
+  const { aiChat, hasAiProvider } = await import("@/lib/ai-fallback.server");
+  if (!hasAiProvider()) return "";
+  const res = await aiChat({
+    model: "google/gemini-2.5-flash",
+    messages: [
+      { role: "system", content: "Você é a LUCK, assistente pessoal da Ana. Fale em português, direto e curto." },
+      { role: "user", content: prompt },
+    ],
   });
   if (!res.ok) return "";
   const data = await res.json();
@@ -44,15 +38,15 @@ export const Route = createFileRoute("/api/public/hooks/daily-briefing")({
       POST: async () => {
         const sb = admin();
         const today = new Date();
-        const iso = today.toISOString().slice(0, 10);
-        const tomorrow = new Date(today.getTime() + 24 * 3600 * 1000).toISOString().slice(0, 10);
+        const iso = localDateKey(today);
+        const tomorrow = localDateKey(new Date(today.getTime() + 24 * 3600 * 1000));
 
-        // Reuniões de hoje
-        const start = `${iso}T00:00:00.000Z`;
-        const end = `${tomorrow}T00:00:00.000Z`;
+        // Reuniões de hoje (dia de Brasília; dia inteiro em formato novo ou antigo)
+        const start = `${iso}T00:00:00-03:00`;
+        const end = `${tomorrow}T00:00:00-03:00`;
         const { data: meetings } = await sb
           .from("meetings")
-          .select("title, source, starts_at, location")
+          .select("title, source, starts_at, ends_at, location")
           .gte("starts_at", start)
           .lt("starts_at", end)
           .neq("hidden", true)
@@ -67,7 +61,7 @@ export const Route = createFileRoute("/api/public/hooks/daily-briefing")({
           .order("priority");
 
         const meetingLines = (meetings ?? []).map((m) => {
-          const hh = new Date(m.starts_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+          const hh = meetingTimeLabel(m) ?? "dia todo";
           return `- ${hh} [${SOURCE_LABEL[m.source] || m.source}] ${m.title}${m.location ? ` @ ${m.location}` : ""}`;
         });
 

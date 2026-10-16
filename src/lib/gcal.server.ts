@@ -144,12 +144,12 @@ export async function deleteEvent(
 
 
 export function eventStart(e: GEvent): string | null {
-  const v = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00` : null);
+  const v = e.start?.dateTime ?? (e.start?.date ? `${e.start.date}T00:00:00-03:00` : null);
   return v ? new Date(v).toISOString() : null;
 }
 
 export function eventEnd(e: GEvent): string | null {
-  const v = e.end?.dateTime ?? (e.end?.date ? `${e.end.date}T23:59:00` : null);
+  const v = e.end?.dateTime ?? (e.end?.date ? `${e.end.date}T23:59:00-03:00` : null);
   return v ? new Date(v).toISOString() : null;
 }
 

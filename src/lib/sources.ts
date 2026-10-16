@@ -50,7 +50,7 @@ export const SOURCE_TINT: Record<SourceKey, string> = {
 export const STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "A fazer",
   doing: "Em andamento",
-  onhold: "On hold",
+  onhold: "Em espera",
   done: "Concluída",
 };
 

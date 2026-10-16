@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { isAllDay } from "@/lib/all-day";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { notifyAll } from "@/lib/notify.server";
@@ -30,12 +31,13 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         // 1) Reuniões que começam nos próximos 36 min (janela do lembrete de 30 min)
         const { data: meetings } = await sb
           .from("meetings")
-          .select("id, title, source, starts_at, external_url, location")
+          .select("id, title, source, starts_at, ends_at, external_url, location")
           .gte("starts_at", now.toISOString())
           .lte("starts_at", in66.toISOString())
           .neq("hidden", true);
 
-        const upcoming = meetings ?? [];
+        // Dia inteiro não tem hora de início: não dispara lembrete de "começa em X min".
+        const upcoming = (meetings ?? []).filter((m) => !isAllDay(m));
         // Cada reunião recebe um lembrete por checkpoint (1h, 30, 15 e 5 min).
         const candidates = upcoming
           .map((m) => {

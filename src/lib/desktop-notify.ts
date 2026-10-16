@@ -3,6 +3,7 @@
  * Funciona enquanto o app está aberto (ou instalado em segundo plano em
  * Android/desktop). No iPhone só dispara com a LUCK instalada na tela de início.
  */
+import { isAllDay } from "@/lib/all-day";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,11 +68,12 @@ export function useDesktopReminders() {
       const in2h = new Date(now.getTime() + 2 * 60 * 60 * 1000);
       const { data } = await supabase
         .from("meetings")
-        .select("id, title, starts_at, source, external_url")
+        .select("id, title, starts_at, ends_at, source, external_url")
         .gte("starts_at", now.toISOString())
         .lte("starts_at", in2h.toISOString())
         .eq("hidden", false);
-      return data ?? [];
+      // Dia inteiro não tem hora de início: sem aviso de "começa em X min".
+      return (data ?? []).filter((m) => !isAllDay(m));
     },
   });
 

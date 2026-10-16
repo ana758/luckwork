@@ -111,8 +111,16 @@ function googleSeriesId(eventId: string) {
   return eventId.replace(/_\d{8}T\d{6}Z$/, "");
 }
 
-function isMeetingTitle(title: string) {
-  return /\b(reuni[aã]o|reuniao|meeting|call)\b/i.test(title);
+/**
+ * Só é reunião de verdade quando tem horário marcado e o título não é um pedido
+ * de preparação ("marcar reunião", "cobrar reunião", "pedir para agendar"...).
+ * Dia inteiro e lembretes de agendar nunca viram reunião confirmada.
+ */
+function isMeetingTitle(title: string, allDay: boolean) {
+  if (allDay) return false;
+  if (!/\b(reuni[aã]o|reuniao|meeting|call)\b/i.test(title)) return false;
+  const prep = /\b(marcar|marque|agendar|agende|pedir|cobrar|confirmar|remarcar|falar|combinar|definir)\b[^·]*\b(reuni[aã]o|reuniao|meeting|call)\b/i;
+  return !prep.test(title);
 }
 
 export async function runListAccounts() {
@@ -231,7 +239,8 @@ export async function runCalendarSync(supabase: any, userId: string) {
           const learned = rulesMap.get(normalizeTitleKey(title));
           const inferred = inferSourceFromTitle(title);
           const source = learned ?? inferred ?? defaultSource;
-          const isMeeting = isMeetingTitle(title);
+          const allDayEvent = Boolean(e.start?.date && !e.start?.dateTime);
+          const isMeeting = isMeetingTitle(title, allDayEvent);
           return [{
             title,
             source,
@@ -501,7 +510,13 @@ async function findMirrorRef(supabase: any, googleEventId: string) {
 export async function runMoveGoogleEvent(
   supabase: any,
   userId: string,
-  data: { googleAccount: string; googleEventId: string; startsAt: string; endsAt?: string | null },
+  data: {
+    googleAccount: string;
+    googleEventId: string;
+    startsAt: string;
+    endsAt?: string | null;
+    allDay?: boolean;
+  },
 ) {
   await assertMember(supabase, userId);
   const accounts = connectedAccounts();
@@ -512,6 +527,18 @@ export async function runMoveGoogleEvent(
       const end = data.endsAt
         ? new Date(data.endsAt)
         : new Date(start.getTime() + 60 * 60 * 1000);
+      if (data.allDay) {
+        // Evento de dia inteiro continua de dia inteiro no Google (datas, sem hora).
+        const brt = (d: Date) => new Date(d.getTime() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+        const day = brt(start);
+        const next = new Date(`${day}T12:00:00Z`);
+        next.setUTCDate(next.getUTCDate() + 1);
+        await patchEvent(acc.key, data.googleAccount, data.googleEventId, {
+          start: { date: day },
+          end: { date: next.toISOString().slice(0, 10) },
+        });
+        return { ok: true };
+      }
       await patchEvent(acc.key, data.googleAccount, data.googleEventId, {
         start: { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" },
         end: { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" },

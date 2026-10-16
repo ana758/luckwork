@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -72,11 +73,8 @@ function dayLabel(d: Date) {
 }
 
 function meetingToTask(m: Meeting): VisibleTask {
-  const dateStr = m.starts_at.slice(0, 10);
-  const time = new Date(m.starts_at).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const dateStr = meetingDateKey(m);
+  const time = meetingTimeLabel(m) ?? "";
   return {
     id: `m:${m.id}`,
     title: m.title,

@@ -231,7 +231,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { question?: string }) => input ?? {})
   .handler(async ({ data, context }) => {
-    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const today = new Date().toISOString().slice(0, 10);
     const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
@@ -315,7 +315,7 @@ export const summarizeMeeting = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const { data: m, error } = await context.supabase
       .from("meetings")
@@ -398,7 +398,7 @@ export const aiAction = createServerFn({ method: "POST" })
     return { text: input.text.trim() };
   })
   .handler(async ({ data, context }): Promise<ActionResult> => {
-    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
@@ -806,7 +806,7 @@ export const transcribeAudio = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }): Promise<{ text: string }> => {
-    if (!process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
+    if (!process.env.ANTHROPIC_API_KEY && !process.env.LOVABLE_API_KEY && !process.env.OPENAI_API_KEY) throw new Error("IA indisponível no momento.");
 
     const bin = atob(data.audioBase64);
     const bytes = new Uint8Array(bin.length);

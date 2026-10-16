@@ -44,6 +44,7 @@ export const moveGoogleEvent = createServerFn({ method: "POST" })
       googleEventId: string;
       startsAt: string;
       endsAt?: string | null;
+      allDay?: boolean;
     }) => input,
   )
   .handler(async ({ data, context }) => {
@@ -63,6 +64,7 @@ export const patchGoogleEvent = createServerFn({ method: "POST" })
       endsAt?: string | null;
       notes?: string | null;
       location?: string | null;
+      allDay?: boolean;
     }) => input,
   )
   .handler(async ({ data, context }) => {

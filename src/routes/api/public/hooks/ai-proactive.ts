@@ -19,8 +19,8 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
   server: {
     handlers: {
       POST: async () => {
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) return Response.json({ ok: false, error: "sem LOVABLE_API_KEY" });
+        const { aiChat, hasAiProvider } = await import("@/lib/ai-fallback.server");
+        if (!hasAiProvider()) return Response.json({ ok: false, error: "sem chave de IA" });
 
         const sb = admin();
         const today = new Date().toISOString().slice(0, 10);
@@ -58,10 +58,7 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
           `Reuniões dos próximos 3 dias: ${JSON.stringify(meetings ?? [])}`,
         ].join("\n\n");
 
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
+        const res = await aiChat({
             model: "google/gemini-3.6-flash",
             messages: [
               {
@@ -76,7 +73,6 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
               { role: "user", content: prompt },
             ],
             response_format: { type: "json_object" },
-          }),
         });
 
         if (!res.ok) {

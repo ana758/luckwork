@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { isAllDay, meetingDateKey } from "@/lib/all-day";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -284,12 +285,15 @@ function Section({
                       {SOURCE_LABEL[m.source]}
                     </span>
                     <span className="ml-auto text-xs text-muted-foreground">
-                      {new Date(m.starts_at).toLocaleString("pt-BR", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {isAllDay(m)
+                        ? `${meetingDateKey(m).slice(8, 10)}/${meetingDateKey(m).slice(5, 7)} · dia todo`
+                        : new Date(m.starts_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "America/Sao_Paulo",
+                          })}
                     </span>
                   </div>
                   {(m.meeting_type || m.people) && (

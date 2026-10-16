@@ -16,6 +16,7 @@ import { spawnNextOccurrence } from "@/lib/recurrence";
 import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { allDayRange, isAllDay, meetingDateKey } from "@/lib/all-day";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -75,7 +76,7 @@ function hhmm(iso: string) {
 
 /** Dia atual do item, no formato do input de data. */
 function itemDateKey(item: CalItem) {
-  if (item.kind === "meeting" && item.meeting) return fmtKey(new Date(item.meeting.starts_at));
+  if (item.kind === "meeting" && item.meeting) return meetingDateKey(item.meeting);
   return item.task?.due_date ?? fmtKey(new Date());
 }
 
@@ -224,10 +225,12 @@ function CalendarPage() {
   function itemsFor(key: string): CalItem[] {
     const items: CalItem[] = [
       ...visibleMeetings
-        .filter((m) => fmtKey(new Date(m.starts_at)) === key)
+        .filter((m) => meetingDateKey(m) === key)
         .map<CalItem>((m) => {
           const start = new Date(m.starts_at);
-          const startMin = start.getHours() * 60 + start.getMinutes();
+          const allDayItem = isAllDay(m);
+          // Dia inteiro não tem horário: vai para a faixa "sem horário", sem 21:00 inventado.
+          const startMin = allDayItem ? null : start.getHours() * 60 + start.getMinutes();
           // Regra da Angi: tudo que entrou como compromisso da agenda Angi fica
           // vermelho. Tarefas comuns da Angi continuam verdes, pois são CalItem task.
           const fromAngiCalendar = m.google_account?.toLowerCase().includes("angisaude.com") === true;
@@ -250,7 +253,7 @@ function CalendarPage() {
             tint: meetingColor ? "bg-reuniao/35 border-reuniao/70" : SOURCE_TINT[m.source],
             startMin,
             durationMin,
-            time: hhmm(m.starts_at),
+            time: allDayItem ? null : hhmm(m.starts_at),
             notes: m.notes ?? null,
             place: m.location ?? null,
             recurring: false,
@@ -260,8 +263,16 @@ function CalendarPage() {
         }),
       ...visibleTasks.filter((t) => t.due_date === key).map<CalItem>(taskItem),
     ];
-    // Sempre em ordem de horário — quem não tem horário fica no topo (dia inteiro).
-    return items.sort((a, b) => (a.startMin ?? -1) - (b.startMin ?? -1));
+    // Quem não tem horário (dia inteiro) fica no topo; entre eles, os concluídos
+    // descem para o fim da fila. Quem tem horário respeita sempre o horário,
+    // concluído ou não — a hora marca o lugar dele, então ele não muda de posição.
+    return items.sort((a, b) => {
+      const aTimed = a.startMin !== null;
+      const bTimed = b.startMin !== null;
+      if (aTimed !== bTimed) return aTimed ? 1 : -1;
+      if (!aTimed && !bTimed) return Number(a.done) - Number(b.done);
+      return (a.startMin as number) - (b.startMin as number);
+    });
   }
 
   /** Tarefa → bloco do calendário. */
@@ -422,16 +433,24 @@ function CalendarPage() {
     keepDuration = true,
   ) {
     const oldStart = new Date(m.starts_at);
-    const [y, mo, d] = targetKey.split("-").map(Number);
-    const newStart = new Date(oldStart);
-    newStart.setFullYear(y, mo - 1, d);
-    if (minutes !== null) newStart.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-    if (newStart.getTime() === oldStart.getTime()) return;
-
+    let newStart: Date;
     let newEndIso: string | null = null;
-    if (m.ends_at && keepDuration) {
-      const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
-      newEndIso = new Date(newStart.getTime() + diff).toISOString();
+    if (isAllDay(m) && minutes === null) {
+      // Dia inteiro movido para outro dia: continua dia inteiro (sem 21:00).
+      if (meetingDateKey(m) === targetKey) return;
+      const r = allDayRange(targetKey);
+      newStart = new Date(r.starts_at);
+      newEndIso = r.ends_at;
+    } else {
+      const [y, mo, d] = targetKey.split("-").map(Number);
+      newStart = new Date(oldStart);
+      newStart.setFullYear(y, mo - 1, d);
+      if (minutes !== null) newStart.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+      if (newStart.getTime() === oldStart.getTime()) return;
+      if (m.ends_at && keepDuration && !isAllDay(m)) {
+        const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
+        newEndIso = new Date(newStart.getTime() + diff).toISOString();
+      }
     }
     const newStartIso = newStart.toISOString();
 
@@ -459,6 +478,7 @@ function CalendarPage() {
             googleEventId: m.google_event_id,
             startsAt: newStartIso,
             endsAt: newEndIso,
+            allDay: isAllDay({ starts_at: newStartIso, ends_at: newEndIso }),
           },
         });
         toast.success("Evento movido (LUCK + Google)");
@@ -560,18 +580,27 @@ function CalendarPage() {
     const m = item.meeting as (Meeting & { google_event_id?: string | null; google_account?: string | null }) | undefined;
     if (!m) return;
     const oldStart = new Date(m.starts_at);
-    const [y, mo, d] = v.date.split("-").map(Number);
-    const newStart = new Date(oldStart);
-    newStart.setFullYear(y, mo - 1, d);
-    if (v.time) {
-      const [h, mi] = v.time.split(":").map(Number);
-      newStart.setHours(h, mi, 0, 0);
-    }
-    const startIso = newStart.toISOString();
+    let startIso: string;
     let endIso = m.ends_at ?? null;
-    if (m.ends_at) {
-      const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
-      endIso = new Date(newStart.getTime() + diff).toISOString();
+    if (isAllDay(m) && !v.time) {
+      const r = allDayRange(v.date);
+      startIso = r.starts_at;
+      endIso = r.ends_at;
+    } else {
+      const [y, mo, d] = v.date.split("-").map(Number);
+      const newStart = new Date(oldStart);
+      newStart.setFullYear(y, mo - 1, d);
+      if (v.time) {
+        const [h, mi] = v.time.split(":").map(Number);
+        newStart.setHours(h, mi, 0, 0);
+      }
+      startIso = newStart.toISOString();
+      if (m.ends_at && !isAllDay(m)) {
+        const diff = new Date(m.ends_at).getTime() - oldStart.getTime();
+        endIso = new Date(newStart.getTime() + diff).toISOString();
+      } else if (isAllDay(m) && v.time) {
+        endIso = new Date(newStart.getTime() + 60 * 60 * 1000).toISOString();
+      }
     }
     qc.setQueryData<Meeting[]>(["meetings"], (old) =>
       (old ?? []).map((x) =>
@@ -597,6 +626,7 @@ function CalendarPage() {
               title: v.title,
               startsAt: startIso,
               notes: m.notes ?? null,
+              allDay: isAllDay({ starts_at: startIso, ends_at: endIso }),
             },
           });
         } catch {
