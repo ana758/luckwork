@@ -9,7 +9,7 @@ import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>) => ({ next: oauthReturnPath(s.next) }),
+  validateSearch: (s: Record<string, unknown>) => ({ next: s.next === undefined ? undefined : oauthReturnPath(s.next) } as { next?: string }),
   head: () => ({
     meta: [
       { title: "Entrar · LUCK" },
@@ -49,7 +49,7 @@ function redirectToGoogleLogin(back: string) {
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { next } = Route.useSearch();
+  const next = Route.useSearch().next ?? "/";
   const back = next !== "/" ? `${window.location.origin}/auth?next=${encodeURIComponent(next)}` : `${window.location.origin}/auth`;
   const go = () => (next !== "/" ? window.location.assign(next) : navigate({ to: "/", replace: true }));
   const [mode, setMode] = useState<"login" | "signup">("login");
