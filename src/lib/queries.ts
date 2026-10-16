@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { AccessEntry, Meeting, Task } from "./sources";
+import { isRemovedSource, type AccessEntry, type Meeting, type Task } from "./sources";
 
 export async function fetchTasks(): Promise<Task[]> {
   const { data, error } = await supabase
@@ -8,7 +8,7 @@ export async function fetchTasks(): Promise<Task[]> {
     .select("*")
     .order("due_date", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
-  return (data ?? []) as Task[];
+  return ((data ?? []) as Task[]).filter((t) => !isRemovedSource(t.source));
 }
 
 export function useTasks() {
@@ -48,6 +48,7 @@ export async function fetchMeetings(): Promise<Meeting[]> {
   );
   return rows.filter((m) => {
     if (m.hidden) return false;
+    if (isRemovedSource(m.source)) return false;
     if (!m.google_event_id) return true;
     return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));
   }) as Meeting[];

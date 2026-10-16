@@ -80,6 +80,8 @@ async function resolvedAccounts(): Promise<ResolvedAccount[]> {
   for (const acc of connectedAccounts()) {
     try {
       const email = await primaryCalendarId(acc.key);
+      // Devore não existe mais: a agenda dela não é importada nem recebe eventos.
+      if (sourceForEmail(email) === "devore") continue;
       out.push({ ...acc, email, defaultSource: sourceForEmail(email) });
     } catch {
       // conta indisponível
@@ -355,7 +357,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
 //   demais → anaduquek@gmail.com
 // Além disso, TUDO ganha uma cópia em anaduquek@gmail.com (agenda pessoal).
 function pickAccountBySource(accounts: ResolvedAccount[], source?: string | null) {
-  const want = source === "angi" ? "angi" : source === "devore" ? "devore" : "pessoal";
+  const want = source === "angi" ? "angi" : "pessoal";
   return (
     accounts.find((a) => sourceForEmail(a.email) === want) ??
     personalAccount(accounts) ??

@@ -3,9 +3,18 @@ export type TaskStatus = "todo" | "doing" | "onhold" | "done";
 export type TaskPriority = "alta" | "media" | "baixa";
 export type Recurrence = "none" | "daily" | "weekly" | "monthly";
 
+/**
+ * Empresas que não existem mais. Somem de todo o app (telas, avisos, resumo e
+ * sincronização do Google), mas nada é apagado do banco. Para trazer de volta,
+ * tire a chave desta lista e devolva a empresa em SOURCES.
+ */
+export const REMOVED_SOURCES: SourceKey[] = ["devore"];
+
+export const isRemovedSource = (key: string | null | undefined) =>
+  REMOVED_SOURCES.includes(key as SourceKey);
+
 export const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "angi", label: "Angi" },
-  { key: "devore", label: "Devore" },
   { key: "bruna", label: "Brand.Pe" },
   { key: "pessoal", label: "Pessoal" },
 ];

@@ -32,6 +32,7 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         const { data: meetings } = await sb
           .from("meetings")
           .select("id, title, source, starts_at, ends_at, external_url, location")
+          .neq("source", "devore")
           .gte("starts_at", now.toISOString())
           .lte("starts_at", in66.toISOString())
           .neq("hidden", true);
@@ -92,6 +93,7 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         const { data: timedTasks } = await sb
           .from("tasks")
           .select("id, title, source, due_date, due_time")
+          .neq("source", "devore")
           .eq("due_date", todayKey)
           .neq("status", "done")
           .not("due_time", "is", null);
@@ -123,6 +125,7 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         const { data: openPastDue } = await sb
           .from("tasks")
           .select("id, title, source, due_date, status, status_changed_at, updated_at")
+          .neq("source", "devore")
           .lt("due_date", today)
           .neq("status", "done");
         const overdue = (openPastDue ?? []).filter(

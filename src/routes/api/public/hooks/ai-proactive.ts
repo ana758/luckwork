@@ -38,12 +38,14 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
           sb
             .from("tasks")
             .select("title, source, status, priority, due_date, status_changed_at, updated_at, created_at")
+          .neq("source", "devore")
             .neq("status", "done")
             .order("due_date", { ascending: true })
             .limit(300),
           sb
             .from("meetings")
             .select("title, source, starts_at, external_url")
+          .neq("source", "devore")
             .gte("starts_at", new Date().toISOString())
             .lte("starts_at", in3)
             .neq("hidden", true)

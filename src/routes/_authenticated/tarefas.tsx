@@ -139,8 +139,15 @@ function TasksPage() {
       .filter((t) => inRange(t) || t.status !== "done")
       .map((t) => ({ ...t, sortAt: taskSortAt(t) }));
 
-    return own.filter((t) => filter === "all" || t.source === filter);
-  }, [tasks, filter]);
+    // Compromisso marcado como concluído no Calendário aparece em "Concluída".
+    // Só os concluídos entram aqui: compromissos em aberto continuam só na agenda.
+    const doneMeetings: VisibleTask[] = meetings
+      .filter((m) => Boolean(m.completed_at) || m.status === "done")
+      .map(meetingToTask)
+      .filter((t) => inRange(t));
+
+    return [...own, ...doneMeetings].filter((t) => filter === "all" || t.source === filter);
+  }, [tasks, meetings, filter]);
 
   const byStatus = (status: TaskStatus) =>
     visible

@@ -47,6 +47,7 @@ export const Route = createFileRoute("/api/public/hooks/daily-briefing")({
         const { data: meetings } = await sb
           .from("meetings")
           .select("title, source, starts_at, ends_at, location")
+          .neq("source", "devore")
           .gte("starts_at", start)
           .lt("starts_at", end)
           .neq("hidden", true)
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/api/public/hooks/daily-briefing")({
         const { data: tasks } = await sb
           .from("tasks")
           .select("title, source, due_date, status, priority")
+          .neq("source", "devore")
           .in("status", ["todo", "doing", "onhold"])
           .or(`due_date.lte.${iso},due_date.is.null`)
           .order("priority");

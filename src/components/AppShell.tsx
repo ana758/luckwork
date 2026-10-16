@@ -149,7 +149,7 @@ export function AppShell() {
         <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
           <div className="mb-6 px-2">
             <p className="text-lg font-semibold tracking-tight">LUCK</p>
-            <p className="text-xs text-muted-foreground">Angi · Devore · Brand.Pe · Pessoal</p>
+            <p className="text-xs text-muted-foreground">Angi · Brand.Pe · Pessoal</p>
           </div>
           <nav className="space-y-1">
             {NAV.map((item) => {

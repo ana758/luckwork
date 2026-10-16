@@ -240,12 +240,14 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
       context.supabase
         .from("tasks")
         .select("title, source, status, priority, start_date, due_date, updated_at, recurrence")
+        .neq("source", "devore")
         .neq("status", "done")
         .order("due_date", { ascending: true })
         .limit(400),
       context.supabase
         .from("meetings")
         .select("title, source, starts_at, meeting_type, people")
+        .neq("source", "devore")
         .gte("starts_at", `${today}T00:00:00`)
         .lte("starts_at", `${in7}T23:59:59`)
         .order("starts_at", { ascending: true })
@@ -286,7 +288,7 @@ export const getDailyBriefing = createServerFn({ method: "POST" })
             "Se a usuária fizer uma pergunta específica, responda a ela diretamente (sem forçar o formato de resumo). " +
             "No resumo do dia use: '## Resumo do dia' (2 a 4 linhas), '## Atrasado', '## Hoje e amanhã', '## Reuniões' (indique choques de horário), " +
             "'## E-mails importantes' (remetente + por que importa, ou 'Nenhum'), '## Prioridades da semana', '## Sugestões' (3 a 6 ações práticas com o próximo passo concreto). " +
-            "As empresas são Angi, Devore, Brand.Pe e Pessoal. Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
+            "As empresas são Angi, Brand.Pe e Pessoal (a Devore não existe mais; ignore qualquer menção a ela). Nunca cite propagandas, promoções ou newsletters. Não invente dados que não estejam no JSON.",
         },
         { role: "user", content: prompt },
       ],
@@ -413,12 +415,14 @@ export const aiAction = createServerFn({ method: "POST" })
       context.supabase
         .from("tasks")
         .select("title, source, status, priority, start_date, due_date, updated_at")
+        .neq("source", "devore")
         .neq("status", "done")
         .order("due_date", { ascending: true })
         .limit(300),
       context.supabase
         .from("meetings")
         .select("title, source, starts_at, meeting_type, people, external_url")
+        .neq("source", "devore")
         .gte("starts_at", `${todayStr}T00:00:00`)
         .lte("starts_at", `${in7}T23:59:59`)
         .order("starts_at", { ascending: true })
@@ -441,10 +445,10 @@ export const aiAction = createServerFn({ method: "POST" })
       `Sugestões/alertas em aberto da própria IA (JSON): ${JSON.stringify(ctxSuggestions ?? [])}`,
       "Se a Ana responder algo curto como 'pode', 'sim', 'faz isso', 'manda ver', entenda que ela está aceitando a última sugestão em aberto e execute/oriente com base nela.",
       `⚠️ REGRA DE ANO: se a usuária disser apenas dia/mês (ex.: '27/07', '3 de agosto', 'dia 15'), SEMPRE use o ano ${currentYear}. NUNCA use anos passados. Se a data já passou este ano, ainda assim assuma ${currentYear} (a menos que ela diga explicitamente 'ano que vem').`,
-      "Empresas (source): 'angi', 'devore', 'bruna' (Brand.Pe), 'pessoal'.",
+      "Empresas (source): 'angi', 'bruna' (Brand.Pe), 'pessoal'. A Devore não existe mais: nunca use source='devore'.",
       "REGRA CRÍTICA DE CLASSIFICAÇÃO DE EMPRESA (siga nesta ordem):",
       "1. Se o usuário mencionar EXPLICITAMENTE 'angi' / 'na angi' / 'da angi' / 'pra angi' → source='angi'.",
-      "2. Se mencionar 'devore' / 'na devore' → source='devore'.",
+      "2. Se mencionar 'devore', trate como 'pessoal' (a empresa foi encerrada).",
       "3. Se mencionar 'brand.pe' / 'brandpe' / 'bruna' / 'branding da bruna' → source='bruna'.",
       "4. Se mencionar 'pessoal' / 'minha vida' → source='pessoal'.",
       "⚠️ 'pessoal' pode aparecer no texto da tarefa (ex: 'branding pessoal Mariana') e NÃO como empresa. Só use source='pessoal' quando referir claramente à empresa.",

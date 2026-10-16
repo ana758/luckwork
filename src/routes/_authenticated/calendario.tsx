@@ -13,7 +13,7 @@ import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { spawnNextOccurrence } from "@/lib/recurrence";
-import { SOURCE_TINT, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { SOURCE_TINT, SOURCE_DOT, STATUS_LABEL, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { allDayRange, isAllDay, meetingDateKey } from "@/lib/all-day";
@@ -65,6 +65,8 @@ type CalItem = {
   place: string | null;
   recurring: boolean;
   done: boolean;
+  /** Estado da tarefa quando não é "a fazer"/"concluída" (ex.: Em andamento, Em espera). */
+  statusLabel?: string;
   meeting?: Meeting;
   task?: Task;
 };
@@ -292,6 +294,7 @@ function CalendarPage() {
       place: null,
       recurring: Boolean(t.recurrence && t.recurrence !== "none"),
       done: t.status === "done",
+      statusLabel: t.status === "doing" || t.status === "onhold" ? STATUS_LABEL[t.status] : undefined,
       task: t,
     };
   }
@@ -793,6 +796,11 @@ function CalendarPage() {
             >
               {item.title}
             </div>
+            {item.statusLabel && !item.done && (
+              <span className="mt-0.5 inline-block rounded-full border border-foreground/25 px-1.5 text-[9px] font-medium leading-4 opacity-80">
+                {item.statusLabel}
+              </span>
+            )}
             {!small && item.time && (
               <div className="text-[10px] tabular-nums opacity-75">
                 {item.time}

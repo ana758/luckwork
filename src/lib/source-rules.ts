@@ -23,7 +23,7 @@ export function inferSourceFromTitle(title: string): SourceKey | null {
   if (!t) return null;
   const has = (kw: string) => new RegExp(`(^|[^a-z0-9])${kw}([^a-z0-9]|$)`).test(t);
   if (has("angi") || t.includes("angisaude")) return "angi";
-  if (has("devore") || has("devoresnacks") || has("snacks")) return "devore";
+  // Devore foi removida: não reclassifica nada para ela.
   if (has("bruna") || has("bergamini") || has("branding pessoal")) return "bruna";
   if (has("pessoal")) return "pessoal";
   return null;

@@ -42,6 +42,7 @@ export const Route = createFileRoute("/api/public/hooks/task-nudges")({
         const { data: candidates } = await sb
           .from("tasks")
           .select("id, title, source, due_date, priority, created_at")
+          .neq("source", "devore")
           .eq("status", "todo")
           .limit(200);
 
