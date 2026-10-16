@@ -8,3 +8,4 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- MCP server tools live in src/lib/mcp/ (one tool per file, OAuth-protected, user-scoped database client); generated routes are owned by the mcp plugin — keeps external assistants under existing access rules.
