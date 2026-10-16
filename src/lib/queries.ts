@@ -43,6 +43,21 @@ export async function fetchMeetings(): Promise<Meeting[]> {
     m.google_account && m.google_event_id
       ? `${m.google_account}::${m.google_event_id.replace(/_\d{8}T\d{6}Z$/, "")}`
       : null;
+  // Cópias que o Google devolve de uma tarefa (evento principal e cópia na agenda
+  // pessoal) não são compromissos novos: a tarefa já é o registro verdadeiro.
+  const { data: linked } = await supabase
+    .from("tasks")
+    .select("google_account, google_event_id, mirror_account, mirror_event_id");
+  const taskEventPairs = new Set<string>();
+  for (const t of linked ?? []) {
+    if (t.google_account && t.google_event_id) taskEventPairs.add(`${t.google_account}::${t.google_event_id}`);
+    if (t.mirror_account && t.mirror_event_id) taskEventPairs.add(`${t.mirror_account}::${t.mirror_event_id}`);
+  }
+  const mirrorOfMeetings = new Set<string>();
+  for (const m of rows) {
+    const r = m as { mirror_account?: string | null; mirror_event_id?: string | null };
+    if (r.mirror_account && r.mirror_event_id) mirrorOfMeetings.add(`${r.mirror_account}::${r.mirror_event_id}`);
+  }
   const deletedGoogleSeries = new Set(
     rows.filter((m) => m.hidden && m.google_event_id).map(seriesKey).filter(Boolean),
   );
@@ -50,6 +65,8 @@ export async function fetchMeetings(): Promise<Meeting[]> {
     if (m.hidden) return false;
     if (isRemovedSource(m.source)) return false;
     if (!m.google_event_id) return true;
+    const pair = `${m.google_account}::${m.google_event_id}`;
+    if (taskEventPairs.has(pair) || mirrorOfMeetings.has(pair)) return false;
     return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));
   }) as Meeting[];
 }

@@ -125,6 +125,16 @@ function isMeetingTitle(title: string, allDay: boolean) {
   return !prep.test(title);
 }
 
+/**
+ * Horário sem fuso (ex.: "2026-10-16T09:00:00") é horário de Brasília. O
+ * servidor roda em UTC, então `new Date("...T09:00:00")` virava 09:00 UTC =
+ * 06:00 em Brasília e o evento ia para o Google 3h adiantado. Aqui o fuso de
+ * Brasília (UTC-3, sem horário de verão) é aplicado quando a string não traz um.
+ */
+function brtDate(s: string) {
+  return new Date(/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(s) ? s : `${s}-03:00`);
+}
+
 export async function runListAccounts() {
   const out: { email: string; source: string; envVar: string }[] = [];
   for (const acc of connectedAccounts()) {
@@ -188,13 +198,28 @@ export async function runCalendarSync(supabase: any, userId: string) {
   // continuar exibindo nome/data antigos depois de uma edição.
   const { data: linkedTasks } = await supabase
     .from("tasks")
-    .select("google_account, google_event_id")
-    .not("google_event_id", "is", null);
-  const linkedTaskPairs = new Set(
-    (linkedTasks ?? [])
-      .filter((r: any) => r.google_account && r.google_event_id)
-      .map((r: any) => `${r.google_account}::${r.google_event_id}`),
-  );
+    .select("id, title, status, due_date, due_time, google_account, google_event_id, mirror_account, mirror_event_id")
+    .or("google_event_id.not.is.null,mirror_event_id.not.is.null");
+  // Cada tarefa tem o evento principal e a cópia na agenda pessoal. As DUAS
+  // pontas são a mesma tarefa: nenhuma delas pode voltar como compromisso.
+  const linkedTaskPairs = new Set<string>();
+  for (const r of linkedTasks ?? []) {
+    if (r.google_account && r.google_event_id) linkedTaskPairs.add(`${r.google_account}::${r.google_event_id}`);
+    if (r.mirror_account && r.mirror_event_id) linkedTaskPairs.add(`${r.mirror_account}::${r.mirror_event_id}`);
+  }
+  // Compromissos criados na LUCK também têm cópia na agenda pessoal.
+  const { data: linkedMeetings } = await supabase
+    .from("meetings")
+    .select("mirror_account, mirror_event_id")
+    .not("mirror_event_id", "is", null);
+  for (const r of linkedMeetings ?? []) {
+    if (r.mirror_account && r.mirror_event_id) linkedTaskPairs.add(`${r.mirror_account}::${r.mirror_event_id}`);
+  }
+  const tasksByEvent = new Map<string, any>();
+  for (const r of linkedTasks ?? []) {
+    if (r.google_account && r.google_event_id) tasksByEvent.set(`${r.google_account}::${r.google_event_id}`, r);
+    if (r.mirror_account && r.mirror_event_id) tasksByEvent.set(`${r.mirror_account}::${r.mirror_event_id}`, r);
+  }
 
   // Carrega regras aprendidas (título → empresa correta).
   const { normalizeTitleKey, inferSourceFromTitle } = await import("./source-rules");
@@ -217,6 +242,29 @@ export async function runCalendarSync(supabase: any, userId: string) {
       if (skip) continue;
       const events = await listEvents(acc.key, cal.id, timeMin, timeMax);
       const candidates = events.filter((e) => e.status !== "cancelled" && eventStart(e));
+
+      // Conserta eventos de tarefa que foram para o Google 3h adiantados (bug
+      // antigo de fuso): o horário da tarefa na LUCK é a verdade.
+      for (const e of candidates) {
+        const task = tasksByEvent.get(`${cal.id}::${e.id}`);
+        if (!task || !task.due_date || !task.due_time || !e.start?.dateTime) continue;
+        const want = new Date(`${task.due_date}T${String(task.due_time).slice(0, 5)}:00-03:00`);
+        const have = new Date(e.start.dateTime);
+        if (Math.abs(want.getTime() - have.getTime()) < 60_000) continue;
+        const dur = e.end?.dateTime
+          ? Math.max(15 * 60_000, new Date(e.end.dateTime).getTime() - have.getTime())
+          : 60 * 60_000;
+        try {
+          await patchEvent(acc.key, cal.id, e.id, {
+            start: { dateTime: want.toISOString(), timeZone: "America/Sao_Paulo" },
+            end: { dateTime: new Date(want.getTime() + dur).toISOString(), timeZone: "America/Sao_Paulo" },
+          });
+          // mantém o que a limpeza abaixo vê com o horário já corrigido
+          e.start = { ...e.start, dateTime: want.toISOString() };
+        } catch {
+          /* tenta de novo na próxima sincronização */
+        }
+      }
 
 
       const rows = candidates
@@ -300,11 +348,23 @@ export async function runCalendarSync(supabase: any, userId: string) {
   if (linkedTaskPairs.size > 0) {
     const { data: linkedMeetingRows } = await supabase
       .from("meetings")
-      .select("id, google_account, google_event_id")
+      .select("id, google_account, google_event_id, status, completed_at")
       .not("google_event_id", "is", null);
-    const duplicateTaskMeetings = (linkedMeetingRows ?? [])
-      .filter((r: any) => linkedTaskPairs.has(`${r.google_account}::${r.google_event_id}`))
-      .map((r: any) => r.id);
+    const duplicateRows = (linkedMeetingRows ?? []).filter((r: any) =>
+      linkedTaskPairs.has(`${r.google_account}::${r.google_event_id}`),
+    );
+    // Se a Ana deu check na cópia, o check vale para a tarefa de verdade.
+    for (const r of duplicateRows as any[]) {
+      const checked = Boolean(r.completed_at) || r.status === "done";
+      const task = tasksByEvent.get(`${r.google_account}::${r.google_event_id}`);
+      if (checked && task && task.status !== "done") {
+        await supabase
+          .from("tasks")
+          .update({ status: "done", completed_at: r.completed_at ?? new Date().toISOString() })
+          .eq("id", task.id);
+      }
+    }
+    const duplicateTaskMeetings = duplicateRows.map((r: any) => r.id);
     if (duplicateTaskMeetings.length > 0) {
       await supabase.from("meetings").delete().in("id", duplicateTaskMeetings);
     }
@@ -419,8 +479,8 @@ export async function runCalendarPush(
     body.start = { date: day };
     body.end = { date: next.toISOString().slice(0, 10) };
   } else {
-    const start = new Date(data.startsAt);
-    const end = data.endsAt ? new Date(data.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
+    const start = brtDate(data.startsAt);
+    const end = data.endsAt ? brtDate(data.endsAt) : new Date(start.getTime() + 60 * 60 * 1000);
     body.start = { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" };
     body.end = { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" };
   }
@@ -525,9 +585,9 @@ export async function runMoveGoogleEvent(
   let lastErr: unknown = null;
   for (const acc of accounts) {
     try {
-      const start = new Date(data.startsAt);
+      const start = brtDate(data.startsAt);
       const end = data.endsAt
-        ? new Date(data.endsAt)
+        ? brtDate(data.endsAt)
         : new Date(start.getTime() + 60 * 60 * 1000);
       if (data.allDay) {
         // Evento de dia inteiro continua de dia inteiro no Google (datas, sem hora).
@@ -580,9 +640,9 @@ export async function runPatchGoogleEvent(
     body.start = { date: day };
     body.end = { date: next.toISOString().slice(0, 10) };
   } else if (data.startsAt) {
-    const start = new Date(data.startsAt);
+    const start = brtDate(data.startsAt);
     const end = data.endsAt
-      ? new Date(data.endsAt)
+      ? brtDate(data.endsAt)
       : new Date(start.getTime() + 60 * 60 * 1000);
     body.start = { dateTime: start.toISOString(), timeZone: "America/Sao_Paulo" };
     body.end = { dateTime: end.toISOString(), timeZone: "America/Sao_Paulo" };

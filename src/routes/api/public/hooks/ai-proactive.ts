@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
 
         const sb = admin();
         const today = new Date().toISOString().slice(0, 10);
-        const tag = `ai-proactive-${today.replace(/-/g, "")}-${new Date().getUTCHours()}`;
+        const tag = `ai-proactive-${today.replace(/-/g, "")}`;
 
         const { data: already } = await sb
           .from("pending_pushes")

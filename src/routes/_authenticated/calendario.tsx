@@ -265,14 +265,16 @@ function CalendarPage() {
         }),
       ...visibleTasks.filter((t) => t.due_date === key).map<CalItem>(taskItem),
     ];
-    // Quem não tem horário (dia inteiro) fica no topo; entre eles, os concluídos
-    // descem para o fim da fila. Quem tem horário respeita sempre o horário,
-    // concluído ou não — a hora marca o lugar dele, então ele não muda de posição.
+    // Concluídos (check) descem para o fim da fila. Quem NÃO está concluído
+    // mantém a ordem do dia: primeiro o que é de dia inteiro, depois o que tem
+    // horário, do mais cedo para o mais tarde. Entre os concluídos vale a mesma
+    // ordem, só que depois de todos os pendentes.
     return items.sort((a, b) => {
+      if (a.done !== b.done) return Number(a.done) - Number(b.done);
       const aTimed = a.startMin !== null;
       const bTimed = b.startMin !== null;
       if (aTimed !== bTimed) return aTimed ? 1 : -1;
-      if (!aTimed && !bTimed) return Number(a.done) - Number(b.done);
+      if (!aTimed || !bTimed) return 0;
       return (a.startMin as number) - (b.startMin as number);
     });
   }
@@ -1135,8 +1137,9 @@ function CalendarPage() {
       ) : (
         <>
           {/* Faixa de dia inteiro (sem horário) */}
+          <div className="max-h-[28vh] overflow-y-auto border-b bg-secondary/20">
           <div
-            className="grid border-b bg-secondary/20"
+            className="grid"
             style={{ gridTemplateColumns: `48px repeat(${rangeDays.length}, minmax(0, 1fr))` }}
           >
             <div className="py-1 pr-1 text-right text-[10px] text-muted-foreground">dia</div>
@@ -1164,9 +1167,10 @@ function CalendarPage() {
               );
             })}
           </div>
+          </div>
 
           {/* Grade de horas */}
-          <div ref={gridRef} className="max-h-[70vh] overflow-y-auto">
+          <div ref={gridRef} className="max-h-[55vh] overflow-y-auto">
             <div
               className="relative grid"
               style={{ gridTemplateColumns: `48px repeat(${rangeDays.length}, minmax(0, 1fr))` }}

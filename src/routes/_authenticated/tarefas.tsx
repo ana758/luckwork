@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
+import { localDateKey, meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
+import { AlertCircle } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -97,8 +98,58 @@ function meetingToTask(m: Meeting): VisibleTask {
 
 function taskSortAt(t: Task): number {
   const ref = t.due_date ?? t.start_date;
-  if (ref) return new Date(`${ref}T12:00:00`).getTime();
+  if (ref) {
+    const time = t.due_time ? t.due_time.slice(0, 5) : "12:00";
+    return new Date(`${ref}T${time}:00`).getTime();
+  }
   return new Date(t.created_at).getTime();
+}
+
+type Period = "today" | "tomorrow" | "week" | "overdue" | "all";
+
+const PERIOD_OPTIONS: { v: Period; l: string }[] = [
+  { v: "today", l: "Hoje" },
+  { v: "tomorrow", l: "Amanhã" },
+  { v: "week", l: "Esta semana" },
+  { v: "overdue", l: "Atrasadas" },
+  { v: "all", l: "Todas" },
+];
+
+const fmtShort = (d: Date) =>
+  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+function periodDescription(period: Period) {
+  if (period === "today") return `Hoje · ${fmtShort(new Date())}`;
+  if (period === "tomorrow") {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return `Amanhã · ${fmtShort(d)}`;
+  }
+  if (period === "week") return `Esta semana · ${fmtShort(startOfWeek())} a ${fmtShort(endOfWeek())}`;
+  if (period === "overdue") return "Atrasadas, de qualquer data";
+  return "Todas as datas";
+}
+
+function dateKeyOf(t: Task) {
+  return t.due_date ?? t.start_date ?? null;
+}
+
+function matchesPeriod(t: Task, period: Period) {
+  if (period === "all") return true;
+  if (period === "overdue") return isOverdue(t);
+  if (period === "week") return inRange(t);
+  const key = dateKeyOf(t);
+  if (!key) return false;
+  const d = new Date();
+  if (period === "tomorrow") d.setDate(d.getDate() + 1);
+  return key === localDateKey(d);
+}
+
+/** "14:30" quando a tarefa tem horário; vazio quando não tem (sem hora inventada). */
+function timeOf(t: VisibleTask) {
+  if (t.agenda?.time) return t.agenda.time;
+  if (t.due_time) return t.due_time.slice(0, 5);
+  return "";
 }
 
 const ORDER_KEY = "luck.tasks.order.v1";
@@ -122,6 +173,12 @@ function TasksPage() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<"board" | "list">("board");
   const [filter, setFilter] = useState<SourceKey | "all">("all");
+  const [period, setPeriod] = useState<Period>("week");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
+  const [priorityFilter, setPriorityFilter] = useState<TaskPriority | "all">("all");
+  const [showDone, setShowDone] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [order, setOrder] = useState<Record<string, number>>(() =>
     typeof window !== "undefined" ? loadOrder() : {},
   );
@@ -135,19 +192,61 @@ function TasksPage() {
   const visible = useMemo<VisibleTask[]>(() => {
     // Página de tarefas mostra apenas tarefas criadas aqui.
     // Sincronização é unidirecional: tarefas → calendário (não o contrário).
-    const own: VisibleTask[] = tasks
-      .filter((t) => inRange(t) || t.status !== "done")
-      .map((t) => ({ ...t, sortAt: taskSortAt(t) }));
+    const own: VisibleTask[] = tasks.map((t) => ({ ...t, sortAt: taskSortAt(t) }));
 
     // Compromisso marcado como concluído no Calendário aparece em "Concluída".
     // Só os concluídos entram aqui: compromissos em aberto continuam só na agenda.
+    // Se já existe uma tarefa com o mesmo título no mesmo dia, o compromisso é a
+    // cópia dela: não entra de novo (evita "A fazer" e "Concluída" ao mesmo tempo).
+    const normTitle = (v: string) =>
+      v
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+    const taskKeys = new Set(
+      tasks.map((t) => `${normTitle(t.title)}::${t.due_date ?? t.start_date ?? ""}`),
+    );
     const doneMeetings: VisibleTask[] = meetings
       .filter((m) => Boolean(m.completed_at) || m.status === "done")
       .map(meetingToTask)
-      .filter((t) => inRange(t));
+      .filter((t) => !taskKeys.has(`${normTitle(t.title)}::${t.due_date ?? ""}`));
 
-    return [...own, ...doneMeetings].filter((t) => filter === "all" || t.source === filter);
-  }, [tasks, meetings, filter]);
+    const term = search
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+    const norm = (v: string) =>
+      v
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+    return [...own, ...doneMeetings]
+      .filter((t) => matchesPeriod(t, period))
+      .filter((t) => filter === "all" || t.source === filter)
+      .filter((t) => statusFilter === "all" || t.status === statusFilter)
+      .filter((t) => priorityFilter === "all" || t.priority === priorityFilter)
+      .filter((t) => !term || norm(t.title).includes(term) || norm(t.notes ?? "").includes(term));
+  }, [tasks, meetings, filter, period, search, statusFilter, priorityFilter]);
+
+  // Quantas atrasadas existem fora da tela atual, para avisar sem misturar.
+  const overdueCount = useMemo(
+    () => tasks.filter((t) => isOverdue(t) && (filter === "all" || t.source === filter)).length,
+    [tasks, filter],
+  );
+  const hasFilters =
+    search.trim() !== "" || statusFilter !== "all" || priorityFilter !== "all" || filter !== "all";
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setFilter("all");
+  }
+  const doneCount = visible.filter((t) => t.status === "done").length;
+  const doneOpen = showDone || statusFilter === "done";
 
   const byStatus = (status: TaskStatus) =>
     visible
@@ -398,7 +497,7 @@ function TasksPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-semibold tracking-tight">Tarefas</h1>
-        <span className="text-xs text-muted-foreground">Semana atual</span>
+        <span className="text-xs text-muted-foreground">{periodDescription(period)}</span>
         <Toggle
           options={[
             { v: "board", l: "Board" },
@@ -430,14 +529,77 @@ function TasksPage() {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <Toggle
+          options={PERIOD_OPTIONS.map((o) => ({ v: o.v, l: o.l }))}
+          value={period}
+          onChange={(v) => setPeriod(v as Period)}
+        />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar por título ou nota"
+          className="min-w-[160px] flex-1 rounded-md border bg-background px-3 py-1.5 text-xs"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as TaskStatus | "all")}
+          className="rounded-md border bg-background px-2 py-1.5 text-xs"
+          aria-label="Filtrar por status"
+        >
+          <option value="all">Todos os status</option>
+          {STATUS_ORDER.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value as TaskPriority | "all")}
+          className="rounded-md border bg-background px-2 py-1.5 text-xs"
+          aria-label="Filtrar por prioridade"
+        >
+          <option value="all">Toda prioridade</option>
+          {(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((p) => (
+            <option key={p} value={p}>
+              {PRIORITY_LABEL[p]}
+            </option>
+          ))}
+        </select>
+        {hasFilters && (
+          <button onClick={clearFilters} className="rounded-md border px-3 py-1.5 text-xs hover:bg-accent">
+            Limpar filtros
+          </button>
+        )}
+        {period === "overdue" && visible.some((t) => !t.id.startsWith("m:")) && (
+          <button
+            onClick={() => setReviewing(true)}
+            className="rounded-md bg-foreground px-3 py-1.5 text-xs text-background"
+          >
+            Revisar atrasadas em lote
+          </button>
+        )}
+      </div>
+
+      {period !== "overdue" && overdueCount > 0 && (
+        <button
+          onClick={() => setPeriod("overdue")}
+          className="flex items-center gap-1.5 rounded-md border border-reuniao/40 bg-reuniao/5 px-3 py-1.5 text-xs text-reuniao"
+        >
+          <AlertCircle className="h-3.5 w-3.5" />
+          {overdueCount} {overdueCount === 1 ? "tarefa atrasada" : "tarefas atrasadas"} · ver atrasadas
+        </button>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : view === "board" ? (
         <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
           <div className="flex gap-3 min-w-max">
-            {STATUS_ORDER.map((status) => {
+            {STATUS_ORDER.filter((s) => statusFilter === "all" || s === statusFilter).map((status) => {
               const items = byStatus(status);
+              const collapsed = status === "done" && !doneOpen;
               return (
                 <div
                   key={status}
@@ -455,9 +617,23 @@ function TasksPage() {
                 >
                   <p className="px-1 pb-2 text-xs font-medium text-muted-foreground">
                     {STATUS_LABEL[status]} · {items.length}
+                    {status === "done" && items.length > 0 && (
+                      <button
+                        onClick={() => setShowDone((v) => !v)}
+                        className="ml-2 underline hover:text-foreground"
+                      >
+                        {collapsed ? "mostrar" : "recolher"}
+                      </button>
+                    )}
                   </p>
                   <div className="space-y-2 min-h-8">
-                    {items.map((t) => (
+                    {collapsed && items.length > 0 && (
+                      <p className="px-1 text-[11px] text-muted-foreground">
+                        {items.length} concluída{items.length === 1 ? "" : "s"} recolhida{items.length === 1 ? "" : "s"}.
+                        Arraste uma tarefa para cá para concluir.
+                      </p>
+                    )}
+                    {(collapsed ? [] : items).map((t) => (
                       <div
                         key={t.id}
                         draggable
@@ -518,6 +694,7 @@ function TasksPage() {
             </thead>
             <tbody>
               {[...visible]
+                .filter((t) => t.status !== "done" || doneOpen)
                 .sort((a, b) => a.sortAt - b.sortAt)
                 .map((t) => (
                   <tr key={t.id} className="border-b last:border-0">
@@ -546,7 +723,12 @@ function TasksPage() {
                     </td>
                     <td className="p-3 text-xs text-muted-foreground">
                       {dayLabel(new Date(t.sortAt))}
-                      {t.agenda && ` · ${t.agenda.time}`}
+                      {timeOf(t) && ` · ${timeOf(t)}`}
+                      {isOverdue(t) && (
+                        <span className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-reuniao">
+                          <AlertCircle className="h-3 w-3" /> atrasada
+                        </span>
+                      )}
                     </td>
                     <td className="p-3 text-xs">{PRIORITY_LABEL[t.priority]}</td>
                     <td className="p-3">
@@ -574,13 +756,30 @@ function TasksPage() {
               {visible.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-sm text-muted-foreground">
-                    Nenhuma tarefa neste período.
+                    Nenhuma tarefa neste filtro.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          {doneCount > 0 && statusFilter !== "done" && (
+            <div className="border-t p-2 text-center">
+              <button
+                onClick={() => setShowDone((v) => !v)}
+                className="text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                {showDone ? "Recolher concluídas" : `Mostrar ${doneCount} concluída${doneCount === 1 ? "" : "s"}`}
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {reviewing && (
+        <OverdueReviewModal
+          items={visible.filter((t) => !t.id.startsWith("m:") && isOverdue(t))}
+          onClose={() => setReviewing(false)}
+        />
       )}
 
       {editingId &&
@@ -655,7 +854,12 @@ function TaskCard({
         <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
           <p>
             {when}
-            {task.agenda ? ` · ${task.agenda.time}` : ""}
+            {timeOf(task) ? ` · ${timeOf(task)}` : ""}
+            {isOverdue(task) && (
+              <span className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-reuniao">
+                <AlertCircle className="h-3 w-3" /> atrasada
+              </span>
+            )}
           </p>
           {task.agenda?.location && (
             <p className="line-clamp-1">📍 {task.agenda.location}</p>
@@ -696,6 +900,143 @@ function TaskCard({
         >
           excluir
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Revisão em lote das atrasadas. Nada é alterado sozinho: a Ana escolhe os
+ * itens, escolhe a ação e vê a prévia exata antes de confirmar.
+ */
+function OverdueReviewModal({ items, onClose }: { items: VisibleTask[]; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [action, setAction] = useState<"done" | "reschedule">("done");
+  const [newDate, setNewDate] = useState(localDateKey(new Date()));
+
+  const chosen = items.filter((t) => selected.has(t.id));
+
+  const apply = useMutation({
+    mutationFn: async () => {
+      let ok = 0;
+      for (const t of chosen) {
+        const patch =
+          action === "done"
+            ? { status: "done" as TaskStatus, completed_at: new Date().toISOString() }
+            : { due_date: newDate, start_date: newDate, locally_managed: true };
+        const { error } = await supabase.from("tasks").update(patch).eq("id", t.id);
+        if (error) throw new Error(error.message);
+        ok++;
+        if (action === "reschedule") {
+          try {
+            const { syncTaskToCalendar } = await import("@/lib/task-calendar.functions");
+            await syncTaskToCalendar({ data: { taskId: t.id } });
+          } catch (e) {
+            console.warn("Calendário:", e);
+          }
+        }
+      }
+      return ok;
+    },
+    onSuccess: (n) => {
+      toast.success(`${n} ${n === 1 ? "tarefa alterada" : "tarefas alteradas"}`);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      onClose();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 rounded-xl bg-card p-4 shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-semibold">Revisar atrasadas em lote</h3>
+        <p className="text-[11px] text-muted-foreground">
+          Nada muda sozinho. Marque as tarefas, escolha a ação e confira a prévia antes de confirmar.
+        </p>
+
+        <div className="flex items-center gap-3 text-xs">
+          <button onClick={() => setSelected(new Set(items.map((t) => t.id)))} className="underline">
+            Marcar todas ({items.length})
+          </button>
+          <button onClick={() => setSelected(new Set())} className="underline">
+            Desmarcar
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-md border p-2">
+          {items.map((t) => (
+            <label key={t.id} className="flex cursor-pointer items-start gap-2 rounded p-1 text-xs hover:bg-accent">
+              <input
+                type="checkbox"
+                checked={selected.has(t.id)}
+                onChange={() => toggle(t.id)}
+                className="mt-0.5"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block break-words">{t.title}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {dayLabel(new Date(t.sortAt))} · {SOURCES.find((s) => s.key === t.source)?.label ?? t.source}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="space-y-2 text-xs">
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={action === "done"} onChange={() => setAction("done")} />
+            Marcar como concluídas
+          </label>
+          <label className="flex flex-wrap items-center gap-2">
+            <input type="radio" checked={action === "reschedule"} onChange={() => setAction("reschedule")} />
+            Remarcar para
+            <input
+              type="date"
+              value={newDate}
+              onChange={(e) => setNewDate(e.target.value)}
+              onFocus={() => setAction("reschedule")}
+              className="rounded-md border bg-background px-2 py-1"
+            />
+          </label>
+        </div>
+
+        <p className="rounded-md bg-secondary p-2 text-[11px]">
+          {chosen.length === 0
+            ? "Nenhuma tarefa marcada ainda."
+            : action === "done"
+              ? `Prévia: ${chosen.length} ${chosen.length === 1 ? "tarefa será concluída" : "tarefas serão concluídas"}.`
+              : `Prévia: ${chosen.length} ${chosen.length === 1 ? "tarefa vai" : "tarefas vão"} para ${newDate.split("-").reverse().join("/")}. O horário de cada uma é mantido.`}
+        </p>
+
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-md border px-3 py-1.5 text-xs">
+            Cancelar
+          </button>
+          <button
+            disabled={chosen.length === 0 || apply.isPending || (action === "reschedule" && !newDate)}
+            onClick={() => apply.mutate()}
+            className="rounded-md bg-foreground px-3 py-1.5 text-xs text-background disabled:opacity-50"
+          >
+            {apply.isPending ? "Aplicando…" : `Aplicar a ${chosen.length}`}
+          </button>
+        </div>
       </div>
     </div>
   );
