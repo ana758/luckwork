@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteGoogleEvent } from "@/lib/gcal.functions";
 import { syncTaskToCalendar } from "@/lib/task-calendar.functions";
+import { WeekdayPicker } from "@/components/WeekdayPicker";
+import { weekdayDates } from "@/lib/recurrence";
 import { SOURCES, SOURCE_DOT, RECURRENCE_LABEL, type Task, type SourceKey, type Recurrence } from "@/lib/sources";
 
 export function TaskEditModal({
@@ -19,7 +21,9 @@ export function TaskEditModal({
   const [dueTime, setDueTime] = useState((task.due_time ?? "").slice(0, 5));
   const [source, setSource] = useState<SourceKey>(task.source);
   const [notes, setNotes] = useState(task.notes ?? "");
-  const [recurrence, setRecurrence] = useState<Recurrence>(task.recurrence ?? "none");
+  const [recurrence, setRecurrence] = useState<Recurrence | "weekdays">(task.recurrence ?? "none");
+  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [weeks, setWeeks] = useState(4);
   const initialDest =
     (task as unknown as { crm_destination?: "jira" | "crm" | "none" | null }).crm_destination ??
     (task.external_system === "crm_angi" ? "crm" : task.external_system === "jira" ? "jira" : "none");
@@ -31,6 +35,10 @@ export function TaskEditModal({
   const save = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Título é obrigatório.");
+      if (recurrence === "weekdays") {
+        if (!dueDate) throw new Error("Escolha a data de início da rotina.");
+        if (weekdays.length === 0) throw new Error("Escolha pelo menos um dia da semana.");
+      }
       const { error } = await supabase
         .from("tasks")
         .update({
@@ -41,7 +49,7 @@ export function TaskEditModal({
           start_date: dueDate || null,
           due_time: dueDate && dueTime ? `${dueTime}:00` : null,
 
-          recurrence,
+          recurrence: recurrence === "weekdays" ? "none" : recurrence,
           crm_destination: source === "angi" ? angiDest : null,
           locally_managed: true,
         })
@@ -50,6 +58,38 @@ export function TaskEditModal({
       if (source !== task.source) {
         const { learnSourceRule } = await import("@/lib/learn-source");
         await learnSourceRule(title.trim(), source);
+      }
+      // Rotina por dias da semana: esta tarefa continua como está e os outros
+      // dias viram tarefas próprias (uma série, sem mexer umas nas outras).
+      if (recurrence === "weekdays") {
+        const others = weekdayDates(dueDate, weekdays, weeks).filter((d) => d !== dueDate);
+        if (others.length > 0) {
+          const { data: rows, error: insErr } = await supabase
+            .from("tasks")
+            .insert(
+              others.map((due) => ({
+                title: title.trim(),
+                source,
+                notes: notes.trim() || null,
+                due_date: due,
+                start_date: due,
+                due_time: dueTime ? `${dueTime}:00` : null,
+                recurrence: "none" as Recurrence,
+                priority: task.priority,
+              })),
+            )
+            .select("id");
+          if (insErr) throw new Error(insErr.message);
+          void (async () => {
+            for (const r of rows ?? []) {
+              try {
+                await syncCalendar({ data: { taskId: r.id } });
+              } catch {
+                /* segue só na LUCK */
+              }
+            }
+          })();
+        }
       }
       // Qualquer alteração (nome, data, horário, notas) reflete no Google Agenda.
       try {
@@ -151,7 +191,7 @@ export function TaskEditModal({
         <label className="text-xs text-muted-foreground">Repetição</label>
         <select
           value={recurrence}
-          onChange={(e) => setRecurrence(e.target.value as Recurrence)}
+          onChange={(e) => setRecurrence(e.target.value as Recurrence | "weekdays")}
           className="mb-3 mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         >
           {(Object.keys(RECURRENCE_LABEL) as Recurrence[]).map((r) => (
@@ -159,8 +199,12 @@ export function TaskEditModal({
               {RECURRENCE_LABEL[r]}
             </option>
           ))}
+          <option value="weekdays">Dias da semana…</option>
         </select>
 
+        {recurrence === "weekdays" && (
+          <WeekdayPicker weekdays={weekdays} setWeekdays={setWeekdays} weeks={weeks} setWeeks={setWeeks} />
+        )}
 
         <label className="text-xs text-muted-foreground">Empresa</label>
         <div className="mb-3 mt-1 grid grid-cols-4 gap-1">

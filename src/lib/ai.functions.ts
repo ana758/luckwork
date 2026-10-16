@@ -186,9 +186,36 @@ export const listAiSuggestions = createServerFn({ method: "GET" })
       .select("id, title, body, created_at")
       .is("read_at", null)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(60);
     if (error) throw new Error(error.message);
-    return (data ?? []).filter((n) => (n.title ?? "").startsWith("🤖")).slice(0, 5);
+
+    // Sugestão já dispensada/respondida nos últimos 7 dias não volta.
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { data: seenRows } = await context.supabase
+      .from("notifications")
+      .select("title")
+      .not("read_at", "is", null)
+      .gte("created_at", since)
+      .limit(200);
+    const normKey = (v: string | null) =>
+      (v ?? "")
+        .replace(/^🤖\s*/, "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+    const dismissed = new Set((seenRows ?? []).filter((r) => (r.title ?? "").startsWith("🤖")).map((r) => normKey(r.title)));
+
+    // Uma única proposta por assunto, a mais recente.
+    const unique = new Map<string, (typeof data)[number]>();
+    for (const n of data ?? []) {
+      if (!(n.title ?? "").startsWith("🤖")) continue;
+      const k = normKey(n.title);
+      if (dismissed.has(k) || unique.has(k)) continue;
+      unique.set(k, n);
+    }
+    return [...unique.values()].slice(0, 5);
   });
 
 /** Marca uma sugestão como resolvida (respondida ou dispensada). */
@@ -199,11 +226,22 @@ export const dismissAiSuggestion = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    // Dispensar uma sugestão dispensa também as repetidas com o mesmo título.
+    const { data: one } = await context.supabase
       .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", data.id);
+      .select("title")
+      .eq("id", data.id)
+      .maybeSingle();
+    const now = new Date().toISOString();
+    const { error } = await context.supabase.from("notifications").update({ read_at: now }).eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (one?.title) {
+      await context.supabase
+        .from("notifications")
+        .update({ read_at: now })
+        .eq("title", one.title)
+        .is("read_at", null);
+    }
     return { ok: true };
   });
 

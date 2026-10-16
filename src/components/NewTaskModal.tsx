@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { withAuthRetry } from "@/lib/auth-retry";
+import { WeekdayPicker } from "@/components/WeekdayPicker";
+import { weekdayDates } from "@/lib/recurrence";
 import { SOURCES, SOURCE_DOT, RECURRENCE_LABEL, type SourceKey, type Recurrence } from "@/lib/sources";
 
 /** Nova tarefa criada direto no calendário (dia e horário já preenchidos). */
@@ -37,15 +39,7 @@ export function NewTaskModal({
       if (recurrence === "weekdays") {
         if (!date) throw new Error("Escolha a data de início da rotina.");
         if (weekdays.length === 0) throw new Error("Escolha pelo menos um dia da semana.");
-        const [y, m, d] = date.split("-").map(Number);
-        const pad = (n: number) => String(n).padStart(2, "0");
-        const dates: string[] = [];
-        for (let i = 0; i < weeks * 7; i++) {
-          const day = new Date(y, m - 1, d + i);
-          if (weekdays.includes(day.getDay())) {
-            dates.push(`${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`);
-          }
-        }
+        const dates = weekdayDates(date, weekdays, weeks);
         if (dates.length === 0) throw new Error("Nenhuma data cai nesses dias.");
         const { data: rows, error } = await supabase
           .from("tasks")
@@ -176,52 +170,7 @@ export function NewTaskModal({
         </select>
 
         {recurrence === "weekdays" && (
-          <div className="mb-3 space-y-2 rounded-md border bg-secondary/30 p-2">
-            <div className="flex flex-wrap gap-1">
-              {[
-                [1, "seg"],
-                [2, "ter"],
-                [3, "qua"],
-                [4, "qui"],
-                [5, "sex"],
-                [6, "sáb"],
-                [0, "dom"],
-              ].map(([n, l]) => {
-                const on = weekdays.includes(n as number);
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() =>
-                      setWeekdays((prev) =>
-                        prev.includes(n as number) ? prev.filter((x) => x !== n) : [...prev, n as number],
-                      )
-                    }
-                    className={`rounded-md border px-2 py-1 text-xs ${
-                      on ? "border-foreground bg-card font-medium" : "text-muted-foreground"
-                    }`}
-                  >
-                    {l}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Por</span>
-              <select
-                value={weeks}
-                onChange={(e) => setWeeks(Number(e.target.value))}
-                className="rounded-md border bg-background px-2 py-1 text-xs"
-              >
-                {[2, 4, 8, 12].map((w) => (
-                  <option key={w} value={w}>
-                    {w} semanas
-                  </option>
-                ))}
-              </select>
-              <span>a partir da data acima. Cada dia vira uma tarefa própria.</span>
-            </div>
-          </div>
+          <WeekdayPicker weekdays={weekdays} setWeekdays={setWeekdays} weeks={weeks} setWeeks={setWeeks} />
         )}
 
         <label className="text-xs text-muted-foreground">Empresa</label>

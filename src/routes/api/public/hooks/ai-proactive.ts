@@ -53,7 +53,17 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
           sb.from("ai_memory").select("content").order("created_at", { ascending: false }).limit(40),
         ]);
 
+        // O que já foi sugerido nos últimos 7 dias (visto ou não) não se repete.
+        const { data: recent } = await sb
+          .from("notifications")
+          .select("title, body")
+          .gte("created_at", new Date(Date.now() - 7 * 86400000).toISOString())
+          .like("title", "🤖%")
+          .limit(60);
+        const recentTitles = (recent ?? []).map((r) => r.title);
+
         const prompt = [
+          `Sugestões já feitas nos últimos 7 dias (NÃO repita nenhuma nem o mesmo assunto): ${JSON.stringify(recentTitles)}`,
           `Hoje é ${today}.`,
           `Memória sobre a Ana: ${JSON.stringify((memories ?? []).map((m) => m.content))}`,
           `Tarefas em aberto: ${JSON.stringify(tasks ?? [])}`,
@@ -92,6 +102,17 @@ export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
         }
 
         const title = `🤖 ${parsed.titulo}`.slice(0, 90);
+        const normKey = (v: string) =>
+          v
+            .replace(/^🤖\s*/, "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, " ")
+            .trim();
+        if (recentTitles.some((t) => normKey(t) === normKey(title))) {
+          return Response.json({ ok: true, sent: false, reason: "repetida" });
+        }
         const body = (parsed.mensagem ?? "").slice(0, 160);
         await notifyAll({ title, body, url: "/ai", tag });
         await sb.from("notifications").insert({ title, body });

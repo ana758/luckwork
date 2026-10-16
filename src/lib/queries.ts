@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { meetingDateKey } from "./all-day";
 import { isRemovedSource, type AccessEntry, type Meeting, type Task } from "./sources";
 
 export async function fetchTasks(): Promise<Task[]> {
@@ -47,11 +48,23 @@ export async function fetchMeetings(): Promise<Meeting[]> {
   // pessoal) não são compromissos novos: a tarefa já é o registro verdadeiro.
   const { data: linked } = await supabase
     .from("tasks")
-    .select("google_account, google_event_id, mirror_account, mirror_event_id");
+    .select("title, due_date, google_account, google_event_id, mirror_account, mirror_event_id");
   const taskEventPairs = new Set<string>();
   for (const t of linked ?? []) {
     if (t.google_account && t.google_event_id) taskEventPairs.add(`${t.google_account}::${t.google_event_id}`);
     if (t.mirror_account && t.mirror_event_id) taskEventPairs.add(`${t.mirror_account}::${t.mirror_event_id}`);
+  }
+  // Mesmo título no mesmo dia de uma tarefa: é cópia fantasma do Google.
+  const normTitle = (v: string) =>
+    v
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  const taskTitleDays = new Set<string>();
+  for (const t of linked ?? []) {
+    if (t.title && t.due_date) taskTitleDays.add(`${normTitle(t.title)}::${t.due_date}`);
   }
   const mirrorOfMeetings = new Set<string>();
   for (const m of rows) {
@@ -65,6 +78,8 @@ export async function fetchMeetings(): Promise<Meeting[]> {
     if (m.hidden) return false;
     if (isRemovedSource(m.source)) return false;
     if (!m.google_event_id) return true;
+    if (taskTitleDays.has(`${normTitle(String(m.title))}::${meetingDateKey(m as { starts_at: string; ends_at?: string | null })}`))
+      return false;
     const pair = `${m.google_account}::${m.google_event_id}`;
     if (taskEventPairs.has(pair) || mirrorOfMeetings.has(pair)) return false;
     return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));

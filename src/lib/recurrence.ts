@@ -51,3 +51,20 @@ export async function spawnNextOccurrence(task: Task) {
     void syncTaskToCalendar({ data: { taskId: created.id } }).catch(() => {});
   }
 }
+
+/**
+ * Datas (AAAA-MM-DD) de uma rotina por dias da semana, a partir de `start`,
+ * por `weeks` semanas. weekdays: 0=dom … 6=sáb.
+ */
+export function weekdayDates(start: string, weekdays: number[], weeks: number): string[] {
+  const [y, m, d] = start.split("-").map(Number);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const out: string[] = [];
+  for (let i = 0; i < weeks * 7; i++) {
+    const day = new Date(y, m - 1, d + i);
+    if (weekdays.includes(day.getDay())) {
+      out.push(`${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`);
+    }
+  }
+  return out;
+}

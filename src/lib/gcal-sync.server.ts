@@ -14,6 +14,7 @@ import {
   patchEvent,
   primaryCalendarId,
 } from "./gcal.server";
+import { meetingDateKey } from "./all-day";
 
 
 
@@ -215,6 +216,19 @@ export async function runCalendarSync(supabase: any, userId: string) {
   for (const r of linkedMeetings ?? []) {
     if (r.mirror_account && r.mirror_event_id) linkedTaskPairs.add(`${r.mirror_account}::${r.mirror_event_id}`);
   }
+  // Uma tarefa e um evento do Google com o MESMO título no MESMO dia são a mesma
+  // coisa (o evento é uma cópia fantasma, às vezes com horário errado de bugs
+  // antigos). A tarefa da LUCK é o registro verdadeiro.
+  const dayOf = (d: string) => d.slice(0, 10);
+  const { data: windowTasks } = await supabase
+    .from("tasks")
+    .select("id, title, status, due_date")
+    .gte("due_date", dayOf(timeMin))
+    .lte("due_date", dayOf(timeMax));
+  const taskByTitleDay = new Map<string, any>();
+  for (const t of windowTasks ?? []) {
+    if (t.title && t.due_date) taskByTitleDay.set(`${normalizedMeetingTitle(t.title)}::${t.due_date}`, t);
+  }
   const tasksByEvent = new Map<string, any>();
   for (const r of linkedTasks ?? []) {
     if (r.google_account && r.google_event_id) tasksByEvent.set(`${r.google_account}::${r.google_event_id}`, r);
@@ -284,6 +298,13 @@ export async function runCalendarSync(supabase: any, userId: string) {
           // Todo compromisso das agendas conectadas entra no calendário da LUCK.
           // A aba Reuniões continua mostrando só o que é reunião de verdade
           // (is_meeting), para não virar espelho da agenda inteira.
+          if (
+            taskByTitleDay.has(
+              `${normalizedMeetingTitle(title)}::${meetingDateKey({ starts_at: startsAt, ends_at: eventEnd(e) })}`,
+            )
+          ) {
+            return [];
+          }
           if (seenSignatures.has(sig)) return [];
           seenSignatures.add(sig);
           const learned = rulesMap.get(normalizeTitleKey(title));
@@ -367,6 +388,33 @@ export async function runCalendarSync(supabase: any, userId: string) {
     const duplicateTaskMeetings = duplicateRows.map((r: any) => r.id);
     if (duplicateTaskMeetings.length > 0) {
       await supabase.from("meetings").delete().in("id", duplicateTaskMeetings);
+    }
+  }
+
+  // Cópias fantasma já importadas: mesmo título e dia de uma tarefa da LUCK.
+  if (taskByTitleDay.size > 0) {
+    const { data: syncedRows } = await supabase
+      .from("meetings")
+      .select("id, title, starts_at, ends_at, status, completed_at")
+      .not("google_event_id", "is", null)
+      .eq("hidden", false)
+      .gte("starts_at", timeMin)
+      .lte("starts_at", timeMax);
+    const ghosts = (syncedRows ?? []).filter((r: any) =>
+      taskByTitleDay.has(`${normalizedMeetingTitle(r.title ?? "")}::${meetingDateKey(r)}`),
+    );
+    for (const r of ghosts as any[]) {
+      const task = taskByTitleDay.get(`${normalizedMeetingTitle(r.title ?? "")}::${meetingDateKey(r)}`);
+      const checked = Boolean(r.completed_at) || r.status === "done";
+      if (checked && task && task.status !== "done") {
+        await supabase
+          .from("tasks")
+          .update({ status: "done", completed_at: r.completed_at ?? new Date().toISOString() })
+          .eq("id", task.id);
+      }
+    }
+    if (ghosts.length > 0) {
+      await supabase.from("meetings").delete().in("id", ghosts.map((r: any) => r.id));
     }
   }
 
