@@ -947,6 +947,59 @@ function CalendarPage() {
     );
   }
 
+  /** Itens visíveis de um dia: respeita "Sem horário" recolhido e "Concluídos" escondidos. */
+  const visibleFor = (key: string) =>
+    itemsFor(key).filter((i) => i.startMin !== null || (stripOpen && (doneOpen || !i.done)));
+
+  // Barra Sem horário / Concluídos (igual em Dia, 2 dias e 5 dias)
+  const untimedBar = (() => {
+    const untimed = rangeDays.flatMap((d) => itemsFor(fmtKey(d)).filter((i) => i.startMin === null));
+    const pendingCount = untimed.filter((i) => !i.done).length;
+    const doneCount = untimed.length - pendingCount;
+    return (
+      <div className="flex flex-wrap items-center gap-2 border-b bg-secondary/40 px-2 py-1.5 text-[11px] font-medium">
+        <button
+          onClick={() => {
+            const next = !stripOpen;
+            setStripOpen(next);
+            try {
+              window.localStorage.setItem("luck.cal.strip", next ? "1" : "0");
+            } catch {
+              /* ignora */
+            }
+          }}
+          className="flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-foreground shadow-sm hover:bg-accent"
+          aria-expanded={stripOpen}
+          title={stripOpen ? "Clique para recolher" : "Clique para abrir"}
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${stripOpen ? "" : "-rotate-90"}`} />
+          Sem horário · {pendingCount}
+          <span className="font-normal text-muted-foreground">{stripOpen ? "recolher" : "abrir"}</span>
+        </button>
+        {doneCount > 0 && stripOpen && (
+          <button
+            onClick={() => {
+              const next = !doneOpen;
+              setDoneOpen(next);
+              try {
+                window.localStorage.setItem("luck.cal.done", next ? "1" : "0");
+              } catch {
+                /* ignora */
+              }
+            }}
+            className="ml-auto flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-foreground shadow-sm hover:bg-accent"
+            aria-expanded={doneOpen}
+            title={doneOpen ? "Clique para esconder os concluídos" : "Clique para ver os concluídos"}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
+            Concluídos · {doneCount}
+            <span className="font-normal text-muted-foreground">{doneOpen ? "esconder" : "ver"}</span>
+          </button>
+        )}
+      </div>
+    );
+  })();
+
   return (
     <div className="space-y-4">
       <header className="space-y-2">
@@ -1006,6 +1059,7 @@ function CalendarPage() {
       {isMobile && (view === "2day" || view === "5day") ? (
         /* Celular: lista por dia — evita colunas estreitas e texto empilhado. */
         <div className="space-y-3">
+          {untimedBar}
           {undatedTasks.length > 0 && (
             <div className="rounded-xl border bg-secondary/40 p-2">
               <p className="mb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -1020,7 +1074,7 @@ function CalendarPage() {
           )}
           {rangeDays.map((d) => {
             const key = fmtKey(d);
-            const items = itemsFor(key);
+            const items = visibleFor(key);
             const isToday = key === todayKey;
             return (
               <div key={key} className="overflow-hidden rounded-xl border bg-card">
@@ -1054,7 +1108,7 @@ function CalendarPage() {
           })}
         </div>
       ) : view === "month" ? (
-        <div className="overflow-hidden rounded-xl border bg-card">
+        <div className="rounded-xl border bg-card">
           <div className="grid grid-cols-7 border-b text-center text-[11px] text-muted-foreground">
             {WEEKDAYS.map((d) => (
               <div key={d} className="py-2">
@@ -1065,33 +1119,66 @@ function CalendarPage() {
           <div className="grid grid-cols-7">
             {monthDays.map((d) => {
               const key = fmtKey(d);
-              const items = itemsFor(key);
+              const all = itemsFor(key);
+              const pending = all.filter((i) => !i.done);
+              const doneN = all.length - pending.length;
               const muted = d.getMonth() !== cursor.getMonth();
+              const goDay = () => {
+                setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+                setView("day");
+              };
               return (
                 <div
                   key={key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={goDay}
+                  onKeyDown={(e) => e.key === "Enter" && goDay()}
                   onDragOver={(e) => onDragOver(e, key)}
                   onDragLeave={() => dragOverKey === key && setDragOverKey(null)}
                   onDrop={(e) => onDropDay(e, key)}
-                  className={`min-h-20 border-b border-r p-1.5 last:border-r-0 ${muted ? "bg-secondary/30" : ""} ${dragOverKey === key ? "bg-accent" : ""}`}
+                  title="Clique para abrir o dia"
+                  className={`h-[76px] cursor-pointer overflow-hidden border-b border-r p-1 last:border-r-0 hover:bg-accent/40 sm:h-[104px] sm:p-1.5 ${muted ? "bg-secondary/30" : ""} ${dragOverKey === key ? "bg-accent" : ""}`}
                 >
-                  <span
-                    className={`text-[11px] ${
-                      key === todayKey
-                        ? "rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground"
-                        : muted
-                          ? "text-muted-foreground"
-                          : ""
-                    }`}
-                  >
-                    {d.getDate()}
-                  </span>
-                  <div className="mt-1 space-y-1">
-                    {items.slice(0, 3).map((i) => (
-                      <ItemBlock key={i.id} item={i} compact />
+                  <div className="flex items-center justify-between gap-1">
+                    <span
+                      className={`text-[11px] ${
+                        key === todayKey
+                          ? "rounded-full bg-primary px-1.5 py-0.5 text-primary-foreground"
+                          : muted
+                            ? "text-muted-foreground"
+                            : ""
+                      }`}
+                    >
+                      {d.getDate()}
+                    </span>
+                    {pending.length > 0 && (
+                      <span className="rounded-full bg-secondary px-1.5 text-[10px] font-medium leading-4 text-foreground sm:hidden">
+                        {pending.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-0.5 sm:hidden">
+                    {pending.slice(0, 6).map((i) => (
+                      <span key={i.id} className={`h-1.5 w-1.5 rounded-full ${i.dot}`} />
                     ))}
-                    {items.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">+{items.length - 3}</span>
+                  </div>
+                  <div className="mt-1 hidden space-y-0.5 sm:block">
+                    {pending.slice(0, 3).map((i) => (
+                      <div
+                        key={i.id}
+                        className={`flex items-center gap-1 truncate rounded px-1 text-[10px] leading-4 ${i.tint}`}
+                        title={i.title}
+                      >
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${i.dot}`} />
+                        <span className="truncate">{i.title}</span>
+                      </div>
+                    ))}
+                    {(pending.length > 3 || doneN > 0) && (
+                      <div className="text-[10px] text-muted-foreground">
+                        {pending.length > 3 ? `+${pending.length - 3} ` : ""}
+                        {doneN > 0 ? `· ${doneN} concluído${doneN > 1 ? "s" : ""}` : ""}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1137,12 +1224,14 @@ function CalendarPage() {
           )}
 
       {view === "5day" ? (
+        <>
+        {untimedBar}
         <div className="max-h-[70vh] overflow-y-auto">
           <div className="grid" style={{ gridTemplateColumns: `48px repeat(5, minmax(0, 1fr))` }}>
             <div />
             {rangeDays.map((d) => {
               const key = fmtKey(d);
-              const items = itemsFor(key);
+              const items = visibleFor(key);
               return (
                 <div
                   key={key}
@@ -1178,56 +1267,10 @@ function CalendarPage() {
             })}
           </div>
         </div>
+        </>
       ) : (
         <>
-          {/* Faixa de dia inteiro (sem horário), recolhível, com contador */}
-          {(() => {
-            const untimed = rangeDays.flatMap((d) => itemsFor(fmtKey(d)).filter((i) => i.startMin === null));
-            const pendingCount = untimed.filter((i) => !i.done).length;
-            const doneCount = untimed.length - pendingCount;
-            return (
-              <div className="flex flex-wrap items-center gap-2 border-b bg-secondary/40 px-2 py-1.5 text-[11px] font-medium">
-                <button
-                  onClick={() => {
-                    const next = !stripOpen;
-                    setStripOpen(next);
-                    try {
-                      window.localStorage.setItem("luck.cal.strip", next ? "1" : "0");
-                    } catch {
-                      /* ignora */
-                    }
-                  }}
-                  className="flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-foreground shadow-sm hover:bg-accent"
-                  aria-expanded={stripOpen}
-                  title={stripOpen ? "Clique para recolher" : "Clique para abrir"}
-                >
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${stripOpen ? "" : "-rotate-90"}`} />
-                  Sem horário · {pendingCount}
-                  <span className="font-normal text-muted-foreground">{stripOpen ? "recolher" : "abrir"}</span>
-                </button>
-                {doneCount > 0 && stripOpen && (
-                  <button
-                    onClick={() => {
-                      const next = !doneOpen;
-                      setDoneOpen(next);
-                      try {
-                        window.localStorage.setItem("luck.cal.done", next ? "1" : "0");
-                      } catch {
-                        /* ignora */
-                      }
-                    }}
-                    className="ml-auto flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-foreground shadow-sm hover:bg-accent"
-                    aria-expanded={doneOpen}
-                    title={doneOpen ? "Clique para esconder os concluídos" : "Clique para ver os concluídos"}
-                  >
-                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
-                    Concluídos · {doneCount}
-                    <span className="font-normal text-muted-foreground">{doneOpen ? "esconder" : "ver"}</span>
-                  </button>
-                )}
-              </div>
-            );
-          })()}
+          {untimedBar}
           {stripOpen && (
           <div className="max-h-[28vh] overflow-y-auto border-b bg-secondary/20">
           <div
