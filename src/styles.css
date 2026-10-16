@@ -177,3 +177,8 @@ body { min-height: 100dvh; overscroll-behavior-y: none; }
 @media (max-width: 768px) {
   input, select, textarea { font-size: 16px !important; }
 }
+
+/* Esconde o selo "Edit with Lovable" (cobria o menu no celular). */
+#lovable-badge {
+  display: none !important;
+}

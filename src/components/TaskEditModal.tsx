@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { deleteGoogleEvent } from "@/lib/gcal.functions";
+import { deleteTaskEverywhere } from "@/lib/delete-task";
 import { syncTaskToCalendar } from "@/lib/task-calendar.functions";
 import { WeekdayPicker } from "@/components/WeekdayPicker";
 import { weekdayDates } from "@/lib/recurrence";
@@ -29,7 +29,6 @@ export function TaskEditModal({
     (task.external_system === "crm_angi" ? "crm" : task.external_system === "jira" ? "jira" : "none");
   const [angiDest, setAngiDest] = useState<"jira" | "crm" | "none">(initialDest);
   const qc = useQueryClient();
-  const delGoogle = useServerFn(deleteGoogleEvent);
   const syncCalendar = useServerFn(syncTaskToCalendar);
 
   const save = useMutation({
@@ -110,31 +109,7 @@ export function TaskEditModal({
   });
 
   const remove = useMutation({
-    mutationFn: async () => {
-      const { data: rowData } = await supabase
-        .from("tasks")
-        .select("google_event_id, google_account")
-        .eq("id", task.id)
-        .maybeSingle();
-      const row = rowData as { google_event_id?: string | null; google_account?: string | null } | null;
-
-      let googleOk = true;
-      let wasLinked = false;
-      if (row?.google_event_id && row?.google_account) {
-        wasLinked = true;
-        try {
-          await delGoogle({
-            data: { googleAccount: row.google_account, googleEventId: row.google_event_id },
-          });
-        } catch (e) {
-          googleOk = false;
-          toast.error(`Google Agenda: ${(e as Error).message}`);
-        }
-      }
-      const { error } = await supabase.from("tasks").delete().eq("id", task.id);
-      if (error) throw new Error(error.message);
-      return { googleOk, wasLinked };
-    },
+    mutationFn: () => deleteTaskEverywhere(task.id),
     onSuccess: (r) => {
       toast.success(
         r.wasLinked

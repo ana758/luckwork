@@ -214,11 +214,10 @@ export function QuickAdd() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Adicionar tarefa ou reunião"
-        className="fixed right-4 z-40 flex h-16 items-center gap-2 rounded-full bg-primary px-6 text-base font-semibold text-primary-foreground shadow-xl shadow-primary/30 transition-transform hover:scale-105 md:right-6"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 7.5rem)" }}
+        className="fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-40 flex h-12 w-12 items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 md:bottom-6 md:right-6 md:h-14 md:w-auto md:px-6"
       >
         <Plus className="h-6 w-6" />
-        Adicionar
+        <span className="hidden md:inline">Adicionar</span>
       </button>
 
 
