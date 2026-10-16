@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin, Pencil } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin, Pencil } from "lucide-react";
+import { deleteTaskEverywhere } from "@/lib/delete-task";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
 import { MeetingEditModal } from "@/components/MeetingEditModal";
@@ -680,17 +681,24 @@ function CalendarPage() {
 
   /** Exclui o compromisso direto do cartão (some na hora da tela). */
   function deleteQuick(item: CalItem) {
+    const what = item.kind === "task" ? "tarefa" : "compromisso";
+    if (!window.confirm(`Excluir ${what} "${item.title}"? Se ele estiver no Google Agenda, será apagado de lá também.`)) {
+      return;
+    }
     if (item.kind === "task" && item.task) {
       const id = item.task.id;
       qc.setQueryData<Task[]>(["tasks"], (old) => (old ?? []).filter((x) => x.id !== id));
       void (async () => {
-        const { error } = await supabase.from("tasks").delete().eq("id", id);
-        if (error) {
-          toast.error(error.message);
-          qc.invalidateQueries({ queryKey: ["tasks"] });
-          return;
+        try {
+          const r = await deleteTaskEverywhere(id);
+          toast.success(
+            r.wasLinked && !r.googleOk
+              ? "Tarefa excluída (o Google Agenda não respondeu)"
+              : "Tarefa excluída",
+          );
+        } catch (e) {
+          toast.error((e as Error).message);
         }
-        toast.success("Tarefa excluída");
         qc.invalidateQueries({ queryKey: ["tasks"] });
       })();
       return;
@@ -1178,7 +1186,7 @@ function CalendarPage() {
             const pendingCount = untimed.filter((i) => !i.done).length;
             const doneCount = untimed.length - pendingCount;
             return (
-              <div className="flex items-center border-b bg-secondary/40 text-[11px] font-medium text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 border-b bg-secondary/40 px-2 py-1.5 text-[11px] font-medium">
                 <button
                   onClick={() => {
                     const next = !stripOpen;
@@ -1189,11 +1197,13 @@ function CalendarPage() {
                       /* ignora */
                     }
                   }}
-                  className="flex flex-1 items-center gap-1.5 px-3 py-1.5 text-left hover:bg-secondary/60"
+                  className="flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-foreground shadow-sm hover:bg-accent"
                   aria-expanded={stripOpen}
+                  title={stripOpen ? "Clique para recolher" : "Clique para abrir"}
                 >
-                  <span>{stripOpen ? "▾" : "▸"}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${stripOpen ? "" : "-rotate-90"}`} />
                   Sem horário · {pendingCount}
+                  <span className="font-normal text-muted-foreground">{stripOpen ? "recolher" : "abrir"}</span>
                 </button>
                 {doneCount > 0 && stripOpen && (
                   <button
@@ -1206,11 +1216,13 @@ function CalendarPage() {
                         /* ignora */
                       }
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-secondary/60"
+                    className="ml-auto flex items-center gap-1 rounded-md border bg-card px-2 py-1 text-foreground shadow-sm hover:bg-accent"
                     aria-expanded={doneOpen}
+                    title={doneOpen ? "Clique para esconder os concluídos" : "Clique para ver os concluídos"}
                   >
-                    <span>{doneOpen ? "▾" : "▸"}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${doneOpen ? "" : "-rotate-90"}`} />
                     Concluídos · {doneCount}
+                    <span className="font-normal text-muted-foreground">{doneOpen ? "esconder" : "ver"}</span>
                   </button>
                 )}
               </div>

@@ -25,6 +25,8 @@ import {
 } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 import { TaskEditModal } from "@/components/TaskEditModal";
+import { deleteTaskEverywhere } from "@/lib/delete-task";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 
 
@@ -171,7 +173,13 @@ function TasksPage() {
   const { data: meetings = [] } = useMeetings();
   const { visibleSources } = useArchivedSources();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [view, setView] = useState<"board" | "list">("board");
+  // No celular, a Lista é a visão padrão (o Board exige rolar para o lado).
+  const [viewTouched, setViewTouched] = useState(false);
+  useEffect(() => {
+    if (isMobile && !viewTouched) setView("list");
+  }, [isMobile, viewTouched]);
   const [filter, setFilter] = useState<SourceKey | "all">("all");
   const [period, setPeriod] = useState<Period>("week");
   const [search, setSearch] = useState("");
@@ -347,8 +355,8 @@ function TasksPage() {
           .eq("starts_at", target.starts_at);
         if (error) throw new Error(error.message);
       } else {
-        const { error } = await supabase.from("tasks").delete().eq("id", realId);
-        if (error) throw new Error(error.message);
+        // Apaga a tarefa e o evento dela no Google Agenda.
+        await deleteTaskEverywhere(realId);
       }
     },
     onSuccess: (_d, id) => {
@@ -504,7 +512,10 @@ function TasksPage() {
             { v: "list", l: "Lista" },
           ]}
           value={view}
-          onChange={(v) => setView(v as "board" | "list")}
+          onChange={(v) => {
+            setViewTouched(true);
+            setView(v as "board" | "list");
+          }}
         />
       </header>
 
@@ -620,9 +631,9 @@ function TasksPage() {
                     {status === "done" && items.length > 0 && (
                       <button
                         onClick={() => setShowDone((v) => !v)}
-                        className="ml-2 underline hover:text-foreground"
+                        className="ml-2 rounded-md border bg-card px-2 py-0.5 text-foreground shadow-sm hover:bg-accent"
                       >
-                        {collapsed ? "mostrar" : "recolher"}
+                        {collapsed ? "▸ mostrar" : "▾ recolher"}
                       </button>
                     )}
                   </p>
@@ -666,7 +677,10 @@ function TasksPage() {
                               externalId: t.external_id,
                             })
                           }
-                          onDelete={() => remove.mutate(t.id)}
+                          onDelete={() => {
+                            if (window.confirm(`Excluir "${t.title}"? Se ela estiver no Google Agenda, o evento também será apagado.`))
+                              remove.mutate(t.id);
+                          }}
                           onChangeSource={(s) =>
                             changeSource.mutate({ id: t.id, source: s })
                           }
@@ -766,9 +780,9 @@ function TasksPage() {
             <div className="border-t p-2 text-center">
               <button
                 onClick={() => setShowDone((v) => !v)}
-                className="text-xs text-muted-foreground underline hover:text-foreground"
+                className="rounded-md border bg-card px-3 py-1 text-xs text-foreground shadow-sm hover:bg-accent"
               >
-                {showDone ? "Recolher concluídas" : `Mostrar ${doneCount} concluída${doneCount === 1 ? "" : "s"}`}
+                {showDone ? "▾ Recolher concluídas" : `▸ Mostrar ${doneCount} concluída${doneCount === 1 ? "" : "s"}`}
               </button>
             </div>
           )}

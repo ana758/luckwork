@@ -80,7 +80,8 @@ function Dashboard() {
   const todayMeetings = useMemo(
     () =>
       meetings
-        .filter((x) => meetingDateKey(x) === today)
+        // Só reunião de verdade: compromisso comum da agenda não entra aqui.
+        .filter((x) => x.is_meeting === true && meetingDateKey(x) === today)
         // Dia inteiro primeiro; depois por horário.
         .sort((a, b) => Number(isAllDay(b)) - Number(isAllDay(a)) || a.starts_at.localeCompare(b.starts_at))
         .map((x) => ({

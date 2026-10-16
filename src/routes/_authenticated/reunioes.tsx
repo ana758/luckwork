@@ -254,7 +254,12 @@ function Section({
         <div className="space-y-2">
           {items.map((m) => {
             const isSel = selected.has(m.id);
-            const isCall = !!m.external_url && /^https?:\/\//i.test(m.external_url);
+            // Só mostra "Entrar" se tem link e a reunião não acabou (já passou = sem botão).
+            const endsMs = m.ends_at
+              ? new Date(m.ends_at).getTime()
+              : new Date(m.starts_at).getTime() + 60 * 60 * 1000;
+            const isCall =
+              !!m.external_url && /^https?:\/\//i.test(m.external_url) && endsMs >= Date.now() - 15 * 60 * 1000;
             return (
               <div
                 key={m.id}

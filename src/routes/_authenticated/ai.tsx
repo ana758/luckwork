@@ -39,6 +39,7 @@ function AIPage() {
         new Date(`${t.due_date}T12:00:00`).toDateString() === today.toDateString(),
     );
     const meetingsToday = meetings.filter((m) => {
+      if (m.is_meeting !== true) return false;
       const d = new Date(m.starts_at);
       return d >= today && d < tomorrow;
     });
@@ -50,6 +51,33 @@ function AIPage() {
 
     return { overdue, todayTasks, meetingsToday, stuck };
   }, [tasks, meetings]);
+
+  // Cada tarefa aparece uma vez só, com todos os motivos juntos
+  // (ex.: "venceu 21/09 · parada há dias"), e títulos iguais viram um item.
+  const attention = useMemo(() => {
+    const norm = (v: string) =>
+      v
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+    const byKey = new Map<string, { id: string; title: string; source: (typeof tasks)[number]["source"]; reasons: string[] }>();
+    const add = (t: (typeof tasks)[number], reason: string) => {
+      const key = norm(t.title);
+      const cur = byKey.get(key);
+      if (cur) {
+        if (!cur.reasons.includes(reason)) cur.reasons.push(reason);
+      } else {
+        byKey.set(key, { id: t.id, title: t.title, source: t.source, reasons: [reason] });
+      }
+    };
+    for (const t of summary.overdue) {
+      add(t, `venceu ${new Date(`${t.due_date}T12:00:00`).toLocaleDateString("pt-BR")}`);
+    }
+    for (const t of summary.stuck) add(t, "parada há dias");
+    return [...byKey.values()].slice(0, 5);
+  }, [summary]);
 
   return (
     <div className="flex min-h-[calc(100dvh-14rem)] flex-col gap-4 pb-6 md:min-h-[calc(100vh-6rem)]">
@@ -85,20 +113,11 @@ function AIPage() {
         <div className="rounded-xl border border-reuniao/30 bg-reuniao/5 p-3 text-sm">
           <p className="mb-2 font-medium text-reuniao">Precisam da sua atenção</p>
           <ul className="space-y-1">
-            {summary.overdue.slice(0, 3).map((t) => (
-              <li key={t.id} className="flex items-center gap-2 text-xs">
-                <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[t.source]}`} />
-                <span className="truncate">{t.title}</span>
-                <span className="ml-auto text-muted-foreground">
-                  venceu {new Date(`${t.due_date}T12:00:00`).toLocaleDateString("pt-BR")}
-                </span>
-              </li>
-            ))}
-            {summary.stuck.slice(0, 2).map((t) => (
-              <li key={t.id} className="flex items-center gap-2 text-xs">
-                <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[t.source]}`} />
-                <span className="truncate">{t.title}</span>
-                <span className="ml-auto text-muted-foreground">arrastando há dias</span>
+            {attention.map((a) => (
+              <li key={a.id} className="flex items-center gap-2 text-xs">
+                <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[a.source]}`} />
+                <span className="truncate">{a.title}</span>
+                <span className="ml-auto text-muted-foreground">{a.reasons.join(" · ")}</span>
               </li>
             ))}
           </ul>

@@ -142,7 +142,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
+    <div className="min-h-screen bg-background pb-48">
 
       <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-4 md:px-6">
         {/* Desktop nav */}
