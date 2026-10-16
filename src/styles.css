@@ -170,10 +170,12 @@
 }
 
 /* iPhone: sem zoom automático, toque instantâneo, sem rolagem lateral */
-html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overflow-x: hidden; max-width: 100vw; }
+html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; max-width: 100vw; }
+/* 'clip' evita rolagem lateral SEM transformar html/body em caixas de rolagem (o 'hidden' travava a roda do mouse). */
+html, body { overflow-x: clip; }
 * { -webkit-tap-highlight-color: transparent; }
 a, button, [role="button"], input, select, textarea, label { touch-action: manipulation; }
-body { min-height: 100dvh; overscroll-behavior-y: none; }
+body { min-height: 100dvh; }
 @media (max-width: 768px) {
   input, select, textarea { font-size: 16px !important; }
 }
