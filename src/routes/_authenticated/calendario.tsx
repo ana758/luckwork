@@ -192,8 +192,11 @@ function CalendarPage() {
   const [filter, setFilter] = useState<SourceKey | "all">(saved?.filter ?? "all");
   // Faixa "Sem horário" recolhível (lembra a escolha neste navegador).
   const [stripOpen, setStripOpen] = useState(true);
+  // Concluídos da faixa "Sem horário": recolhidos por padrão, para não ocupar a tela.
+  const [doneOpen, setDoneOpen] = useState(false);
   useEffect(() => {
     try {
+      if (window.localStorage.getItem("luck.cal.done") === "1") setDoneOpen(true);
       if (window.localStorage.getItem("luck.cal.strip") === "0") setStripOpen(false);
     } catch {
       /* sem armazenamento: segue aberta */
@@ -1170,22 +1173,49 @@ function CalendarPage() {
       ) : (
         <>
           {/* Faixa de dia inteiro (sem horário), recolhível, com contador */}
-          <button
-            onClick={() => {
-              const next = !stripOpen;
-              setStripOpen(next);
-              try {
-                window.localStorage.setItem("luck.cal.strip", next ? "1" : "0");
-              } catch {
-                /* ignora */
-              }
-            }}
-            className="flex w-full items-center gap-1.5 border-b bg-secondary/40 px-3 py-1.5 text-left text-[11px] font-medium text-muted-foreground hover:bg-secondary/60"
-            aria-expanded={stripOpen}
-          >
-            <span>{stripOpen ? "▾" : "▸"}</span>
-            Sem horário · {rangeDays.reduce((n, d) => n + itemsFor(fmtKey(d)).filter((i) => i.startMin === null).length, 0)}
-          </button>
+          {(() => {
+            const untimed = rangeDays.flatMap((d) => itemsFor(fmtKey(d)).filter((i) => i.startMin === null));
+            const pendingCount = untimed.filter((i) => !i.done).length;
+            const doneCount = untimed.length - pendingCount;
+            return (
+              <div className="flex items-center border-b bg-secondary/40 text-[11px] font-medium text-muted-foreground">
+                <button
+                  onClick={() => {
+                    const next = !stripOpen;
+                    setStripOpen(next);
+                    try {
+                      window.localStorage.setItem("luck.cal.strip", next ? "1" : "0");
+                    } catch {
+                      /* ignora */
+                    }
+                  }}
+                  className="flex flex-1 items-center gap-1.5 px-3 py-1.5 text-left hover:bg-secondary/60"
+                  aria-expanded={stripOpen}
+                >
+                  <span>{stripOpen ? "▾" : "▸"}</span>
+                  Sem horário · {pendingCount}
+                </button>
+                {doneCount > 0 && stripOpen && (
+                  <button
+                    onClick={() => {
+                      const next = !doneOpen;
+                      setDoneOpen(next);
+                      try {
+                        window.localStorage.setItem("luck.cal.done", next ? "1" : "0");
+                      } catch {
+                        /* ignora */
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 hover:bg-secondary/60"
+                    aria-expanded={doneOpen}
+                  >
+                    <span>{doneOpen ? "▾" : "▸"}</span>
+                    Concluídos · {doneCount}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           {stripOpen && (
           <div className="max-h-[28vh] overflow-y-auto border-b bg-secondary/20">
           <div
@@ -1195,7 +1225,7 @@ function CalendarPage() {
             <div className="py-1 pr-1 text-right text-[10px] text-muted-foreground">dia</div>
             {rangeDays.map((d) => {
               const key = fmtKey(d);
-              const allDay = itemsFor(key).filter((i) => i.startMin === null);
+              const allDay = itemsFor(key).filter((i) => i.startMin === null && (doneOpen || !i.done));
               return (
                 <div
                   key={key}
