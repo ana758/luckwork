@@ -274,3 +274,33 @@ export async function findMeetingLink(title: string): Promise<string | null> {
   return null;
 
 }
+
+export type MailConnectionStatus = {
+  email: string;
+  state: "connected" | "reconnect" | "error";
+  /** Conta propositalmente não lida pela LUCK. */
+  excluded?: boolean;
+  detail?: string;
+};
+
+/** Estado de cada conexão de Gmail (sem expor chaves ou tokens). */
+export async function gmailConnectionStatus(): Promise<MailConnectionStatus[]> {
+  const out: MailConnectionStatus[] = [];
+  for (const k of allGmailKeys()) {
+    try {
+      const r = await fetch(`${GATEWAY}/users/me/profile`, { headers: headersFor(k) });
+      if (r.ok) {
+        const j = (await r.json()) as { emailAddress?: string };
+        const email = (j.emailAddress ?? "").toLowerCase();
+        out.push({ email, state: "connected", excluded: EXCLUDED_MAIL_ACCOUNTS.includes(email) });
+      } else if (r.status === 401 || r.status === 403) {
+        out.push({ email: "", state: "reconnect", detail: `Google respondeu ${r.status}.` });
+      } else {
+        out.push({ email: "", state: "error", detail: `Google respondeu ${r.status}.` });
+      }
+    } catch (e) {
+      out.push({ email: "", state: "error", detail: e instanceof Error ? e.message : "falha de rede" });
+    }
+  }
+  return out;
+}

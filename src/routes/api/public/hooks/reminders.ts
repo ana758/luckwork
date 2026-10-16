@@ -24,8 +24,9 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         const sb = admin();
         const now = new Date();
         const in66 = new Date(now.getTime() + 66 * 60 * 1000);
-        // Lembretes insistentes: 1h, 30min, 15min e 5min antes.
-        const CHECKPOINTS = [60, 30, 15, 5];
+        // Reunião: lembretes 1h e 30min antes. Tarefa com hora: 30min antes.
+        // Tarefa sem hora não recebe lembrete de horário (não existe hora inventada).
+        const CHECKPOINTS = [60, 30];
         const sent: string[] = [];
 
         // 1) Reuniões que começam nos próximos 36 min (janela do lembrete de 30 min)
@@ -39,7 +40,7 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
 
         // Dia inteiro não tem hora de início: não dispara lembrete de "começa em X min".
         const upcoming = (meetings ?? []).filter((m) => !isAllDay(m));
-        // Cada reunião recebe um lembrete por checkpoint (1h, 30, 15 e 5 min).
+        // Cada reunião recebe um lembrete por checkpoint (1h e 30 min).
         const candidates = upcoming
           .map((m) => {
             const minutes = Math.max(
@@ -88,7 +89,7 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         }
 
 
-        // 1b) Tarefas com horário marcado — um aviso 1h antes
+        // 1b) Tarefas com horário marcado — um aviso 30 min antes
         const todayKey = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
         const { data: timedTasks } = await sb
           .from("tasks")
@@ -101,8 +102,8 @@ export const Route = createFileRoute("/api/public/hooks/reminders")({
         for (const t of timedTasks ?? []) {
           const start = new Date(`${t.due_date}T${(t.due_time as string).slice(0, 5)}:00-03:00`);
           const minutes = Math.round((start.getTime() - now.getTime()) / 60000);
-          if (minutes <= 0 || minutes > 60) continue;
-          const tag = `task-60-${t.id}`;
+          if (minutes <= 0 || minutes > 30) continue;
+          const tag = `task-30-${t.id}`;
           const { data: already } = await sb
             .from("pending_pushes")
             .select("tag")

@@ -70,3 +70,30 @@ export async function fetchRecentOutlookInbox(limit = 40): Promise<OutlookPrevie
     } satisfies OutlookPreview;
   });
 }
+
+/** Estado da conexão do Outlook/Hotmail (sem expor chaves ou tokens). */
+export async function outlookConnectionStatus(): Promise<{
+  configured: boolean;
+  state?: "connected" | "reconnect" | "error";
+  email?: string;
+  detail?: string;
+}> {
+  if (!process.env.MICROSOFT_OUTLOOK_API_KEY) return { configured: false };
+  try {
+    const res = await fetch(`${GATEWAY}/me?$select=mail,userPrincipalName`, { headers: headers() });
+    if (res.ok) {
+      const j = (await res.json()) as { mail?: string; userPrincipalName?: string };
+      return {
+        configured: true,
+        state: "connected",
+        email: (j.mail ?? j.userPrincipalName ?? "").toLowerCase(),
+      };
+    }
+    if (res.status === 401 || res.status === 403) {
+      return { configured: true, state: "reconnect", detail: `Microsoft respondeu ${res.status}.` };
+    }
+    return { configured: true, state: "error", detail: `Microsoft respondeu ${res.status}.` };
+  } catch (e) {
+    return { configured: true, state: "error", detail: e instanceof Error ? e.message : "falha de rede" };
+  }
+}

@@ -52,6 +52,43 @@ function SettingsPage() {
     },
   });
 
+  const { data: mailStatus, isLoading: mailLoading } = useQuery({
+    queryKey: ["mail_integration_status"],
+    queryFn: async () => {
+      const { getMailIntegrationStatus } = await import("@/lib/integration-status.functions");
+      return getMailIntegrationStatus();
+    },
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  function stateOf(m: { email: string; provider: string }) {
+    if (mailLoading) return { label: "Verificando…", tone: "muted", next: "" } as const;
+    if (!mailStatus) return { label: "Sem resposta", tone: "red", next: "Não consegui consultar as conexões agora. Tente de novo em instantes." } as const;
+    const email = m.email.toLowerCase();
+    if (m.provider === "outlook") {
+      const o = mailStatus.outlook;
+      if (!o.configured) return { label: "Cadastrado", tone: "muted", next: "Falta conectar o Outlook em Connectors no Lovable." } as const;
+      if (o.state === "connected" && (!o.email || o.email === email))
+        return { label: "Conectado", tone: "green", next: "" } as const;
+      if (o.state === "connected")
+        return { label: "Cadastrado", tone: "muted", next: `O Outlook conectado é ${o.email}, não esta conta.` } as const;
+      if (o.state === "reconnect")
+        return { label: "Precisa reconectar", tone: "amber", next: "Reconecte o Outlook em Connectors no Lovable." } as const;
+      return { label: "Erro", tone: "red", next: o.detail ?? "Falha ao consultar o Outlook." } as const;
+    }
+    const g = mailStatus.gmail.find((x) => x.email === email);
+    if (g?.state === "connected")
+      return g.excluded
+        ? ({ label: "Conectado", tone: "green", next: "Conectado, mas a LUCK não lê esse e-mail de propósito." } as const)
+        : ({ label: "Conectado", tone: "green", next: "" } as const);
+    if (mailStatus.gmail.some((x) => x.state === "reconnect"))
+      return { label: "Precisa reconectar", tone: "amber", next: "Reconecte o Gmail em Connectors no Lovable." } as const;
+    if (mailStatus.gmail.some((x) => x.state === "error"))
+      return { label: "Erro", tone: "red", next: "O Gmail respondeu com erro. Tente reconectar em Connectors no Lovable." } as const;
+    return { label: "Cadastrado", tone: "muted", next: "Falta conectar este Gmail em Connectors no Lovable." } as const;
+  }
+
   const approve = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "active" | "pending" }) => {
       const { error } = await supabase.from("workspace_members").update({ status }).eq("id", id);
@@ -162,15 +199,32 @@ function SettingsPage() {
       <section className="rounded-xl border bg-card p-4">
         <h2 className="text-sm font-medium">Caixas de e-mail para a IA ler</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Cadastre aqui; a conexão real acontece na etapa de integrações.
+          Cadastrar não conecta. O estado de cada caixa vem da conexão real, não do cadastro.
         </p>
-        <ul className="mt-3 space-y-1 text-sm">
-          {mailboxes.map((m) => (
-            <li key={m.id} className="flex items-center gap-2">
-              <span className="truncate">{m.email}</span>
-              <span className="ml-auto text-xs text-muted-foreground">{m.provider}</span>
-            </li>
-          ))}
+        <ul className="mt-3 space-y-2 text-sm">
+          {mailboxes.map((m) => {
+            const st = stateOf(m);
+            const color =
+              st.tone === "green"
+                ? "bg-emerald-100 text-emerald-800"
+                : st.tone === "amber"
+                  ? "bg-amber-100 text-amber-800"
+                  : st.tone === "red"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-secondary text-muted-foreground";
+            return (
+              <li key={m.id}>
+                <div className="flex items-center gap-2">
+                  <span className="truncate">{m.email}</span>
+                  <span className="text-xs text-muted-foreground">{m.provider === "outlook" ? "Outlook" : "Gmail"}</span>
+                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${color}`}>
+                    {st.label}
+                  </span>
+                </div>
+                {st.next && <p className="mt-0.5 text-[11px] text-muted-foreground">{st.next}</p>}
+              </li>
+            );
+          })}
         </ul>
         <div className="mt-3 flex gap-2">
           <input

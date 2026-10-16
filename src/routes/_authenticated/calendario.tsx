@@ -169,13 +169,46 @@ function QuickEdit({
 
 function CalendarPage() {
   // Abre sempre na visão de 5 dias — é a que a Ana usa no dia a dia.
-  const [view, setView] = useState<ViewMode>("5day");
+  // Ao voltar para a agenda (vindo de outra tela), mantém dia, visão e filtro
+  // dessa sessão. Na primeira abertura, começa em 5 dias, hoje.
+  const saved = (() => {
+    try {
+      const raw = typeof window !== "undefined" ? window.sessionStorage.getItem("luck.cal.state") : null;
+      return raw ? (JSON.parse(raw) as { view?: ViewMode; cursor?: string; filter?: SourceKey | "all" }) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const [view, setView] = useState<ViewMode>(saved?.view ?? "5day");
   const isMobile = useIsMobile();
   const [cursor, setCursor] = useState(() => {
+    if (saved?.cursor) {
+      const [y, m, dd] = saved.cursor.split("-").map(Number);
+      if (y && m && dd) return new Date(y, m - 1, dd);
+    }
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   });
-  const [filter, setFilter] = useState<SourceKey | "all">("all");
+  const [filter, setFilter] = useState<SourceKey | "all">(saved?.filter ?? "all");
+  // Faixa "Sem horário" recolhível (lembra a escolha neste navegador).
+  const [stripOpen, setStripOpen] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem("luck.cal.strip") === "0") setStripOpen(false);
+    } catch {
+      /* sem armazenamento: segue aberta */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(
+        "luck.cal.state",
+        JSON.stringify({ view, filter, cursor: fmtKey(cursor) }),
+      );
+    } catch {
+      /* ignora */
+    }
+  }, [view, filter, cursor]);
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -1136,7 +1169,24 @@ function CalendarPage() {
         </div>
       ) : (
         <>
-          {/* Faixa de dia inteiro (sem horário) */}
+          {/* Faixa de dia inteiro (sem horário), recolhível, com contador */}
+          <button
+            onClick={() => {
+              const next = !stripOpen;
+              setStripOpen(next);
+              try {
+                window.localStorage.setItem("luck.cal.strip", next ? "1" : "0");
+              } catch {
+                /* ignora */
+              }
+            }}
+            className="flex w-full items-center gap-1.5 border-b bg-secondary/40 px-3 py-1.5 text-left text-[11px] font-medium text-muted-foreground hover:bg-secondary/60"
+            aria-expanded={stripOpen}
+          >
+            <span>{stripOpen ? "▾" : "▸"}</span>
+            Sem horário · {rangeDays.reduce((n, d) => n + itemsFor(fmtKey(d)).filter((i) => i.startMin === null).length, 0)}
+          </button>
+          {stripOpen && (
           <div className="max-h-[28vh] overflow-y-auto border-b bg-secondary/20">
           <div
             className="grid"
@@ -1168,6 +1218,7 @@ function CalendarPage() {
             })}
           </div>
           </div>
+          )}
 
           {/* Grade de horas */}
           <div ref={gridRef} className="max-h-[55vh] overflow-y-auto">
