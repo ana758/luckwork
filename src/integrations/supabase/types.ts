@@ -166,6 +166,21 @@ export type Database = {
         }
         Relationships: []
       }
+      email_scanned: {
+        Row: {
+          message_id: string
+          scanned_at: string
+        }
+        Insert: {
+          message_id: string
+          scanned_at?: string
+        }
+        Update: {
+          message_id?: string
+          scanned_at?: string
+        }
+        Relationships: []
+      }
       meetings: {
         Row: {
           completed_at: string | null
