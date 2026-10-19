@@ -6,7 +6,14 @@ export const syncGoogleCalendar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { runCalendarSync } = await import("./gcal-sync.server");
-    return runCalendarSync(context.supabase, context.userId);
+    const res = await runCalendarSync(context.supabase, context.userId);
+    try {
+      const { runEmailAppointments } = await import("./email-appointments.server");
+      await runEmailAppointments(context.supabase);
+    } catch (e) {
+      console.error("email-appointments", e);
+    }
+    return res;
   });
 
 /** Envia uma reunião/tarefa do LUCK para o Google Agenda da conta escolhida. */
