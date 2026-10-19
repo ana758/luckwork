@@ -83,7 +83,7 @@ export async function runEmailAppointments(supabase: any) {
 
   const today = new Date().toISOString().slice(0, 10);
   const res = await aiChat({
-    model: "google/gemini-3.5-flash",
+    model: "google/gemini-3.8-flash",
     response_format: { type: "json_object" },
     messages: [
       {
