@@ -19,7 +19,8 @@ function day(value?: string | null): string | null {
 }
 
 export function crmScheduleDates(i: CrmInteractionDates): { start: string | null; due: string | null } {
-  const start = day(i.start_date ?? i.start ?? i.inicio ?? i.when);
+  // O campo legado `when` mistura início e update; não é seguro agendar por ele.
+  const start = day(i.start_date ?? i.start ?? i.inicio);
   const dueRaw = day(i.due_date ?? i.due ?? i.deadline ?? i.prazo_final);
   return { start, due: dueRaw && dueRaw !== start ? dueRaw : null };
 }
