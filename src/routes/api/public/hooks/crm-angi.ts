@@ -26,7 +26,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { crmScheduleDates, type CrmInteractionDates } from "@/lib/crm-dates";
+import {
+  crmScheduleDates, crmTaskTitle, isInteractionClosed, isTerminalStage,
+  type CrmInteractionDates,
+} from "@/lib/crm-dates";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -95,19 +98,23 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
         }
 
         const eventId: string | undefined = body?.event_id;
-        const type: string | undefined = body?.type;
+        const rawType: string | undefined = body?.type;
         const lead: LeadPayload | undefined = body?.lead;
         const interaction: InteractionPayload | undefined = body?.interaction;
+        const closed =
+          rawType === "interaction_deleted" || rawType === "interaction_completed" ||
+          (!!interaction && isInteractionClosed(interaction as any));
+        const type = rawType?.startsWith("interaction") ? "interaction" : rawType;
 
         if (!eventId || typeof eventId !== "string")
           return json(400, { error: "event_id (string) é obrigatório" });
         if (type !== "lead" && type !== "interaction")
-          return json(400, { error: 'type deve ser "lead" ou "interaction"' });
+          return json(400, { error: 'type deve ser "lead", "interaction", "interaction_deleted" ou "interaction_completed"' });
         if (!lead?.id) return json(400, { error: "lead.id é obrigatório" });
         if (type === "interaction" && !interaction?.id)
           return json(400, { error: "interaction.id é obrigatório quando type=interaction" });
 
-        if (type === "interaction" && interaction && !crmScheduleDates(interaction).start) {
+        if (type === "interaction" && interaction && !closed && !crmScheduleDates(interaction).start) {
           return json(422, { error: "Envie interaction.start_date com a data de início. A data do update (when) não agenda compromissos." });
         }
 

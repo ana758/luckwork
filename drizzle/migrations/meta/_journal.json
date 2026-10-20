@@ -8,6 +8,13 @@
       "when": 1792413132265,
       "tag": "0000_email_scanned",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792499487914,
+      "tag": "0001_crm_cleanup_log",
+      "breakpoints": true
     }
   ]
 }

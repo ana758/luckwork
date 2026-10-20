@@ -118,6 +118,36 @@ export type Database = {
           },
         ]
       }
+      crm_cleanup_log: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          id: string
+          reason: string | null
+          run_at: string
+          task_id: string | null
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          id?: string
+          reason?: string | null
+          run_at?: string
+          task_id?: string | null
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          id?: string
+          reason?: string | null
+          run_at?: string
+          task_id?: string | null
+        }
+        Relationships: []
+      }
       email_accounts: {
         Row: {
           created_at: string
