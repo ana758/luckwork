@@ -25,6 +25,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { crmScheduleDates, type CrmInteractionDates } from "@/lib/crm-dates";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -41,11 +42,10 @@ function json(status: number, body: unknown) {
 }
 
 type LeadPayload = { id: string; name?: string; stage?: string; url?: string };
-type InteractionPayload = {
+type InteractionPayload = CrmInteractionDates & {
   id: string;
   title?: string;
   notes?: string;
-  when?: string;
 };
 
 export const Route = createFileRoute("/api/public/hooks/crm-angi")({
@@ -164,34 +164,43 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
             if (error) throw new Error(error.message);
             taskId = data?.id ?? null;
           } else {
-            const intTitle = interaction!.title?.trim() || "Nova interação";
+            const intTitle =
+              interaction!.notes?.trim() || interaction!.title?.trim() || "Nova interação";
             const title = `[CRM Angi] ${leadName} · ${intTitle}`;
-            const due = interaction!.when
-              ? new Date(interaction!.when).toISOString().slice(0, 10)
-              : null;
+            const dates = crmScheduleDates(interaction!);
+            const rows = [
+              { date: dates.start, external_id: `interaction:${interaction!.id}`, title },
+              ...(dates.due
+                ? [{ date: dates.due, external_id: `interaction:${interaction!.id}:due`, title: `${title} · prazo final` }]
+                : []),
+            ];
+            if (!dates.due) {
+              await sb.from("tasks").delete().eq("external_system", "crm_angi")
+                .eq("external_id", `interaction:${interaction!.id}:due`);
+            }
             const { data, error } = await sb
               .from("tasks")
               .upsert(
-                {
-                  title,
-                  source: "angi",
-                  status: "todo",
-                  priority: "media",
-                  due_date: due,
+                rows.map((r) => ({
+                  title: r.title,
+                  source: "angi" as const,
+                  status: "todo" as const,
+                  priority: "media" as const,
+                  start_date: r.date,
+                  due_date: r.date,
                   external_system: "crm_angi",
-                  external_id: `interaction:${interaction!.id}`,
+                  external_id: r.external_id,
                   external_url: leadUrl,
                   crm_lead_id: lead.id,
                   crm_interaction_id: interaction!.id,
                   crm_destination: "crm",
                   notes: interaction!.notes?.trim() || null,
-                },
+                })),
                 { onConflict: "external_system,external_id", ignoreDuplicates: false },
               )
-              .select("id")
-              .single();
+              .select("id");
             if (error) throw new Error(error.message);
-            taskId = data?.id ?? null;
+            taskId = data?.[0]?.id ?? null;
           }
 
           await sb
