@@ -26,7 +26,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { crmScheduleDates, type CrmInteractionDates } from "@/lib/crm-dates";
+import {
+  crmScheduleDates, crmTaskTitle, isInteractionClosed, isTerminalStage,
+  type CrmInteractionDates,
+} from "@/lib/crm-dates";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -95,19 +98,23 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
         }
 
         const eventId: string | undefined = body?.event_id;
-        const type: string | undefined = body?.type;
+        const rawType: string | undefined = body?.type;
         const lead: LeadPayload | undefined = body?.lead;
         const interaction: InteractionPayload | undefined = body?.interaction;
+        const closed =
+          rawType === "interaction_deleted" || rawType === "interaction_completed" ||
+          (!!interaction && isInteractionClosed(interaction as any));
+        const type = rawType?.startsWith("interaction") ? "interaction" : rawType;
 
         if (!eventId || typeof eventId !== "string")
           return json(400, { error: "event_id (string) é obrigatório" });
         if (type !== "lead" && type !== "interaction")
-          return json(400, { error: 'type deve ser "lead" ou "interaction"' });
+          return json(400, { error: 'type deve ser "lead", "interaction", "interaction_deleted" ou "interaction_completed"' });
         if (!lead?.id) return json(400, { error: "lead.id é obrigatório" });
         if (type === "interaction" && !interaction?.id)
           return json(400, { error: "interaction.id é obrigatório quando type=interaction" });
 
-        if (type === "interaction" && interaction && !crmScheduleDates(interaction).start) {
+        if (type === "interaction" && interaction && !closed && !crmScheduleDates(interaction).start) {
           return json(422, { error: "Envie interaction.start_date com a data de início. A data do update (when) não agenda compromissos." });
         }
 
@@ -139,70 +146,85 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
           const leadName = lead.name?.trim() || `Lead ${lead.id}`;
           const leadUrl = lead.url ?? null;
           let taskId: string | null = null;
+          // Etapa: a enviada agora ou a última conhecida do lead.
+          let stage = lead.stage ?? null;
+          if (!stage) {
+            const { data: lt } = await sb.from("tasks").select("notes")
+              .eq("external_system", "crm_angi").eq("external_id", `lead:${lead.id}`).maybeSingle();
+            stage = lt?.notes?.replace(/^Etapa no CRM:\s*/, "") ?? null;
+          }
+          const terminal = isTerminalStage(stage);
 
           if (type === "lead") {
             const title = `[CRM Angi] Novo lead: ${leadName}${
               lead.stage ? ` · ${lead.stage}` : ""
             }`;
-            const { data, error } = await sb
-              .from("tasks")
-              .upsert(
-                {
-                  title,
-                  source: "angi",
-                  status: "todo",
-                  priority: "media",
-                  external_system: "crm_angi",
-                  external_id: `lead:${lead.id}`,
-                  external_url: leadUrl,
-                  crm_lead_id: lead.id,
-                  crm_destination: "crm",
-                  notes: lead.stage ? `Etapa no CRM: ${lead.stage}` : null,
-                },
-                { onConflict: "external_system,external_id", ignoreDuplicates: false },
-              )
-              .select("id")
-              .single();
-            if (error) throw new Error(error.message);
-            taskId = data?.id ?? null;
-          } else if (interaction) {
-            const intTitle =
-              interaction.notes?.trim() || interaction.title?.trim() || "Nova interação";
-            const title = `[CRM Angi] ${leadName} · ${intTitle}`;
-            const dates = crmScheduleDates(interaction);
-            const rows = [
-              { date: dates.start, external_id: `interaction:${interaction.id}`, title },
-              ...(dates.due
-                ? [{ date: dates.due, external_id: `interaction:${interaction.id}:due`, title: `${title} · prazo final` }]
-                : []),
-            ];
-            if (!dates.due) {
-              await sb.from("tasks").delete().eq("external_system", "crm_angi")
-                .eq("external_id", `interaction:${interaction.id}:due`);
+            const extId = `lead:${lead.id}`;
+            const { data: ex } = await sb.from("tasks").select("id")
+              .eq("external_system", "crm_angi").eq("external_id", extId).maybeSingle();
+            const fields = {
+              title,
+              external_url: leadUrl,
+              notes: lead.stage ? `Etapa no CRM: ${lead.stage}` : null,
+            };
+            if (ex) {
+              const { error } = await sb.from("tasks").update(fields).eq("id", ex.id);
+              if (error) throw new Error(error.message);
+              taskId = ex.id;
+            } else if (!terminal) {
+              const { data, error } = await sb.from("tasks").insert({
+                ...fields, source: "angi", status: "todo", priority: "media",
+                external_system: "crm_angi", external_id: extId,
+                crm_lead_id: lead.id, crm_destination: "crm",
+              }).select("id").single();
+              if (error) throw new Error(error.message);
+              taskId = data?.id ?? null;
             }
-            const { data, error } = await sb
-              .from("tasks")
-              .upsert(
-                rows.map((r) => ({
-                  title: r.title,
-                  source: "angi" as const,
-                  status: "todo" as const,
-                  priority: "media" as const,
-                  start_date: r.date,
-                  due_date: r.date,
-                  external_system: "crm_angi",
-                  external_id: r.external_id,
-                  external_url: leadUrl,
-                  crm_lead_id: lead.id,
-                  crm_interaction_id: interaction.id,
-                  crm_destination: "crm",
-                  notes: interaction.notes?.trim() || null,
-                })),
-                { onConflict: "external_system,external_id", ignoreDuplicates: false },
-              )
-              .select("id");
-            if (error) throw new Error(error.message);
-            taskId = data?.[0]?.id ?? null;
+          } else if (interaction) {
+            const baseId = `interaction:${interaction.id}`;
+            const dueId = `${baseId}:due`;
+            const { data: existing } = await sb.from("tasks").select("id, external_id")
+              .eq("external_system", "crm_angi").in("external_id", [baseId, dueId]);
+            const byExt = new Map((existing ?? []).map((t) => [t.external_id, t.id]));
+
+            if (closed) {
+              if (byExt.size) {
+                await sb.from("tasks").update({ status: "done", completed_at: new Date().toISOString() })
+                  .in("id", [...byExt.values()]);
+              }
+              taskId = byExt.get(baseId) ?? null;
+            } else {
+              const title = crmTaskTitle(leadName, interaction.notes, interaction.title);
+              const dates = crmScheduleDates(interaction);
+              const rows = [
+                { date: dates.start, external_id: baseId },
+                ...(dates.due ? [{ date: dates.due, external_id: dueId }] : []),
+              ];
+              if (!dates.due && byExt.has(dueId)) {
+                await sb.from("tasks").delete().eq("id", byExt.get(dueId)!);
+              }
+              for (const r of rows) {
+                const fields = {
+                  title, start_date: r.date, due_date: r.date,
+                  external_url: leadUrl, notes: interaction.notes?.trim() || null,
+                };
+                const id = byExt.get(r.external_id);
+                if (id) {
+                  // Edição no CRM atualiza a mesma tarefa (mantém o status do LUCK).
+                  const { error } = await sb.from("tasks").update(fields).eq("id", id);
+                  if (error) throw new Error(error.message);
+                  taskId ??= id;
+                } else if (!terminal) {
+                  const { data, error } = await sb.from("tasks").insert({
+                    ...fields, source: "angi", status: "todo", priority: "media",
+                    external_system: "crm_angi", external_id: r.external_id,
+                    crm_lead_id: lead.id, crm_interaction_id: interaction.id, crm_destination: "crm",
+                  }).select("id").single();
+                  if (error) throw new Error(error.message);
+                  taskId ??= data?.id ?? null;
+                }
+              }
+            }
           }
 
           await sb

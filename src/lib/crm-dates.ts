@@ -24,3 +24,20 @@ export function crmScheduleDates(i: CrmInteractionDates): { start: string | null
   const dueRaw = day(i.due_date ?? i.due ?? i.deadline ?? i.prazo_final);
   return { start, due: dueRaw && dueRaw !== start ? dueRaw : null };
 }
+
+/** Título da tarefa: "Nome do lead · texto exato da nota". */
+export function crmTaskTitle(leadName: string, notes?: string | null, fallback?: string | null): string {
+  const text = (notes ?? "").trim() || (fallback ?? "").trim() || "Interação";
+  return `${leadName.trim()} · ${text}`;
+}
+
+/** Ganho/Perdido não geram tarefas novas. On hold continua normal. */
+export function isTerminalStage(stage?: string | null): boolean {
+  return !!stage && /\b(ganho|perdido)\b/i.test(stage);
+}
+
+/** Interação excluída ou concluída no CRM → conclui a tarefa no LUCK. */
+export function isInteractionClosed(i: { deleted?: unknown; deleted_at?: unknown; status?: unknown; completed?: unknown }): boolean {
+  if (i.deleted === true || i.completed === true || i.deleted_at) return true;
+  return typeof i.status === "string" && /^(conclu[ií]d[ao]|done|completed?|finalizad[ao]|exclu[ií]d[ao]|deleted)$/i.test(i.status.trim());
+}
