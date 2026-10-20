@@ -16,7 +16,8 @@
  *     "id": "int_456",
  *     "title": "Ligação inicial",
  *     "notes": "Texto livre",
- *     "when": "2026-07-28T14:00:00Z"
+ *     "start_date": "2026-11-03",      // início, nunca data do update
+ *     "due_date": null                 // prazo final opcional, cria outro compromisso
  *   }
  * }
  *
@@ -69,7 +70,8 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
                 id: "string (quando type=interaction)",
                 title: "string?",
                 notes: "string?",
-                when: "ISO date?",
+                start_date: "YYYY-MM-DD (início, obrigatório para agendar)",
+                due_date: "YYYY-MM-DD? (prazo final, compromisso separado)",
               },
             },
           },
@@ -105,11 +107,11 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
         if (type === "interaction" && !interaction?.id)
           return json(400, { error: "interaction.id é obrigatório quando type=interaction" });
 
-        const sb = createClient<Database>(
-          process.env.SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          { auth: { persistSession: false } },
-        );
+        if (type === "interaction" && interaction && !crmScheduleDates(interaction).start) {
+          return json(422, { error: "Envie interaction.start_date com a data de início. A data do update (when) não agenda compromissos." });
+        }
+
+        const { supabaseAdmin: sb } = await import("@/integrations/supabase/client.server");
 
         // Dedupe: se já registramos esse event_id, devolve o task_id anterior.
         const { data: prior } = await sb
@@ -163,20 +165,20 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
               .single();
             if (error) throw new Error(error.message);
             taskId = data?.id ?? null;
-          } else {
+          } else if (interaction) {
             const intTitle =
-              interaction!.notes?.trim() || interaction!.title?.trim() || "Nova interação";
+              interaction.notes?.trim() || interaction.title?.trim() || "Nova interação";
             const title = `[CRM Angi] ${leadName} · ${intTitle}`;
-            const dates = crmScheduleDates(interaction!);
+            const dates = crmScheduleDates(interaction);
             const rows = [
-              { date: dates.start, external_id: `interaction:${interaction!.id}`, title },
+              { date: dates.start, external_id: `interaction:${interaction.id}`, title },
               ...(dates.due
-                ? [{ date: dates.due, external_id: `interaction:${interaction!.id}:due`, title: `${title} · prazo final` }]
+                ? [{ date: dates.due, external_id: `interaction:${interaction.id}:due`, title: `${title} · prazo final` }]
                 : []),
             ];
             if (!dates.due) {
               await sb.from("tasks").delete().eq("external_system", "crm_angi")
-                .eq("external_id", `interaction:${interaction!.id}:due`);
+                .eq("external_id", `interaction:${interaction.id}:due`);
             }
             const { data, error } = await sb
               .from("tasks")
@@ -192,9 +194,9 @@ export const Route = createFileRoute("/api/public/hooks/crm-angi")({
                   external_id: r.external_id,
                   external_url: leadUrl,
                   crm_lead_id: lead.id,
-                  crm_interaction_id: interaction!.id,
+                  crm_interaction_id: interaction.id,
                   crm_destination: "crm",
-                  notes: interaction!.notes?.trim() || null,
+                  notes: interaction.notes?.trim() || null,
                 })),
                 { onConflict: "external_system,external_id", ignoreDuplicates: false },
               )
