@@ -9,3 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 - MCP server tools live in src/lib/mcp/ (one tool per file, OAuth-protected, user-scoped database client); generated routes are owned by the mcp plugin — keeps external assistants under existing access rules.
+- CRM interaction dates are normalized in a browser-safe pure helper and stored as separate single-day tasks keyed by interaction and endpoint; this prevents continuous spans and update timestamps from becoming appointments.
