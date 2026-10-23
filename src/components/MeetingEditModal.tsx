@@ -32,9 +32,11 @@ function googleSeriesId(eventId: string) {
 export function MeetingEditModal({
   meeting,
   onClose,
+  onDelete,
 }: {
   meeting: Meeting & { google_event_id?: string | null; google_account?: string | null };
   onClose: () => void;
+  onDelete?: () => void;
 }) {
   const [title, setTitle] = useState(meeting.title);
   const [when, setWhen] = useState(toLocalInput(meeting.starts_at));
@@ -258,7 +260,7 @@ export function MeetingEditModal({
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
-              if (confirm("Apagar este item? Também será removido do Google Agenda quando vinculado.")) remove.mutate();
+              if (onDelete) { onDelete(); return; } if (confirm("Apagar este item? Também será removido do Google Agenda quando vinculado.")) remove.mutate();
             }}
             disabled={remove.isPending}
             className="rounded-md border border-destructive bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 disabled:opacity-60"
