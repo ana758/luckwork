@@ -362,7 +362,7 @@ function CalendarPage() {
 
 
   // No celular a grade é sempre de um dia (com a faixa da semana em cima).
-  const effView: ViewMode = isMobile && view !== "month" ? "day" : view;
+  const effView: ViewMode = isMobile && view !== "month" && view !== "week" ? "day" : view;
 
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
@@ -398,10 +398,12 @@ function CalendarPage() {
       return d;
     });
   }, [cursor]);
+  /** "5 dias" = segunda a sexta da semana do cursor. */
+  const workDays = useMemo(() => weekDays.slice(0, 5), [weekDays]);
 
   const rangeDays = useMemo(() => {
     if (effView === "month") return [];
-    if (effView === "week") return weekDays;
+    if (effView === "week") return workDays;
     const n = effView === "day" ? 1 : effView === "2day" ? 2 : 5;
     return Array.from({ length: n }, (_, i) => {
       const d = new Date(cursor);
@@ -872,7 +874,7 @@ function CalendarPage() {
             ? {
                 position: "absolute",
                 top: ((item.startMin ?? 0) / 60) * HOUR_H,
-                height: expanded ? "auto" : Math.max(20, (height ?? 22) - 2),
+                height: expanded ? "auto" : item.done ? Math.max(20, (height ?? 22) - 2) : Math.max(34, (height ?? 22) - 2),
                 minHeight: expanded ? Math.max(60, height ?? 22) : undefined,
                 overflow: expanded ? "visible" : "hidden",
                 left: expanded ? 2 : `calc(${(col / cols) * 100}% + 2px)`,
@@ -910,7 +912,7 @@ function CalendarPage() {
           >
             <div
               className={`w-full break-words text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
-                absolute && !expanded ? "line-clamp-2" : "whitespace-pre-wrap"
+                expanded ? "whitespace-pre-wrap" : item.done ? "line-clamp-1" : "line-clamp-3"
               } ${
                 item.done ? "line-through" : ""
               }`}
@@ -1075,7 +1077,7 @@ function CalendarPage() {
     );
   })();
 
-  const viewOptions = (isMobile ? ["day", "month"] : ["day", "week", "month"]) as ViewMode[];
+  const viewOptions = (["day", "week", "month"]) as ViewMode[];
   const monthTitle = cursor.toLocaleDateString("pt-BR", { month: "long" });
 
   return (
@@ -1164,7 +1166,7 @@ function CalendarPage() {
                   onClick={() => setView(v)}
                   className={`rounded px-2.5 py-1 ${effView === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
                 >
-                  {v === "day" ? "Dia" : v === "week" ? "Semana" : v === "2day" ? "2 dias" : v === "5day" ? "5 dias" : "Mês"}
+                  {v === "day" ? "Dia" : v === "week" ? "5 dias" : v === "2day" ? "2 dias" : v === "5day" ? "5 dias" : "Mês"}
                 </button>
               ))}
             </div>
