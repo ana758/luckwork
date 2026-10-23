@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { meetingDateKey } from "./all-day";
 import { isRemovedSource, type AccessEntry, type Meeting, type Task } from "./sources";
@@ -9,7 +9,31 @@ export async function fetchTasks(): Promise<Task[]> {
     .select("*")
     .order("due_date", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as Task[]).filter((t) => !isRemovedSource(t.source));
+  const out = ((data ?? []) as Task[]).filter((t) => !isRemovedSource(t.source));
+  saveCache("tasks", out);
+  return out;
+}
+
+const CACHE_PREFIX = "luck.cache.";
+function saveCache(key: string, value: unknown) {
+  try {
+    if (typeof window !== "undefined") window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    /* quota cheia: ignora */
+  }
+}
+
+/** Mostra na hora os últimos dados salvos no aparelho enquanto busca os novos. */
+export function seedQueryCache(qc: QueryClient) {
+  for (const key of ["tasks", "meetings", "membership"]) {
+    if (qc.getQueryData([key]) !== undefined) continue;
+    try {
+      const raw = window.localStorage.getItem(CACHE_PREFIX + key);
+      if (raw) qc.setQueryData([key], JSON.parse(raw), { updatedAt: 0 });
+    } catch {
+      /* cache inválido */
+    }
+  }
 }
 
 export function useTasks() {
@@ -24,10 +48,13 @@ export function useTasks() {
 }
 
 export async function fetchMeetings(): Promise<Meeting[]> {
-  const { data, error } = await supabase
-    .from("meetings")
-    .select("*")
-    .order("starts_at", { ascending: true });
+  // As duas buscas rodam juntas para abrir mais rápido.
+  const [{ data, error }, { data: linked }] = await Promise.all([
+    supabase.from("meetings").select("*").order("starts_at", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("title, due_date, google_account, google_event_id, mirror_account, mirror_event_id"),
+  ]);
   if (error) throw new Error(error.message);
   const rows = data ?? [];
   const signature = (m: { title: unknown; starts_at: string }) =>
@@ -46,9 +73,6 @@ export async function fetchMeetings(): Promise<Meeting[]> {
       : null;
   // Cópias que o Google devolve de uma tarefa (evento principal e cópia na agenda
   // pessoal) não são compromissos novos: a tarefa já é o registro verdadeiro.
-  const { data: linked } = await supabase
-    .from("tasks")
-    .select("title, due_date, google_account, google_event_id, mirror_account, mirror_event_id");
   const taskEventPairs = new Set<string>();
   for (const t of linked ?? []) {
     if (t.google_account && t.google_event_id) taskEventPairs.add(`${t.google_account}::${t.google_event_id}`);
@@ -74,7 +98,7 @@ export async function fetchMeetings(): Promise<Meeting[]> {
   const deletedGoogleSeries = new Set(
     rows.filter((m) => m.hidden && m.google_event_id).map(seriesKey).filter(Boolean),
   );
-  return rows.filter((m) => {
+  const out = rows.filter((m) => {
     if (m.hidden) return false;
     if (isRemovedSource(m.source)) return false;
     if (!m.google_event_id) return true;
@@ -84,6 +108,8 @@ export async function fetchMeetings(): Promise<Meeting[]> {
     if (taskEventPairs.has(pair) || mirrorOfMeetings.has(pair)) return false;
     return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));
   }) as Meeting[];
+  saveCache("meetings", out);
+  return out;
 }
 
 export function useMeetings() {
