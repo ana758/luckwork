@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { meetingDateKey } from "./all-day";
 import { isRemovedSource, type AccessEntry, type Meeting, type Task } from "./sources";
@@ -9,7 +9,31 @@ export async function fetchTasks(): Promise<Task[]> {
     .select("*")
     .order("due_date", { ascending: true, nullsFirst: false });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as Task[]).filter((t) => !isRemovedSource(t.source));
+  const out = ((data ?? []) as Task[]).filter((t) => !isRemovedSource(t.source));
+  saveCache("tasks", out);
+  return out;
+}
+
+const CACHE_PREFIX = "luck.cache.";
+function saveCache(key: string, value: unknown) {
+  try {
+    if (typeof window !== "undefined") window.localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    /* quota cheia: ignora */
+  }
+}
+
+/** Mostra na hora os últimos dados salvos no aparelho enquanto busca os novos. */
+export function seedQueryCache(qc: QueryClient) {
+  for (const key of ["tasks", "meetings"]) {
+    if (qc.getQueryData([key]) !== undefined) continue;
+    try {
+      const raw = window.localStorage.getItem(CACHE_PREFIX + key);
+      if (raw) qc.setQueryData([key], JSON.parse(raw), { updatedAt: 0 });
+    } catch {
+      /* cache inválido */
+    }
+  }
 }
 
 export function useTasks() {
