@@ -219,12 +219,20 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
         error={emailsQuery.data?.error}
       />
 
+      <div className={compact ? "flex flex-col overflow-hidden rounded-2xl border bg-card" : "space-y-4"}>
+      {compact && (
+        <div className="flex items-center gap-2 border-b px-4 py-2.5">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-sm font-semibold">LUCK AI</p>
+          <span className="text-xs text-muted-foreground">sugestões e comandos</span>
+        </div>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
           send();
         }}
-        className="flex items-end gap-2"
+        className={compact ? "order-2 flex items-end gap-2 border-t p-2" : "flex items-end gap-2"}
       >
         <textarea
           value={question}
@@ -240,7 +248,7 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
               send();
             }
           }}
-          rows={3}
+          rows={compact ? 1 : 3}
           placeholder={
             listening
               ? "🔴 Gravando… toque no microfone para parar e enviar"
@@ -249,15 +257,15 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
                 : 'Fale ou escreva à vontade (Shift+Enter quebra linha). Ex.: "adiciona tarefa angi entrega branding pessoal 27/07"'
           }
           disabled={transcribing}
-          className="max-h-80 min-h-[88px] flex-1 resize-y overflow-y-auto rounded-2xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+          className={`${compact ? "min-h-[40px] resize-none rounded-xl bg-background px-3 py-2" : "min-h-[88px] resize-y rounded-2xl bg-card px-4 py-3"} max-h-80 flex-1 overflow-y-auto border text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60`}
         />
 
-        <div className="flex flex-col gap-2">
+        <div className={compact ? "flex gap-1.5" : "flex flex-col gap-2"}>
           <button
             type="button"
             onClick={toggleListening}
             disabled={transcribing || ask.isPending}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors disabled:opacity-60 ${
+            className={`flex ${compact ? "h-10 w-10" : "h-12 w-12"} items-center justify-center rounded-full border transition-colors disabled:opacity-60 ${
               listening
                 ? "border-reuniao bg-reuniao text-white animate-pulse"
                 : "bg-card text-foreground hover:bg-accent"
@@ -269,7 +277,7 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
           <button
             type="submit"
             disabled={ask.isPending}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+            className={`flex ${compact ? "h-10 w-10" : "h-12 w-12"} items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60`}
             aria-label="Enviar"
           >
             <Send className="h-4 w-4" />
@@ -280,7 +288,7 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
               if (voice) window.speechSynthesis?.cancel();
               setVoice((v) => !v);
             }}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border transition-colors ${
+            className={`flex ${compact ? "h-10 w-10" : "h-12 w-12"} items-center justify-center rounded-full border transition-colors ${
               voice ? "border-primary bg-primary/10 text-primary" : "bg-card hover:bg-accent"
             }`}
             aria-label={voice ? "Desligar resposta em voz" : "Ligar resposta em voz"}
@@ -293,11 +301,11 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
 
       <div
         ref={scrollRef}
-        className={`${compact ? "min-h-[26vh]" : "min-h-[40vh] flex-1"} space-y-3 overflow-y-auto rounded-xl border bg-card p-4`}
+        className={`${compact ? "order-1 grid max-h-96 gap-2 overflow-y-auto p-3 md:grid-cols-2" : "min-h-[40vh] flex-1 space-y-3 overflow-y-auto rounded-xl border bg-card p-4"}`}
       >
         {(suggestionsQuery.data ?? []).map((s) => (
           <div key={s.id} className="flex justify-start">
-            <div className="max-w-[90%] rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+            <div className={`${compact ? "w-full" : "max-w-[90%]"} rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm`}>
               <p className="mb-1 flex items-center gap-1.5 font-medium">
                 <Sparkles className="h-3.5 w-3.5 text-primary" />
                 {s.title.replace(/^🤖\s*/, "")}
@@ -325,7 +333,7 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
 
 
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={i} className={`flex ${compact ? "md:col-span-2" : ""} ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-relaxed ${
                 m.role === "user"
@@ -345,6 +353,7 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
