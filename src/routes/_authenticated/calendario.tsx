@@ -1266,7 +1266,7 @@ function CalendarPage() {
         )}
       </header>
 
-      {false ? (
+      {isMobile && view !== "month" && view !== "day" ? (
         /* Celular: lista por dia — evita colunas estreitas e texto empilhado. */
         <div className="space-y-3">
           {untimedBar}
