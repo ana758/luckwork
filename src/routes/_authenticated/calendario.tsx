@@ -197,10 +197,13 @@ function CalendarPage() {
   const [stripOpen, setStripOpen] = useState(true);
   // Concluídos da faixa "Sem horário": recolhidos por padrão, para não ocupar a tela.
   const [doneOpen, setDoneOpen] = useState(false);
+  // Coluna "Sem data" fechada por padrão: a grade da semana cresce para os lados.
+  const [undatedOpen, setUndatedOpen] = useState(false);
   useEffect(() => {
     try {
       if (window.localStorage.getItem("luck.cal.done") === "1") setDoneOpen(true);
       if (window.localStorage.getItem("luck.cal.strip") === "0") setStripOpen(false);
+      if (window.localStorage.getItem("luck.cal.undated") === "1") setUndatedOpen(true);
     } catch {
       /* sem armazenamento: segue aberta */
     }
