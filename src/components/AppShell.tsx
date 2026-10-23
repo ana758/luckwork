@@ -157,7 +157,7 @@ export function AppShell() {
 
       <div
         className={`mx-auto flex w-full gap-4 px-4 py-4 md:px-5 ${
-          pathname === "/calendario" || pathname === "/reunioes" ? "max-w-[1600px]" : "max-w-[1400px]"
+          pathname === "/calendario" || pathname === "/reunioes" ? "max-w-none" : "max-w-[1800px]"
         }`}
       >
         {/* Desktop nav */}
