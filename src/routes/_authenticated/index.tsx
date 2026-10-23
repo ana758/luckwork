@@ -1,13 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, ChevronRight, ExternalLink, KeyRound, Sparkles, Video } from "lucide-react";
+import { Check, ChevronRight, ExternalLink, KeyRound, Sparkles, Video } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { isAllDay, localDateKey, meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
 import { AccessDrawer } from "@/components/AccessDrawer";
 import { endOfWeek, startOfWeek, useAccessEntries, useMeetings, useTasks } from "@/lib/queries";
-import { isOverdue, SOURCE_CHIP, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { SOURCE_CHIP, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
 // Partes pesadas carregam depois do resto da tela.
@@ -133,7 +133,6 @@ function Dashboard() {
     [tasks, keys],
   );
 
-  const overdue = useMemo(() => tasks.filter((t) => keys.includes(t.source) && isOverdue(t)), [tasks, keys]);
 
   // Próximos 4 dias (sem hoje): reuniões e tarefas com data.
   const upcoming = useMemo(() => {
@@ -194,7 +193,6 @@ function Dashboard() {
           const list = weekTasks.filter((t) => t.source === s.key);
           const done = list.filter((t) => t.status === "done").length;
           const pct = list.length ? Math.round((done / list.length) * 100) : 0;
-          const late = overdue.filter((t) => t.source === s.key).length;
           const links = access.filter((a) => a.source === s.key && a.url).slice(0, 3);
           return (
             <div key={s.key} className="rounded-xl border bg-background/40 p-3">
@@ -226,11 +224,6 @@ function Dashboard() {
                 >
                   <KeyRound className="h-3 w-3" /> Acessos
                 </button>
-                {late > 0 && (
-                  <Link to="/tarefas" className="ml-auto font-medium text-destructive">
-                    {late} atrasada{late > 1 ? "s" : ""}
-                  </Link>
-                )}
               </div>
             </div>
           );
@@ -251,18 +244,14 @@ function Dashboard() {
         </h1>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* Coluna 1: próxima reunião + hoje */}
-        <div className="min-w-0 space-y-4">
-          {nextMeeting ? (
-            <section className="rounded-2xl border border-reuniao/30 bg-reuniao/10 p-4">
-              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-reuniao">
-                <span>
-                  {minsTo <= 0 ? "Acontecendo agora" : minsTo < 60 ? `Próxima · em ${minsTo} min` : "Próxima reunião"}
-                </span>
-                <span className="tabular-nums text-foreground">{meetingTimeLabel(nextMeeting)}</span>
-              </div>
-              <p className="mt-1.5 break-words text-base font-semibold leading-snug">{nextMeeting.title}</p>
+      {nextMeeting ? (
+        <section className="rounded-2xl border border-reuniao/30 bg-reuniao/10 p-5">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-reuniao">
+                {minsTo <= 0 ? "Acontecendo agora" : minsTo < 60 ? `Próxima · em ${minsTo} min` : "Próxima reunião"}
+              </p>
+              <p className="mt-1 break-words text-lg font-semibold leading-snug">{nextMeeting.title}</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                 <span className={`rounded-full px-2 py-0.5 ${SOURCE_CHIP[nextMeeting.source]}`}>
                   {visibleSources.find((s) => s.key === nextMeeting.source)?.label ?? nextMeeting.source}
@@ -272,23 +261,30 @@ function Dashboard() {
                     {new Date(nextMeeting.starts_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}
                   </span>
                 )}
-                {meetingLink(nextMeeting) && (
-                  <a
-                    href={meetingLink(nextMeeting)!}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md bg-reuniao px-2 py-1 font-medium text-primary-foreground"
-                  >
-                    <Video className="h-3.5 w-3.5" /> Entrar
-                  </a>
-                )}
               </div>
-            </section>
-          ) : (
-            <section className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
-              Nenhuma reunião pela frente.
-            </section>
-          )}
+            </div>
+            <p className="shrink-0 text-2xl font-bold tabular-nums text-reuniao">{meetingTimeLabel(nextMeeting)}</p>
+            {meetingLink(nextMeeting) && (
+              <a
+                href={meetingLink(nextMeeting)!}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-reuniao px-4 py-2 text-sm font-medium text-primary-foreground"
+              >
+                <Video className="h-4 w-4" /> Entrar
+              </a>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
+          Nenhuma reunião pela frente.
+        </section>
+      )}
+
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        {/* Coluna 1: hoje */}
+        <div className="min-w-0">
 
           <section className="rounded-2xl border bg-card">
             <div className="flex items-center justify-between px-4 pt-3">
@@ -341,9 +337,8 @@ function Dashboard() {
           </section>
         </div>
 
-        {/* Coluna 2: próximos dias + atrasadas */}
-
-        <div className="min-w-0 space-y-4">
+        {/* Coluna 2: próximos dias */}
+        <div className="min-w-0">
           <section className="rounded-2xl border bg-card p-3">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Próximos dias</h2>
@@ -378,30 +373,6 @@ function Dashboard() {
             )}
           </section>
 
-          {overdue.length > 0 && (
-            <section className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
-                <AlertTriangle className="h-4 w-4" /> {overdue.length} atrasada{overdue.length > 1 ? "s" : ""}
-              </p>
-              <ul className="mt-2 space-y-1">
-                {overdue.slice(0, 3).map((t) => (
-                  <li key={t.id} className="flex items-center gap-2 text-xs">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${SOURCE_DOT[t.source]}`} />
-                    <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                    <button onClick={() => toggleTask(t)} className="shrink-0 font-medium text-destructive hover:underline">
-                      Feito
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/tarefas"
-                className="mt-3 inline-flex rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground"
-              >
-                Revisar agora
-              </Link>
-            </section>
-          )}
         </div>
       </div>
 
