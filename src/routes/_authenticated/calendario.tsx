@@ -807,20 +807,58 @@ function CalendarPage() {
     dropItem(raw, key, minutes);
   }
 
+  /** Concluídos ficam no mesmo lugar, mas com bloco menor (até 30 min). */
+  function visualDur(i: CalItem) {
+    return i.done ? Math.min(30, i.durationMin || 30) : i.durationMin || 30;
+  }
+
+  /** Encaixe lado a lado igual ao Google Calendar para itens no mesmo horário. */
+  function layoutLanes(items: CalItem[]) {
+    const out = new Map<string, { col: number; cols: number }>();
+    const sorted = [...items].sort((a, b) => (a.startMin ?? 0) - (b.startMin ?? 0) || visualDur(b) - visualDur(a));
+    let cluster: { id: string; col: number; end: number }[] = [];
+    let colEnds: number[] = [];
+    let clusterEnd = -1;
+    const flush = () => {
+      const n = colEnds.length || 1;
+      cluster.forEach((c) => out.set(c.id, { col: c.col, cols: n }));
+      cluster = [];
+      colEnds = [];
+    };
+    for (const it of sorted) {
+      const start = it.startMin ?? 0;
+      const end = start + Math.max(visualDur(it), 20);
+      if (start >= clusterEnd) flush();
+      let col = colEnds.findIndex((e) => e <= start);
+      if (col === -1) {
+        col = colEnds.length;
+        colEnds.push(end);
+      } else colEnds[col] = end;
+      cluster.push({ id: it.id, col, end });
+      clusterEnd = Math.max(clusterEnd, end);
+    }
+    flush();
+    return out;
+  }
+
   /** Bloco colorido do compromisso — igual ao Google, com as cores da LUCK. */
   function ItemBlock({
     item,
     compact,
     absolute,
+    lane,
   }: {
     item: CalItem;
     compact?: boolean;
     absolute?: boolean;
+    lane?: { col: number; cols: number };
   }) {
     const expanded = expandedId === item.id;
     const quick = quickId === item.id;
-    const height = absolute ? (item.durationMin / 60) * HOUR_H : undefined;
-    const small = absolute && item.durationMin <= 30;
+    const height = absolute ? (visualDur(item) / 60) * HOUR_H : undefined;
+    const small = absolute && visualDur(item) <= 30;
+    const col = lane?.col ?? 0;
+    const cols = lane?.cols ?? 1;
 
     return (
       <div
@@ -834,18 +872,18 @@ function CalendarPage() {
             ? {
                 position: "absolute",
                 top: ((item.startMin ?? 0) / 60) * HOUR_H,
-                minHeight: expanded ? undefined : Math.max(22, height ?? 22),
-                height: "auto",
-                overflow: "visible",
-                left: 2,
-                right: 2,
-                zIndex: expanded ? 20 : 10,
+                height: expanded ? "auto" : Math.max(20, (height ?? 22) - 2),
+                minHeight: expanded ? Math.max(60, height ?? 22) : undefined,
+                overflow: expanded ? "visible" : "hidden",
+                left: expanded ? 2 : `calc(${(col / cols) * 100}% + 2px)`,
+                width: expanded ? "calc(100% - 4px)" : `calc(${100 / cols}% - 4px)`,
+                zIndex: expanded || quick ? 40 : 10 + col,
               }
             : undefined
         }
-        className={`group relative cursor-grab overflow-visible rounded-md border px-2 py-1 text-left shadow-sm transition hover:z-20 active:cursor-grabbing ${item.tint} ${
-          item.done ? "opacity-60" : ""
-        }`}
+        className={`group relative cursor-grab overflow-visible rounded-md border ${absolute && !expanded ? "px-1.5 py-0.5" : "px-2 py-1"} text-left shadow-sm transition hover:z-30 active:cursor-grabbing ${
+          item.done ? "border-border bg-muted text-muted-foreground" : item.tint
+        } ${expanded ? "shadow-lg ring-2 ring-primary/40" : ""}`}
       >
         {/* Bola lateral vermelha apenas para reuniões reais */}
         {item.meetingColor && (
@@ -871,7 +909,9 @@ function CalendarPage() {
             className="min-w-0 flex-1 overflow-visible text-left"
           >
             <div
-              className={`h-auto w-full whitespace-pre-wrap break-words text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
+              className={`w-full break-words text-xs font-medium leading-snug [overflow-wrap:anywhere] ${
+                absolute && !expanded ? "line-clamp-2" : "whitespace-pre-wrap"
+              } ${
                 item.done ? "line-through" : ""
               }`}
             >
@@ -1473,6 +1513,7 @@ function CalendarPage() {
               {rangeDays.map((d) => {
                 const key = fmtKey(d);
                 const timed = itemsFor(key).filter((i) => i.startMin !== null);
+                const lanes = layoutLanes(timed);
                 const isToday = key === todayKey;
                 return (
                   <div
@@ -1506,7 +1547,7 @@ function CalendarPage() {
                       </div>
                     )}
                     {timed.map((i) => (
-                      <ItemBlock key={i.id} item={i} absolute />
+                      <ItemBlock key={i.id} item={i} absolute lane={lanes.get(i.id)} />
                     ))}
                   </div>
                 );
