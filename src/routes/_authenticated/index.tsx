@@ -282,7 +282,7 @@ function Dashboard() {
         </section>
       )}
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-5 md:grid-cols-2">
         {/* Coluna 1: hoje */}
         <div className="min-w-0">
 
