@@ -1088,6 +1088,22 @@ function CalendarPage() {
             <div className="hidden md:block [&_button]:text-xs">
               <SyncGoogleButton />
             </div>
+            <button
+              onClick={() => {
+                const next = !undatedOpen;
+                setUndatedOpen(next);
+                try {
+                  window.localStorage.setItem("luck.cal.undated", next ? "1" : "0");
+                } catch {
+                  /* ignora */
+                }
+              }}
+              className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${undatedOpen ? "bg-accent" : "bg-card"} hover:bg-accent`}
+              aria-expanded={undatedOpen}
+              title={undatedOpen ? "Esconder coluna Sem data" : "Mostrar tarefas sem data na lateral"}
+            >
+              Sem data{undatedTasks.length > 0 && <span className="font-normal text-muted-foreground">· {undatedTasks.length}</span>}
+            </button>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as SourceKey | "all")}
