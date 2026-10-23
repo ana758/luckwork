@@ -385,7 +385,7 @@ function CalendarPage() {
   }, [cursor, view]);
 
 
-  /** Semana (seg–dom) do cursor — usada na faixa do celular e no destaque do mini mês. */
+  /** Semana (seg–dom) do cursor — usada na faixa do celular. */
   const weekDays = useMemo(() => {
     const start = new Date(cursor);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
@@ -395,7 +395,6 @@ function CalendarPage() {
       return d;
     });
   }, [cursor]);
-  const weekKeys = new Set(weekDays.map(fmtKey));
 
   const rangeDays = useMemo(() => {
     if (effView === "month") return [];
