@@ -189,7 +189,7 @@ function Dashboard() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-xs capitalize text-muted-foreground">
+        <p className="text-xs text-muted-foreground first-letter:uppercase">
           {now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
