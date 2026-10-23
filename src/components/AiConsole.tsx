@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Check,
@@ -40,7 +40,7 @@ function speak(text: string) {
   }
 }
 
-export function AiConsole({ compact = false }: { compact?: boolean }) {
+export function AiConsole({ compact = false, aside }: { compact?: boolean; aside?: ReactNode }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [listening, setListening] = useState(false);
@@ -213,11 +213,22 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="space-y-4">
-      <ImportantEmailsCard
-        loading={emailsQuery.isLoading}
-        emails={emailsQuery.data?.emails ?? []}
-        error={emailsQuery.data?.error}
-      />
+      {compact && aside ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <ImportantEmailsCard
+            loading={emailsQuery.isLoading}
+            emails={emailsQuery.data?.emails ?? []}
+            error={emailsQuery.data?.error}
+          />
+          <div className="min-w-0">{aside}</div>
+        </div>
+      ) : (
+        <ImportantEmailsCard
+          loading={emailsQuery.isLoading}
+          emails={emailsQuery.data?.emails ?? []}
+          error={emailsQuery.data?.error}
+        />
+      )}
 
       <div className={compact ? "flex flex-col overflow-hidden rounded-2xl border bg-card" : "space-y-4"}>
       {compact && (
