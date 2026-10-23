@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, ChevronRight, ExternalLink, KeyRound, Sparkles, Video } from "lucide-react";
+import { Check, ChevronRight, ExternalLink, KeyRound, Sparkles, Video } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { isAllDay, localDateKey, meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
