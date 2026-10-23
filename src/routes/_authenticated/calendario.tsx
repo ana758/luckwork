@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/calendario")({
 });
 
 const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-type ViewMode = "day" | "2day" | "5day" | "month";
+type ViewMode = "day" | "week" | "2day" | "5day" | "month";
 
 /** Altura de uma hora na grade (px) — blocos maiores, como no Google. */
 const HOUR_H = 56;
@@ -180,7 +180,9 @@ function CalendarPage() {
       return null;
     }
   })();
-  const [view, setView] = useState<ViewMode>(saved?.view ?? "5day");
+  const [view, setView] = useState<ViewMode>(
+    saved?.view === "day" || saved?.view === "month" ? saved.view : "week",
+  );
   const isMobile = useIsMobile();
   const [cursor, setCursor] = useState(() => {
     if (saved?.cursor) {
@@ -251,12 +253,26 @@ function CalendarPage() {
     return () => window.clearInterval(id);
   }, []);
 
-  // Abre a grade já na altura das 7h.
+  // Abre a grade já rolada para a hora atual.
   useEffect(() => {
     if (view === "month" || scrolled.current || !gridRef.current) return;
-    gridRef.current.scrollTop = 7 * HOUR_H;
+    gridRef.current.scrollTop = Math.max(0, (new Date().getHours() - 1) * HOUR_H);
     scrolled.current = true;
-  }, [view]);
+  }, [view, isMobile]);
+
+  // Atalho T = voltar para hoje.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
+      if (e.key === "t" || e.key === "T") {
+        const d = new Date();
+        setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const visibleMeetings = filter === "all" ? meetings : meetings.filter((m) => m.source === filter);
   const visibleTasks = filter === "all" ? tasks : tasks.filter((t) => t.source === filter);
