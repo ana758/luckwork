@@ -285,40 +285,6 @@ function Dashboard() {
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {/* Coluna 1: hoje */}
         <div className="min-w-0">
-            <section className="rounded-2xl border border-reuniao/30 bg-reuniao/10 p-4">
-              <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wide text-reuniao">
-                <span>
-                  {minsTo <= 0 ? "Acontecendo agora" : minsTo < 60 ? `Próxima · em ${minsTo} min` : "Próxima reunião"}
-                </span>
-                <span className="tabular-nums text-foreground">{meetingTimeLabel(nextMeeting)}</span>
-              </div>
-              <p className="mt-1.5 break-words text-base font-semibold leading-snug">{nextMeeting.title}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className={`rounded-full px-2 py-0.5 ${SOURCE_CHIP[nextMeeting.source]}`}>
-                  {visibleSources.find((s) => s.key === nextMeeting.source)?.label ?? nextMeeting.source}
-                </span>
-                {meetingDateKey(nextMeeting) !== today && (
-                  <span className="text-muted-foreground">
-                    {new Date(nextMeeting.starts_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}
-                  </span>
-                )}
-                {meetingLink(nextMeeting) && (
-                  <a
-                    href={meetingLink(nextMeeting)!}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 rounded-md bg-reuniao px-2 py-1 font-medium text-primary-foreground"
-                  >
-                    <Video className="h-3.5 w-3.5" /> Entrar
-                  </a>
-                )}
-              </div>
-            </section>
-          ) : (
-            <section className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
-              Nenhuma reunião pela frente.
-            </section>
-          )}
 
           <section className="rounded-2xl border bg-card">
             <div className="flex items-center justify-between px-4 pt-3">
