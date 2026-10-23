@@ -193,7 +193,6 @@ function Dashboard() {
           const list = weekTasks.filter((t) => t.source === s.key);
           const done = list.filter((t) => t.status === "done").length;
           const pct = list.length ? Math.round((done / list.length) * 100) : 0;
-          const late = overdue.filter((t) => t.source === s.key).length;
           const links = access.filter((a) => a.source === s.key && a.url).slice(0, 3);
           return (
             <div key={s.key} className="rounded-xl border bg-background/40 p-3">
@@ -225,11 +224,6 @@ function Dashboard() {
                 >
                   <KeyRound className="h-3 w-3" /> Acessos
                 </button>
-                {late > 0 && (
-                  <Link to="/tarefas" className="ml-auto font-medium text-destructive">
-                    {late} atrasada{late > 1 ? "s" : ""}
-                  </Link>
-                )}
               </div>
             </div>
           );
