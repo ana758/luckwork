@@ -14,11 +14,11 @@ function platformHint(): { title: string; steps: string[] } {
 
   if (ios) {
     return {
-      title: "No iPhone: use o Safari",
+      title: "No iPhone",
       steps: [
-        "Abra luckwork.lovable.app no Safari (o Chrome do iPhone não instala apps).",
-        "Toque no botão Compartilhar (quadrado com seta para cima).",
-        "Escolha “Adicionar à Tela de Início” e depois “Adicionar”.",
+        "Safari (recomendado): abra luckwork.lovable.app → Compartilhar (quadrado com seta para cima) → “Adicionar à Tela de Início” → Adicionar.",
+        "Só pelo Safari o LUCK abre em tela cheia, sem barra de navegador, e envia alertas com som.",
+        "No Chrome do iPhone: toque em Compartilhar, à direita da barra de endereço → “Adicionar à tela inicial” → Adicionar. Esse atalho pode abrir o site como aba normal, em vez de app.",
       ],
     };
   }
