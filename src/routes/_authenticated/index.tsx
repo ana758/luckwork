@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAllDay, localDateKey, meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
 import { AccessDrawer } from "@/components/AccessDrawer";
 import { endOfWeek, startOfWeek, useAccessEntries, useMeetings, useTasks } from "@/lib/queries";
-import { isOverdue, SOURCE_CHIP, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { SOURCE_CHIP, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
 // Partes pesadas carregam depois do resto da tela.
@@ -133,7 +133,6 @@ function Dashboard() {
     [tasks, keys],
   );
 
-  const overdue = useMemo(() => tasks.filter((t) => keys.includes(t.source) && isOverdue(t)), [tasks, keys]);
 
   // Próximos 4 dias (sem hoje): reuniões e tarefas com data.
   const upcoming = useMemo(() => {
