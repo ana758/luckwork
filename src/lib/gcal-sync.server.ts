@@ -174,7 +174,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
   // impedir que o mesmo compromisso volte de outra agenda compartilhada.
   const { data: hiddenTombstones } = await supabase
     .from("meetings")
-    .select("title, starts_at, google_account, google_event_id")
+    .select("title, starts_at, google_account, google_event_id, updated_at")
     .eq("hidden", true)
     .gte("starts_at", timeMin)
     .lte("starts_at", timeMax);
@@ -183,6 +183,15 @@ export async function runCalendarSync(supabase: any, userId: string) {
       .filter((r: any) => r.google_account && r.google_event_id)
       .map((r: any) => `${r.google_account}::${r.google_event_id}`),
   );
+  // Quando cada assinatura foi apagada: só esconde cópias criadas ANTES disso,
+  // para que uma reunião nova com o mesmo nome e horário não suma sozinha.
+  const hiddenSigAt = new Map<string, string>();
+  for (const r of (hiddenTombstones ?? []) as any[]) {
+    if (!r.title || !r.starts_at) continue;
+    const k = meetingSignature(r.title, r.starts_at);
+    const at = r.updated_at ?? "";
+    if (!hiddenSigAt.has(k) || at > hiddenSigAt.get(k)!) hiddenSigAt.set(k, at);
+  }
   const hiddenSignatures = new Set(
     (hiddenTombstones ?? [])
       .filter((r: any) => r.title && r.starts_at)
@@ -423,12 +432,15 @@ export async function runCalendarSync(supabase: any, userId: string) {
   if (hiddenSignatures.size > 0) {
     const { data: visibleRows } = await supabase
       .from("meetings")
-      .select("id, title, starts_at")
+      .select("id, title, starts_at, created_at")
       .eq("hidden", false)
       .gte("starts_at", timeMin)
       .lte("starts_at", timeMax);
     const clones = (visibleRows ?? [])
-      .filter((r: any) => hiddenSignatures.has(meetingSignature(r.title ?? "", r.starts_at)))
+      .filter((r: any) => {
+        const at = hiddenSigAt.get(meetingSignature(r.title ?? "", r.starts_at));
+        return at !== undefined && new Date(r.created_at).getTime() < new Date(at).getTime();
+      })
       .map((r: any) => r.id);
     if (clones.length > 0) {
       await supabase.from("meetings").update({ hidden: true }).in("id", clones);

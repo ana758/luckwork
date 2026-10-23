@@ -64,9 +64,18 @@ export async function fetchMeetings(): Promise<Meeting[]> {
       .toLowerCase()
       .replace(/\s+/g, " ")
       .trim()}::${new Date(m.starts_at).toISOString()}`;
-  const deletedGoogleSignatures = new Set(
-    rows.filter((m) => m.hidden && m.google_event_id).map((m) => signature(m)),
-  );
+  // Assinatura apagada -> quando foi apagada. Só esconde cópias mais antigas.
+  const deletedGoogleSignatures = new Map<string, number>();
+  for (const m of rows) {
+    if (!m.hidden || !m.google_event_id) continue;
+    const at = new Date((m as { updated_at?: string }).updated_at ?? 0).getTime();
+    const k = signature(m);
+    deletedGoogleSignatures.set(k, Math.max(at, deletedGoogleSignatures.get(k) ?? 0));
+  }
+  const killedBySignature = (m: { title: unknown; starts_at: string; created_at?: string }) => {
+    const at = deletedGoogleSignatures.get(signature(m));
+    return at !== undefined && new Date(m.created_at ?? 0).getTime() < at;
+  };
   const seriesKey = (m: { google_account?: string | null; google_event_id?: string | null }) =>
     m.google_account && m.google_event_id
       ? `${m.google_account}::${m.google_event_id.replace(/_\d{8}T\d{6}Z$/, "")}`
@@ -106,7 +115,7 @@ export async function fetchMeetings(): Promise<Meeting[]> {
       return false;
     const pair = `${m.google_account}::${m.google_event_id}`;
     if (taskEventPairs.has(pair) || mirrorOfMeetings.has(pair)) return false;
-    return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));
+    return !killedBySignature(m) && !deletedGoogleSeries.has(seriesKey(m));
   }) as Meeting[];
   saveCache("meetings", out);
   return out;
