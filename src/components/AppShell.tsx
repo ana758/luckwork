@@ -18,13 +18,13 @@ import { AiPanel } from "./AiPanel";
 import { useAutoSyncGoogle } from "@/hooks/useAutoSyncGoogle";
 import { useOverdueScan } from "@/hooks/useOverdueScan";
 import { useDesktopReminders } from "@/lib/desktop-notify";
-import { fetchMeetings, fetchTasks } from "@/lib/queries";
+import { fetchMeetings, fetchTasks, seedQueryCache } from "@/lib/queries";
 
 
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
-  { to: "/tarefas", label: "Tarefas", icon: ListTodo },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
+  { to: "/tarefas", label: "Tarefas", icon: ListTodo },
   { to: "/reunioes", label: "Reuniões", icon: Users },
   { to: "/ai", label: "IA", icon: Sparkles },
   { to: "/configuracoes", label: "Ajustes", icon: Settings },
@@ -38,14 +38,20 @@ export function AppShell() {
   const { data: membership, isLoading } = useQuery({
     queryKey: ["membership"],
     queryFn: async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
+      // Sessão local (sem ida à rede) para liberar a tela mais rápido.
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user.id;
       if (!uid) return null;
       const { data } = await supabase
         .from("workspace_members")
         .select("status, email")
         .eq("user_id", uid)
         .maybeSingle();
+      try {
+        localStorage.setItem("luck.cache.membership", JSON.stringify(data));
+      } catch {
+        /* ignora */
+      }
       return data;
     },
   });
@@ -62,6 +68,11 @@ export function AppShell() {
     enabled: membership?.status === "active",
     refetchInterval: 60_000,
   });
+
+  // Abre com os últimos dados salvos no aparelho (tarefas, reuniões, acesso).
+  useEffect(() => {
+    seedQueryCache(queryClient);
+  }, [queryClient]);
 
   useAutoSyncGoogle();
   useOverdueScan();
@@ -145,12 +156,12 @@ export function AppShell() {
     <div className="min-h-screen bg-background pb-48">
 
       <div
-        className={`mx-auto flex w-full gap-6 px-4 py-4 md:px-6 ${
-          pathname === "/calendario" || pathname === "/reunioes" ? "max-w-[1600px]" : "max-w-6xl"
+        className={`mx-auto flex w-full gap-4 px-4 py-4 md:px-5 ${
+          pathname === "/calendario" || pathname === "/reunioes" ? "max-w-[1600px]" : "max-w-[1400px]"
         }`}
       >
         {/* Desktop nav */}
-        <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
+        <aside className="sticky top-4 hidden h-fit w-40 shrink-0 md:block">
           <div className="mb-6 px-2">
             <p className="text-lg font-semibold tracking-tight">LUCK</p>
             <p className="text-xs text-muted-foreground">Angi · Brand.Pe · Pessoal</p>
@@ -163,7 +174,7 @@ export function AppShell() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
                     active
                       ? "bg-secondary font-medium text-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-foreground"

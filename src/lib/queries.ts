@@ -25,7 +25,7 @@ function saveCache(key: string, value: unknown) {
 
 /** Mostra na hora os últimos dados salvos no aparelho enquanto busca os novos. */
 export function seedQueryCache(qc: QueryClient) {
-  for (const key of ["tasks", "meetings"]) {
+  for (const key of ["tasks", "meetings", "membership"]) {
     if (qc.getQueryData([key]) !== undefined) continue;
     try {
       const raw = window.localStorage.getItem(CACHE_PREFIX + key);
