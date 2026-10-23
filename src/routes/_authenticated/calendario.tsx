@@ -1040,9 +1040,10 @@ function CalendarPage() {
 
   return (
     <div className="flex gap-4">
-      {/* Lateral só desta aba (computador): sem data */}
-      {!isMobile && (
+      {/* Lateral só desta aba (computador): sem data — fechada por padrão */}
+      {!isMobile && undatedOpen && (
         <aside className="sticky top-4 hidden h-fit w-56 shrink-0 lg:block">
+
 
           <div className="space-y-1.5">
             <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
