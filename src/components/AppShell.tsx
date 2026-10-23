@@ -233,7 +233,9 @@ export function AppShell() {
         })}
       </nav>
 
-      <QuickAdd />
+      {/* O calendário já tem seu próprio botão "Novo", então não mostramos o flutuante ali. */}
+      {!pathname.startsWith("/calendario") && <QuickAdd />}
+
     </div>
   );
 }
