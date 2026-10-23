@@ -865,6 +865,12 @@ function CalendarPage() {
     return (
       <div
         draggable
+        onClick={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest("input,textarea,select,[data-noexpand]")) return;
+          if (quick) return;
+          setExpandedId(expanded ? null : item.id);
+        }}
         onDragStart={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           onDragStart(e, item, absolute ? ((e.clientY - rect.top) / HOUR_H) * 60 : 0);
@@ -879,6 +885,7 @@ function CalendarPage() {
                 overflow: expanded ? "visible" : "hidden",
                 left: expanded ? 2 : `calc(${(col / cols) * 100}% + 2px)`,
                 width: expanded ? "calc(100% - 4px)" : `calc(${100 / cols}% - 4px)`,
+                minWidth: expanded ? 240 : undefined,
                 zIndex: expanded || quick ? 40 : 10 + col,
               }
             : undefined
@@ -906,7 +913,6 @@ function CalendarPage() {
             {item.done && <Check className="h-3 w-3" strokeWidth={3} />}
           </button>
           <button
-            onClick={() => setExpandedId(expanded ? null : item.id)}
             onDoubleClick={() => openItem(item)}
             className="min-w-0 flex-1 overflow-visible text-left"
           >
@@ -978,7 +984,7 @@ function CalendarPage() {
               <p className="text-[11px] opacity-60">Sem notas.</p>
             )}
             <button
-              onClick={() => setQuickId(item.id)}
+              onClick={(e) => { e.stopPropagation(); setQuickId(item.id); }}
               className="mt-1.5 rounded border border-foreground/20 bg-background/60 px-2 py-1 text-[11px] font-medium"
             >
               Editar aqui
