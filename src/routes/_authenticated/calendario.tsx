@@ -410,7 +410,7 @@ function CalendarPage() {
       d.setDate(cursor.getDate() + i);
       return d;
     });
-  }, [cursor, effView, weekDays]);
+  }, [cursor, effView, workDays]);
 
   const headerLabel =
     effView === "month"
@@ -1191,7 +1191,7 @@ function CalendarPage() {
             </button>
           </div>
         )}
-        {isMobile && view !== "month" && (
+        {isMobile && effView === "day" && (
           <div
             className="grid grid-cols-7 text-center"
             onTouchStart={(e) => {
