@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccessDrawer } from "@/components/AccessDrawer";
+import { AllowlistSection } from "@/components/AllowlistSection";
 import { SOURCES, SOURCE_DOT, type SourceKey } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
@@ -179,8 +180,10 @@ function SettingsPage() {
         )}
       </section>
 
+      <AllowlistSection />
+
       <section className="rounded-xl border bg-card p-4">
-        <h2 className="text-sm font-medium">Quem já tem acesso</h2>
+        <h2 className="text-sm font-medium">Quem já entrou</h2>
         <ul className="mt-3 space-y-2">
           {active.map((m) => (
             <li key={m.id} className="flex items-center gap-2 text-sm">
