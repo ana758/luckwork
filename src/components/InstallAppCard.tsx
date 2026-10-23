@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, Download, Smartphone } from "lucide-react";
-
-type BipEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
+import { isStandalone, onInstallPrompt, runInstallPrompt } from "@/lib/install-prompt";
 
 function platformHint(): { title: string; steps: string[] } {
   const ua = navigator.userAgent;
@@ -52,7 +48,7 @@ function platformHint(): { title: string; steps: string[] } {
       steps: [
         "Clique no ícone de instalar na barra de endereço (um monitorzinho com seta para baixo).",
         "Ou abra o menu ⋮ → “Salvar e compartilhar” → “Instalar LUCK como app”.",
-        "O Chrome cria o ícone na área de tarefas e abre o LUCK sem abas.",
+        "O Chrome cria o ícone e abre o LUCK em janela própria, sem abas.",
       ],
     };
   }
@@ -63,46 +59,28 @@ function platformHint(): { title: string; steps: string[] } {
 }
 
 export function InstallAppCard() {
-  const [bip, setBip] = useState<BipEvent | null>(null);
+  const [canInstall, setCanInstall] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
 
   useEffect(() => {
-    const isStandalone = () =>
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (navigator as unknown as { standalone?: boolean }).standalone === true;
-
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      setBip(e as BipEvent);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setBip(null);
-      toast.success("LUCK instalado! Abra pelo ícone.");
-    };
-
     setInstalled(isStandalone());
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
+    const off = onInstallPrompt((e) => setCanInstall(!!e));
     return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
+      off();
     };
   }, []);
 
   async function install() {
-    if (!bip) {
+    const outcome = await runInstallPrompt();
+    if (outcome === "unavailable") {
       setShowSteps(true);
       return;
     }
-    await bip.prompt();
-    const choice = await bip.userChoice;
-    if (choice.outcome === "accepted") {
+    if (outcome === "accepted") {
       setInstalled(true);
       toast.success("Pronto! Abra o LUCK pelo ícone.");
     }
-    setBip(null);
   }
 
   const hint = platformHint();
@@ -129,7 +107,7 @@ export function InstallAppCard() {
                 onClick={install}
                 className="rounded-md bg-primary px-3 py-2 text-xs text-primary-foreground hover:opacity-90"
               >
-                {bip ? "Instalar agora" : "Ver como instalar"}
+                {canInstall ? "Instalar agora" : "Ver como instalar"}
               </button>
               <button
                 onClick={() => setShowSteps((v) => !v)}
