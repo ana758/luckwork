@@ -984,7 +984,7 @@ function CalendarPage() {
               <p className="text-[11px] opacity-60">Sem notas.</p>
             )}
             <button
-              onClick={() => setQuickId(item.id)}
+              onClick={(e) => { e.stopPropagation(); setQuickId(item.id); }}
               className="mt-1.5 rounded border border-foreground/20 bg-background/60 px-2 py-1 text-[11px] font-medium"
             >
               Editar aqui
