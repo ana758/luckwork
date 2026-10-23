@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronDown, ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin, Pencil } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Check, Plus, Repeat, MapPin, Pencil, Trash2 } from "lucide-react";
 import { deleteTaskEverywhere } from "@/lib/delete-task";
 import { toast } from "sonner";
 import { SyncGoogleButton } from "@/components/SyncGoogleButton";
@@ -718,10 +718,6 @@ function CalendarPage() {
 
   /** Exclui o compromisso direto do cartão (some na hora da tela). */
   function deleteQuick(item: CalItem) {
-    const what = item.kind === "task" ? "tarefa" : "compromisso";
-    if (!window.confirm(`Excluir ${what} "${item.title}"? Se ele estiver no Google Agenda, será apagado de lá também.`)) {
-      return;
-    }
     if (item.kind === "task" && item.task) {
       const id = item.task.id;
       qc.setQueryData<Task[]>(["tasks"], (old) => (old ?? []).filter((x) => x.id !== id));
@@ -952,22 +948,39 @@ function CalendarPage() {
             )}
           </button>
           {item.recurring && <Repeat className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />}
-          <div className="relative z-20 flex shrink-0 flex-col items-center gap-1">
-            <span className={`mt-1 h-2 w-2 rounded-full ${item.dot}`} />
-            <button
-              data-noexpand
-              draggable={false}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setQuickId(quick ? null : item.id);
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              aria-label="Editar rápido"
-              className="grid h-5 w-5 place-items-center rounded-[4px] border border-foreground/25 bg-background/80 text-foreground/80 opacity-100 transition hover:bg-background hover:text-foreground focus:opacity-100"
-            >
-              <Pencil className="h-3 w-3" />
-            </button>
+          <div className="relative z-20 flex shrink-0 items-center gap-1">
+            {expanded && !quick && (
+              <>
+                <button
+                  data-noexpand
+                  draggable={false}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setQuickId(item.id);
+                  }}
+                  aria-label="Editar"
+                  className="grid h-6 w-6 place-items-center rounded-[4px] border border-foreground/25 bg-background/80 text-foreground/80 hover:bg-background hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  data-noexpand
+                  draggable={false}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setExpandedId(null);
+                    deleteQuick(item);
+                  }}
+                  aria-label="Excluir"
+                  className="grid h-6 w-6 place-items-center rounded-[4px] border border-destructive/40 bg-background/80 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+            <span className={`h-2 w-2 rounded-full ${item.dot}`} />
           </div>
         </div>
 
@@ -992,12 +1005,6 @@ function CalendarPage() {
             ) : (
               <p className="text-[11px] opacity-60">Sem notas.</p>
             )}
-            <button
-              onClick={(e) => { e.stopPropagation(); setQuickId(item.id); }}
-              className="mt-1.5 rounded border border-foreground/20 bg-background/60 px-2 py-1 text-[11px] font-medium"
-            >
-              Editar aqui
-            </button>
           </div>
         )}
 
