@@ -254,7 +254,9 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
               ? "🔴 Gravando… toque no microfone para parar e enviar"
               : transcribing
                 ? "Transcrevendo áudio…"
-                : 'Fale ou escreva à vontade (Shift+Enter quebra linha). Ex.: "adiciona tarefa angi entrega branding pessoal 27/07"'
+                : compact
+                  ? "Pergunte ou peça algo ao LUCK AI…"
+                  : 'Fale ou escreva à vontade (Shift+Enter quebra linha). Ex.: "adiciona tarefa angi entrega branding pessoal 27/07"'
           }
           disabled={transcribing}
           className={`${compact ? "min-h-[40px] resize-none rounded-xl bg-background px-3 py-2" : "min-h-[88px] resize-y rounded-2xl bg-card px-4 py-3"} max-h-80 flex-1 overflow-y-auto border text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60`}
