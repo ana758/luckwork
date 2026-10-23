@@ -341,57 +341,8 @@ function Dashboard() {
           </section>
         </div>
 
-        {/* Coluna 2: semana por empresa */}
-        <div className="min-w-0 space-y-3">
-          <h2 className="text-sm font-semibold">Semana por empresa</h2>
-          {visibleSources.map((s) => {
-            const list = weekTasks.filter((t) => t.source === s.key);
-            const done = list.filter((t) => t.status === "done").length;
-            const pct = list.length ? Math.round((done / list.length) * 100) : 0;
-            const late = overdue.filter((t) => t.source === s.key).length;
-            const links = access.filter((a) => a.source === s.key && a.url).slice(0, 3);
-            return (
-              <div key={s.key} className="rounded-xl border bg-card p-3">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${SOURCE_DOT[s.key]}`} />
-                  <p className="text-sm font-medium">{s.label}</p>
-                  <span className="ml-auto text-xs tabular-nums text-muted-foreground">
-                    {done} de {list.length}
-                  </span>
-                </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: SOURCE_BAR[s.key] }} />
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  {links.map((l) => (
-                    <a
-                      key={l.id}
-                      href={l.url!}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" /> {l.label}
-                    </a>
-                  ))}
-                  <button
-                    onClick={() => setDrawer(s.key)}
-                    className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <KeyRound className="h-3 w-3" /> Acessos
-                  </button>
-                  {late > 0 && (
-                    <Link to="/tarefas" className="ml-auto font-medium text-destructive">
-                      {late} atrasada{late > 1 ? "s" : ""}
-                    </Link>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        {/* Coluna 2: próximos dias + atrasadas */}
 
-        {/* Coluna 3: próximos dias + atrasadas */}
         <div className="min-w-0 space-y-4">
           <section className="rounded-2xl border bg-card p-3">
             <div className="mb-2 flex items-center justify-between">
@@ -467,7 +418,7 @@ function Dashboard() {
             <AiMemoryCard />
           </div>
           <div className="min-w-0">
-            <AiConsole compact />
+            <AiConsole compact aside={semanaAside} />
           </div>
         </div>
       </Suspense>
