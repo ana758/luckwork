@@ -384,19 +384,8 @@ function CalendarPage() {
     });
   }, [cursor, view]);
 
-  /** Mini mês da lateral (sempre do mês do cursor). */
-  const miniDays = useMemo(() => {
-    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-    const start = new Date(first);
-    start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
-    return Array.from({ length: 42 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      return d;
-    });
-  }, [cursor]);
 
-  /** Semana (seg–dom) do cursor — usada na faixa do celular e no destaque do mini mês. */
+  /** Semana (seg–dom) do cursor — usada na faixa do celular. */
   const weekDays = useMemo(() => {
     const start = new Date(cursor);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
@@ -406,7 +395,6 @@ function CalendarPage() {
       return d;
     });
   }, [cursor]);
-  const weekKeys = new Set(weekDays.map(fmtKey));
 
   const rangeDays = useMemo(() => {
     if (effView === "month") return [];
@@ -1049,68 +1037,9 @@ function CalendarPage() {
 
   return (
     <div className="flex gap-4">
-      {/* Lateral só desta aba (computador): mini mês + sem data */}
+      {/* Lateral só desta aba (computador): sem data */}
       {!isMobile && (
-        <aside className="sticky top-4 hidden h-fit w-56 shrink-0 space-y-4 lg:block">
-          <div className="rounded-xl border bg-card p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold capitalize">
-                {cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
-              </span>
-              <div className="flex">
-                <button
-                  aria-label="Mês anterior"
-                  onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
-                  className="rounded p-1 hover:bg-accent"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  aria-label="Próximo mês"
-                  onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
-                  className="rounded p-1 hover:bg-accent"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-            <div className="grid grid-cols-7 text-center text-[10px] text-muted-foreground">
-              {["S", "T", "Q", "Q", "S", "S", "D"].map((w, i) => (
-                <span key={i} className="py-1">
-                  {w}
-                </span>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 text-center text-[11px]">
-              {miniDays.map((d) => {
-                const key = fmtKey(d);
-                const inWeek = effView === "week" && weekKeys.has(key);
-                const isToday = key === todayKey;
-                const sel = key === fmtKey(cursor);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()))}
-                    className={`py-1 tabular-nums ${inWeek ? "bg-secondary" : ""} ${
-                      d.getMonth() !== cursor.getMonth() ? "text-muted-foreground/60" : ""
-                    }`}
-                  >
-                    <span
-                      className={`inline-grid h-6 w-6 place-items-center rounded-full ${
-                        isToday
-                          ? "bg-primary font-semibold text-primary-foreground"
-                          : sel
-                            ? "ring-1 ring-foreground/40"
-                            : "hover:bg-accent"
-                      }`}
-                    >
-                      {d.getDate()}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+        <aside className="sticky top-4 hidden h-fit w-56 shrink-0 lg:block">
 
           <div className="space-y-1.5">
             <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
