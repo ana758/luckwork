@@ -409,12 +409,12 @@ function Dashboard() {
           </div>
         }
       >
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <div className="min-w-0">
-            <AiConsole compact />
-          </div>
+        <div className="grid gap-5">
           <div className="min-w-0">
             <AiMemoryCard />
+          </div>
+          <div className="min-w-0">
+            <AiConsole compact />
           </div>
         </div>
       </Suspense>

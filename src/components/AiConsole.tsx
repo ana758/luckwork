@@ -303,7 +303,7 @@ export function AiConsole({ compact = false }: { compact?: boolean }) {
 
       <div
         ref={scrollRef}
-        className={`${compact ? "order-1 grid max-h-96 gap-2 overflow-y-auto p-3 md:grid-cols-2" : "min-h-[40vh] flex-1 space-y-3 overflow-y-auto rounded-xl border bg-card p-4"}`}
+        className={`${compact ? "order-1 grid max-h-96 gap-2 overflow-y-auto p-3 md:grid-cols-2 xl:grid-cols-4" : "min-h-[40vh] flex-1 space-y-3 overflow-y-auto rounded-xl border bg-card p-4"}`}
       >
         {(suggestionsQuery.data ?? []).map((s) => (
           <div key={s.id} className="flex justify-start">
