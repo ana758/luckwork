@@ -179,8 +179,10 @@ function SettingsPage() {
         )}
       </section>
 
+      <AllowlistSection />
+
       <section className="rounded-xl border bg-card p-4">
-        <h2 className="text-sm font-medium">Quem já tem acesso</h2>
+        <h2 className="text-sm font-medium">Quem já entrou</h2>
         <ul className="mt-3 space-y-2">
           {active.map((m) => (
             <li key={m.id} className="flex items-center gap-2 text-sm">

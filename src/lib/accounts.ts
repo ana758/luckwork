@@ -13,6 +13,7 @@ export const ALLOWED_EMAILS = [
   ANGI_EMAIL,
   "drabiazinha@gmail.com",
   "4r1t2a@mail.instinct.com",
+  "biduque@hotmail.com",
 ];
 
 /** Todos os e-mails da Ana — usados para cruzar convites/reuniões/links de Meet. */
