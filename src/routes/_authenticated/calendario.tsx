@@ -857,6 +857,8 @@ function CalendarPage() {
   }) {
     const expanded = expandedId === item.id;
     const quick = quickId === item.id;
+    /** Aberto = bloco inteiro na tela (expandido ao clicar ou em edição rápida). */
+    const open = expanded || quick;
     const height = absolute ? (visualDur(item) / 60) * HOUR_H : undefined;
     const small = absolute && visualDur(item) <= 30;
     const col = lane?.col ?? 0;
@@ -868,7 +870,10 @@ function CalendarPage() {
         onClick={(e) => {
           const t = e.target as HTMLElement;
           if (t.closest("input,textarea,select,[data-noexpand]")) return;
-          if (quick) return;
+          if (quick) {
+            setQuickId(null);
+            return;
+          }
           setExpandedId(expanded ? null : item.id);
         }}
         onDragStart={(e) => {
@@ -880,19 +885,19 @@ function CalendarPage() {
             ? {
                 position: "absolute",
                 top: ((item.startMin ?? 0) / 60) * HOUR_H,
-                height: expanded ? "auto" : item.done ? Math.max(20, (height ?? 22) - 2) : Math.max(34, (height ?? 22) - 2),
-                minHeight: expanded ? Math.max(60, height ?? 22) : undefined,
-                overflow: expanded ? "visible" : "hidden",
-                left: expanded ? 2 : `calc(${(col / cols) * 100}% + 2px)`,
-                width: expanded ? "calc(100% - 4px)" : `calc(${100 / cols}% - 4px)`,
-                minWidth: expanded ? 240 : undefined,
-                zIndex: expanded || quick ? 40 : 10 + col,
+                height: open ? "auto" : item.done ? Math.max(20, (height ?? 22) - 2) : Math.max(34, (height ?? 22) - 2),
+                minHeight: open ? Math.max(60, height ?? 22) : undefined,
+                overflow: open ? "visible" : "hidden",
+                left: open ? 2 : `calc(${(col / cols) * 100}% + 2px)`,
+                width: open ? "calc(100% - 4px)" : `calc(${100 / cols}% - 4px)`,
+                minWidth: open ? 240 : undefined,
+                zIndex: open ? 40 : 10 + col,
               }
             : undefined
         }
-        className={`group relative cursor-grab overflow-visible rounded-md border ${absolute && !expanded ? "px-1.5 py-0.5" : "px-2 py-1"} text-left shadow-sm transition hover:z-30 active:cursor-grabbing ${
+        className={`group relative cursor-grab overflow-visible rounded-md border ${absolute && !open ? "px-1.5 py-0.5" : "px-2 py-1"} text-left shadow-sm transition hover:z-30 active:cursor-grabbing ${
           item.done ? "border-border bg-muted text-muted-foreground" : item.tint
-        } ${expanded ? "shadow-lg ring-2 ring-primary/40" : ""}`}
+        } ${open ? "shadow-lg ring-2 ring-primary/40" : ""}`}
       >
         {/* Bola lateral vermelha apenas para reuniões reais */}
         {item.meetingColor && (
@@ -947,17 +952,21 @@ function CalendarPage() {
             )}
           </button>
           {item.recurring && <Repeat className="mt-0.5 h-3 w-3 shrink-0 opacity-60" />}
-          <div className="flex shrink-0 flex-col items-center gap-1">
+          <div className="relative z-20 flex shrink-0 flex-col items-center gap-1">
             <span className={`mt-1 h-2 w-2 rounded-full ${item.dot}`} />
             <button
+              data-noexpand
+              draggable={false}
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 setQuickId(quick ? null : item.id);
               }}
+              onPointerDown={(e) => e.stopPropagation()}
               aria-label="Editar rápido"
-              className="grid h-4 w-4 place-items-center rounded-[4px] border border-foreground/25 bg-background/70 opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+              className="grid h-5 w-5 place-items-center rounded-[4px] border border-foreground/25 bg-background/80 text-foreground/80 opacity-100 transition hover:bg-background hover:text-foreground focus:opacity-100"
             >
-              <Pencil className="h-2.5 w-2.5" />
+              <Pencil className="h-3 w-3" />
             </button>
           </div>
         </div>
@@ -1021,7 +1030,7 @@ function CalendarPage() {
               document.addEventListener("mousemove", onMove);
               document.addEventListener("mouseup", onUp);
             }}
-            className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize opacity-0 transition group-hover:opacity-100"
+            className="absolute inset-x-0 bottom-0 z-0 h-2 cursor-ns-resize opacity-0 transition group-hover:opacity-100"
           >
             <div className="mx-auto h-1 w-8 rounded-full bg-foreground/30" />
           </div>
