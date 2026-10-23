@@ -1409,7 +1409,7 @@ function CalendarPage() {
             })}
           </div>
 
-          {undatedTasks.length > 0 && (
+          {isMobile && undatedTasks.length > 0 && (
             <div className="flex flex-wrap items-start gap-1 border-b bg-secondary/40 p-1.5">
               <span className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">sem data</span>
               {undatedTasks.map((t) => (
@@ -1420,7 +1420,7 @@ function CalendarPage() {
             </div>
           )}
 
-      {view === "5day" ? (
+      {effView === "5day" ? (
         <>
         {untimedBar}
         <div className="max-h-[70vh] overflow-y-auto">
@@ -1503,7 +1503,7 @@ function CalendarPage() {
           )}
 
           {/* Grade de horas */}
-          <div ref={gridRef} className="max-h-[55vh] overflow-y-auto">
+          <div ref={gridRef} className="overflow-y-auto" style={{ height: isMobile ? "calc(100dvh - 300px)" : "calc(100dvh - 210px)", minHeight: 360 }}>
             <div
               className="relative grid"
               style={{ gridTemplateColumns: `48px repeat(${rangeDays.length}, minmax(0, 1fr))` }}
@@ -1568,6 +1568,8 @@ function CalendarPage() {
       )}
         </div>
       )}
+
+      </div>
 
       {editing && <MeetingEditModal meeting={editing} onClose={() => setEditing(null)} />}
       {editingTask && <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} />}
