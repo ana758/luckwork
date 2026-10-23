@@ -337,9 +337,8 @@ function Dashboard() {
           </section>
         </div>
 
-        {/* Coluna 2: próximos dias + atrasadas */}
-
-        <div className="min-w-0 space-y-4">
+        {/* Coluna 2: próximos dias */}
+        <div className="min-w-0">
           <section className="rounded-2xl border bg-card p-3">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Próximos dias</h2>
@@ -374,30 +373,6 @@ function Dashboard() {
             )}
           </section>
 
-          {overdue.length > 0 && (
-            <section className="rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
-                <AlertTriangle className="h-4 w-4" /> {overdue.length} atrasada{overdue.length > 1 ? "s" : ""}
-              </p>
-              <ul className="mt-2 space-y-1">
-                {overdue.slice(0, 3).map((t) => (
-                  <li key={t.id} className="flex items-center gap-2 text-xs">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${SOURCE_DOT[t.source]}`} />
-                    <span className="min-w-0 flex-1 truncate">{t.title}</span>
-                    <button onClick={() => toggleTask(t)} className="shrink-0 font-medium text-destructive hover:underline">
-                      Feito
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/tarefas"
-                className="mt-3 inline-flex rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground"
-              >
-                Revisar agora
-              </Link>
-            </section>
-          )}
         </div>
       </div>
 
