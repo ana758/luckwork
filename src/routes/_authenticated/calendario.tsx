@@ -1378,7 +1378,7 @@ function CalendarPage() {
         <div className="overflow-hidden rounded-xl border bg-card">
           {/* Cabeçalho dos dias */}
           <div
-            className={`${isMobile ? "hidden" : "grid"} border-b text-center text-[11px] text-muted-foreground`}
+            className={`${isMobile && effView === "day" ? "hidden" : "grid"} border-b text-center text-[11px] text-muted-foreground`}
             style={{ gridTemplateColumns: `48px repeat(${rangeDays.length}, minmax(0, 1fr))` }}
           >
             <div />
