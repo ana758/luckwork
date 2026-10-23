@@ -1044,63 +1044,216 @@ function CalendarPage() {
     );
   })();
 
+  const viewOptions = (isMobile ? ["day", "month"] : ["day", "week", "month"]) as ViewMode[];
+  const monthTitle = cursor.toLocaleDateString("pt-BR", { month: "long" });
+
   return (
-    <div className="space-y-4">
+    <div className="flex gap-4">
+      {/* Lateral só desta aba (computador): mini mês + sem data */}
+      {!isMobile && (
+        <aside className="sticky top-4 hidden h-fit w-56 shrink-0 space-y-4 lg:block">
+          <div className="rounded-xl border bg-card p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-semibold capitalize">
+                {cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+              </span>
+              <div className="flex">
+                <button
+                  aria-label="Mês anterior"
+                  onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+                  className="rounded p-1 hover:bg-accent"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  aria-label="Próximo mês"
+                  onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+                  className="rounded p-1 hover:bg-accent"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 text-center text-[10px] text-muted-foreground">
+              {["S", "T", "Q", "Q", "S", "S", "D"].map((w, i) => (
+                <span key={i} className="py-1">
+                  {w}
+                </span>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 text-center text-[11px]">
+              {miniDays.map((d) => {
+                const key = fmtKey(d);
+                const inWeek = effView === "week" && weekKeys.has(key);
+                const isToday = key === todayKey;
+                const sel = key === fmtKey(cursor);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()))}
+                    className={`py-1 tabular-nums ${inWeek ? "bg-secondary" : ""} ${
+                      d.getMonth() !== cursor.getMonth() ? "text-muted-foreground/60" : ""
+                    }`}
+                  >
+                    <span
+                      className={`inline-grid h-6 w-6 place-items-center rounded-full ${
+                        isToday
+                          ? "bg-primary font-semibold text-primary-foreground"
+                          : sel
+                            ? "ring-1 ring-foreground/40"
+                            : "hover:bg-accent"
+                      }`}
+                    >
+                      {d.getDate()}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Sem data · arraste para a grade
+            </p>
+            {undatedTasks.length === 0 ? (
+              <p className="px-1 text-xs text-muted-foreground">Nada sem data.</p>
+            ) : (
+              undatedTasks.map((t) => <ItemBlock key={t.id} item={taskItem(t)} compact />)
+            )}
+          </div>
+        </aside>
+      )}
+
+      <div className="min-w-0 flex-1 space-y-3">
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="mr-auto text-xl font-semibold tracking-tight">Calendário</h1>
-          <SyncGoogleButton />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex flex-1 items-center gap-1 rounded-md border p-0.5 text-xs">
-            {(["day", "2day", "5day", "month"] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`flex-1 rounded px-2 py-1.5 ${view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-              >
-                {v === "day" ? "Dia" : v === "2day" ? "2 dias" : v === "5day" ? "5 dias" : "Mês"}
+          {isMobile ? (
+            <h1 className="mr-auto text-2xl font-bold capitalize tracking-tight">{monthTitle}</h1>
+          ) : (
+            <>
+              <h1 className="text-lg font-semibold capitalize tracking-tight">{headerLabel}</h1>
+              <button aria-label="Anterior" onClick={() => shift(-1)} className="rounded-md border p-1.5 hover:bg-accent">
+                <ChevronLeft className="h-4 w-4" />
               </button>
-            ))}
-          </div>
+              <button aria-label="Próximo" onClick={() => shift(1)} className="rounded-md border p-1.5 hover:bg-accent">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </>
+          )}
           <button
-            onClick={() => setCursor(new Date())}
-            className="rounded-md border px-2 py-1.5 text-xs hover:bg-accent"
+            onClick={() => {
+              const d = new Date();
+              setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+            }}
+            className="rounded-full border px-3 py-1 text-xs font-medium hover:bg-accent"
+            title="Atalho: T"
           >
-            Hoje
+            Hoje{!isMobile && <span className="ml-1 text-muted-foreground">T</span>}
           </button>
+          <div className={`${isMobile ? "" : "ml-auto"} flex items-center gap-2`}>
+            <div className="hidden md:block [&_button]:text-xs">
+              <SyncGoogleButton />
+            </div>
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as SourceKey | "all")}
+              className="rounded-md border bg-card px-2 py-1 text-xs"
+              aria-label="Filtrar por empresa"
+            >
+              <option value="all">Todas</option>
+              {visibleSources.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center rounded-md border p-0.5 text-xs">
+              {viewOptions.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`rounded px-2.5 py-1 ${effView === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                >
+                  {v === "day" ? "Dia" : v === "week" ? "Semana" : v === "2day" ? "2 dias" : v === "5day" ? "5 dias" : "Mês"}
+                </button>
+              ))}
+            </div>
+            {!isMobile && (
+              <button
+                onClick={() => setChooser({ date: fmtKey(cursor), time: null })}
+                className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" /> Novo
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button aria-label="Anterior" onClick={() => shift(-1)} className="rounded-md border p-2 hover:bg-accent">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <span className="flex-1 text-center text-sm font-medium capitalize">{headerLabel}</span>
-          <button aria-label="Próximo" onClick={() => shift(1)} className="rounded-md border p-2 hover:bg-accent">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        {isMobile && view === "month" && (
+          <div className="flex items-center gap-2">
+            <button aria-label="Anterior" onClick={() => shift(-1)} className="rounded-md border p-2 hover:bg-accent">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="flex-1 text-center text-sm font-medium capitalize">{headerLabel}</span>
+            <button aria-label="Próximo" onClick={() => shift(1)} className="rounded-md border p-2 hover:bg-accent">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {isMobile && view !== "month" && (
+          <div
+            className="grid grid-cols-7 text-center"
+            onTouchStart={(e) => {
+              (e.currentTarget as HTMLElement).dataset.x = String(e.touches[0].clientX);
+            }}
+            onTouchEnd={(e) => {
+              const x0 = Number((e.currentTarget as HTMLElement).dataset.x ?? 0);
+              const dx = e.changedTouches[0].clientX - x0;
+              if (Math.abs(dx) > 50) {
+                const d = new Date(cursor);
+                d.setDate(d.getDate() + (dx < 0 ? 7 : -7));
+                setCursor(d);
+              }
+            }}
+          >
+            {weekDays.map((d) => {
+              const key = fmtKey(d);
+              const sel = key === fmtKey(cursor);
+              const isToday = key === todayKey;
+              const dots = itemsFor(key).filter((i) => !i.done).slice(0, 3);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setCursor(new Date(d.getFullYear(), d.getMonth(), d.getDate()))}
+                  className="flex flex-col items-center gap-1 py-1"
+                >
+                  <span className="text-[10px] text-muted-foreground">
+                    {["D", "S", "T", "Q", "Q", "S", "S"][d.getDay()]}
+                  </span>
+                  <span
+                    className={`grid h-8 w-8 place-items-center rounded-full text-sm ${
+                      sel
+                        ? "bg-primary font-semibold text-primary-foreground"
+                        : isToday
+                          ? "font-semibold text-primary"
+                          : ""
+                    }`}
+                  >
+                    {d.getDate()}
+                  </span>
+                  <span className="flex h-1.5 gap-0.5">
+                    {dots.map((i) => (
+                      <span key={i.id} className={`h-1.5 w-1.5 rounded-full ${i.dot}`} />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </header>
 
-      <div className="flex flex-wrap gap-1.5 text-xs">
-        <button
-          onClick={() => setFilter("all")}
-          className={`rounded-full border px-3 py-1 ${filter === "all" ? "border-foreground font-medium" : "text-muted-foreground"}`}
-        >
-          Todas
-        </button>
-        {visibleSources.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setFilter(s.key)}
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 ${filter === s.key ? "border-foreground font-medium" : "text-muted-foreground"}`}
-          >
-            <span className={`h-2 w-2 rounded-full ${SOURCE_DOT[s.key]}`} />
-            {s.label}
-          </button>
-        ))}
-      </div>
-
-      {isMobile && (view === "2day" || view === "5day") ? (
+      {false ? (
         /* Celular: lista por dia — evita colunas estreitas e texto empilhado. */
         <div className="space-y-3">
           {untimedBar}
