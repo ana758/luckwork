@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccessDrawer } from "@/components/AccessDrawer";
 import { AllowlistSection } from "@/components/AllowlistSection";
+import { InstallAppCard } from "@/components/InstallAppCard";
 import { SOURCES, SOURCE_DOT, type SourceKey } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
@@ -140,6 +141,8 @@ function SettingsPage() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Ajustes</h1>
       </header>
+
+      <InstallAppCard />
 
       <section className="rounded-xl border bg-card p-4">
         <h2 className="text-sm font-medium">
