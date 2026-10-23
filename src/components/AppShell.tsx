@@ -144,7 +144,11 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-background pb-48">
 
-      <div className="mx-auto flex w-full max-w-6xl gap-6 px-4 py-4 md:px-6">
+      <div
+        className={`mx-auto flex w-full gap-6 px-4 py-4 md:px-6 ${
+          pathname === "/calendario" || pathname === "/reunioes" ? "max-w-[1600px]" : "max-w-6xl"
+        }`}
+      >
         {/* Desktop nav */}
         <aside className="sticky top-4 hidden h-fit w-52 shrink-0 md:block">
           <div className="mb-6 px-2">
