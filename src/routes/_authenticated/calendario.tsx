@@ -358,11 +358,15 @@ function CalendarPage() {
   const undatedTasks = visibleTasks.filter((t) => !t.due_date && t.status !== "done");
 
 
+  // No celular a grade é sempre de um dia (com a faixa da semana em cima).
+  const effView: ViewMode = isMobile && view !== "month" ? "day" : view;
+
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
-    if (view === "month") d.setMonth(d.getMonth() + dir);
-    else if (view === "5day") d.setDate(d.getDate() + dir * 5);
-    else if (view === "2day") d.setDate(d.getDate() + dir * 2);
+    if (effView === "month") d.setMonth(d.getMonth() + dir);
+    else if (effView === "week") d.setDate(d.getDate() + dir * 7);
+    else if (effView === "5day") d.setDate(d.getDate() + dir * 5);
+    else if (effView === "2day") d.setDate(d.getDate() + dir * 2);
     else d.setDate(d.getDate() + dir);
     setCursor(d);
   }
@@ -380,26 +384,50 @@ function CalendarPage() {
     });
   }, [cursor, view]);
 
+  /** Mini mês da lateral (sempre do mês do cursor). */
+  const miniDays = useMemo(() => {
+    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const start = new Date(first);
+    start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [cursor]);
+
+  /** Semana (seg–dom) do cursor — usada na faixa do celular e no destaque do mini mês. */
+  const weekDays = useMemo(() => {
+    const start = new Date(cursor);
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return d;
+    });
+  }, [cursor]);
+  const weekKeys = new Set(weekDays.map(fmtKey));
+
   const rangeDays = useMemo(() => {
-    if (view === "month") return [];
-    const n = view === "day" ? 1 : view === "2day" ? 2 : 5;
+    if (effView === "month") return [];
+    if (effView === "week") return weekDays;
+    const n = effView === "day" ? 1 : effView === "2day" ? 2 : 5;
     return Array.from({ length: n }, (_, i) => {
       const d = new Date(cursor);
       d.setDate(cursor.getDate() + i);
       return d;
     });
-  }, [cursor, view]);
+  }, [cursor, effView, weekDays]);
 
   const headerLabel =
-    view === "month"
+    effView === "month"
       ? cursor.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
-      : view === "day"
+      : effView === "day"
         ? cursor.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })
-        : `${cursor.toLocaleDateString("pt-BR", { day: "numeric", month: "short" })} – ${new Date(
-            cursor.getFullYear(),
-            cursor.getMonth(),
-            cursor.getDate() + (view === "2day" ? 1 : 4),
-          ).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`;
+        : `${rangeDays[0].getDate()} – ${rangeDays[rangeDays.length - 1].toLocaleDateString("pt-BR", {
+            day: "numeric",
+            month: "long",
+          })}`;
 
   function openItem(item: CalItem) {
     if (item.kind === "meeting" && item.meeting) setEditing(item.meeting);
