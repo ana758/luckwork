@@ -48,10 +48,13 @@ export function useTasks() {
 }
 
 export async function fetchMeetings(): Promise<Meeting[]> {
-  const { data, error } = await supabase
-    .from("meetings")
-    .select("*")
-    .order("starts_at", { ascending: true });
+  // As duas buscas rodam juntas para abrir mais rápido.
+  const [{ data, error }, { data: linked }] = await Promise.all([
+    supabase.from("meetings").select("*").order("starts_at", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("title, due_date, google_account, google_event_id, mirror_account, mirror_event_id"),
+  ]);
   if (error) throw new Error(error.message);
   const rows = data ?? [];
   const signature = (m: { title: unknown; starts_at: string }) =>
@@ -70,9 +73,6 @@ export async function fetchMeetings(): Promise<Meeting[]> {
       : null;
   // Cópias que o Google devolve de uma tarefa (evento principal e cópia na agenda
   // pessoal) não são compromissos novos: a tarefa já é o registro verdadeiro.
-  const { data: linked } = await supabase
-    .from("tasks")
-    .select("title, due_date, google_account, google_event_id, mirror_account, mirror_event_id");
   const taskEventPairs = new Set<string>();
   for (const t of linked ?? []) {
     if (t.google_account && t.google_event_id) taskEventPairs.add(`${t.google_account}::${t.google_event_id}`);
@@ -98,7 +98,7 @@ export async function fetchMeetings(): Promise<Meeting[]> {
   const deletedGoogleSeries = new Set(
     rows.filter((m) => m.hidden && m.google_event_id).map(seriesKey).filter(Boolean),
   );
-  return rows.filter((m) => {
+  const out = rows.filter((m) => {
     if (m.hidden) return false;
     if (isRemovedSource(m.source)) return false;
     if (!m.google_event_id) return true;
@@ -108,6 +108,8 @@ export async function fetchMeetings(): Promise<Meeting[]> {
     if (taskEventPairs.has(pair) || mirrorOfMeetings.has(pair)) return false;
     return !deletedGoogleSignatures.has(signature(m)) && !deletedGoogleSeries.has(seriesKey(m));
   }) as Meeting[];
+  saveCache("meetings", out);
+  return out;
 }
 
 export function useMeetings() {
