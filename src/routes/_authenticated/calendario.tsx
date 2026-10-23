@@ -197,10 +197,13 @@ function CalendarPage() {
   const [stripOpen, setStripOpen] = useState(true);
   // Concluídos da faixa "Sem horário": recolhidos por padrão, para não ocupar a tela.
   const [doneOpen, setDoneOpen] = useState(false);
+  // Coluna "Sem data" fechada por padrão: a grade da semana cresce para os lados.
+  const [undatedOpen, setUndatedOpen] = useState(false);
   useEffect(() => {
     try {
       if (window.localStorage.getItem("luck.cal.done") === "1") setDoneOpen(true);
       if (window.localStorage.getItem("luck.cal.strip") === "0") setStripOpen(false);
+      if (window.localStorage.getItem("luck.cal.undated") === "1") setUndatedOpen(true);
     } catch {
       /* sem armazenamento: segue aberta */
     }
@@ -1037,9 +1040,10 @@ function CalendarPage() {
 
   return (
     <div className="flex gap-4">
-      {/* Lateral só desta aba (computador): sem data */}
-      {!isMobile && (
+      {/* Lateral só desta aba (computador): sem data — fechada por padrão */}
+      {!isMobile && undatedOpen && (
         <aside className="sticky top-4 hidden h-fit w-56 shrink-0 lg:block">
+
 
           <div className="space-y-1.5">
             <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1084,6 +1088,22 @@ function CalendarPage() {
             <div className="hidden md:block [&_button]:text-xs">
               <SyncGoogleButton />
             </div>
+            <button
+              onClick={() => {
+                const next = !undatedOpen;
+                setUndatedOpen(next);
+                try {
+                  window.localStorage.setItem("luck.cal.undated", next ? "1" : "0");
+                } catch {
+                  /* ignora */
+                }
+              }}
+              className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${undatedOpen ? "bg-accent" : "bg-card"} hover:bg-accent`}
+              aria-expanded={undatedOpen}
+              title={undatedOpen ? "Esconder coluna Sem data" : "Mostrar tarefas sem data na lateral"}
+            >
+              Sem data{undatedTasks.length > 0 && <span className="font-normal text-muted-foreground">· {undatedTasks.length}</span>}
+            </button>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as SourceKey | "all")}
