@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AccessDrawer } from "@/components/AccessDrawer";
+import { AllowlistSection } from "@/components/AllowlistSection";
 import { SOURCES, SOURCE_DOT, type SourceKey } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
