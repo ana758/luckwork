@@ -55,12 +55,19 @@ export function useOverdueScan() {
         console.error("[overdue-scan]", e);
       }
     };
-    run();
-    const id = setInterval(run, 5 * 60_000);
-    const onFocus = () => run();
+    let last = 0;
+    const throttled = () => {
+      if (Date.now() - last < 5 * 60_000) return;
+      last = Date.now();
+      void run();
+    };
+    const first = setTimeout(throttled, 12_000);
+    const id = setInterval(throttled, 5 * 60_000);
+    const onFocus = () => throttled();
     window.addEventListener("focus", onFocus);
     return () => {
       alive = false;
+      clearTimeout(first);
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
     };

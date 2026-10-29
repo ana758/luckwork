@@ -331,10 +331,7 @@ function TasksPage() {
 
       return { previous, key };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["meetings"] });
-    },
+    // Sem recarregar tudo: a mudança já aparece na hora e o tempo real confirma.
     onError: (e: Error, _v, context) => {
       if (context?.previous) queryClient.setQueryData(context.key, context.previous);
       toast.error(e.message);

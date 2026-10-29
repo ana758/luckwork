@@ -10,7 +10,7 @@ let inFlight: Promise<unknown> | null = null;
 
 async function runOnce(qc: ReturnType<typeof useQueryClient>) {
   if (inFlight) return inFlight;
-  if (Date.now() - lastRun < 30_000) return; // cooldown curto
+  if (Date.now() - lastRun < 2 * 60_000) return; // evita sync a cada retorno ao app
   inFlight = (async () => {
     try {
       await Promise.allSettled([syncGoogleCalendar(), syncJira(), syncNotion()]);
@@ -37,7 +37,8 @@ export function useAutoSyncGoogle() {
     if (started.current) return;
     started.current = true;
 
-    runOnce(qc);
+    // Espera a tela abrir e o toque ficar livre antes de sincronizar.
+    const first = window.setTimeout(() => runOnce(qc), 8_000);
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible") runOnce(qc);
     }, INTERVAL_MS);
@@ -46,6 +47,7 @@ export function useAutoSyncGoogle() {
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
+      window.clearTimeout(first);
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVis);
     };
