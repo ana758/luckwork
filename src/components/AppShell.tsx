@@ -217,7 +217,7 @@ export function AppShell() {
 
       {/* Mobile nav */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card/95 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-card md:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
 
