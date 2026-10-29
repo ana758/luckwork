@@ -502,7 +502,6 @@ function CalendarPage() {
     } catch {
       toast.success("Tarefa movida");
     }
-    qc.invalidateQueries({ queryKey: ["tasks"] });
   }
 
   async function moveMeeting(
