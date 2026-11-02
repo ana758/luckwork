@@ -296,11 +296,14 @@ function CalendarPage() {
             fromAngiCalendar ||
             m.source === "angi" ||
             m.is_meeting === true ||
-            m.meeting_type?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ===
-              "reuniao";
-          const durationMin = m.ends_at
-            ? Math.max(20, Math.round((new Date(m.ends_at).getTime() - start.getTime()) / 60000))
+            /reuni/i.test(
+              `${m.title} ${m.meeting_type ?? ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+            );
+          const rawDur = m.ends_at
+            ? Math.round((new Date(m.ends_at).getTime() - start.getTime()) / 60000)
             : DEFAULT_MEETING_MIN;
+          // Fim antes do início (dado quebrado do Google) vira 1 hora, não um bloco minúsculo.
+          const durationMin = rawDur > 0 ? Math.max(30, rawDur) : DEFAULT_MEETING_MIN;
           return {
             kind: "meeting",
             meetingColor,
