@@ -163,7 +163,14 @@ export function QuickAdd() {
       const inserted = await withAuthRetry<{ id: string }>(() =>
         supabase
           .from("meetings")
-          .insert({ title: payload.title, source, starts_at: startsAt })
+          .insert({
+            title: payload.title,
+            source,
+            starts_at: startsAt,
+            // Regra do LUCK: o que entra como reunião é reunião (vermelho) em toda aba.
+            meeting_type: "Reunião",
+            is_meeting: true,
+          })
           .select("id")
           .maybeSingle(),
       );

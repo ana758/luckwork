@@ -9,6 +9,7 @@ import { endOfWeek, startOfWeek, useMeetings, useTasks } from "@/lib/queries";
 import {
   isOverdue,
   PRIORITY_LABEL,
+  isMeetingLike,
   SOURCES,
   SOURCE_BORDER,
   SOURCE_TINT,
@@ -858,7 +859,11 @@ function TaskCard({
   const when = dayLabel(new Date(task.sortAt));
   return (
     <div
-      className={`cursor-grab active:cursor-grabbing rounded-lg border border-l-4 p-3 ${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`}
+      className={`cursor-grab active:cursor-grabbing rounded-lg border border-l-4 p-3 ${
+        isMeetingLike(task.title)
+          ? "border-reuniao/70 bg-reuniao/35"
+          : `${SOURCE_BORDER[task.source]} ${SOURCE_TINT[task.source]}`
+      }`}
     >
       <button onClick={onEdit} className="block w-full text-left">
         <p className="text-sm hover:underline">{task.title}</p>

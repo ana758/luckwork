@@ -14,7 +14,7 @@ import { useMeetings, useTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { moveGoogleEvent, patchGoogleEvent } from "@/lib/gcal.functions";
 import { spawnNextOccurrence } from "@/lib/recurrence";
-import { SOURCE_TINT, SOURCE_DOT, STATUS_LABEL, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { SOURCE_TINT, SOURCE_DOT, STATUS_LABEL, isMeetingLike, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { allDayRange, isAllDay, meetingDateKey } from "@/lib/all-day";
@@ -342,12 +342,14 @@ function CalendarPage() {
   function taskItem(t: Task): CalItem {
     const hm = t.due_time ? t.due_time.slice(0, 5) : null;
     const startMin = hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : null;
+    // Regra do LUCK: tarefa com nome de reunião também fica vermelha.
+    const meetingTask = isMeetingLike(t.title);
     return {
       kind: "task",
       id: t.id,
       title: t.title,
-      dot: SOURCE_DOT[t.source],
-      tint: SOURCE_TINT[t.source],
+      dot: meetingTask ? "bg-reuniao" : SOURCE_DOT[t.source],
+      tint: meetingTask ? "bg-reuniao/35 border-reuniao/70" : SOURCE_TINT[t.source],
       startMin,
       durationMin: (t as unknown as { duration_min?: number | null }).duration_min ?? DEFAULT_TASK_MIN,
       time: hm,
