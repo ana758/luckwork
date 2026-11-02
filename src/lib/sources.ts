@@ -21,7 +21,7 @@ export const isRemovedSource = (key: string | null | undefined) =>
  */
 export function isMeetingLike(title: string | null | undefined): boolean {
   const t = (title ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (!/\b(reuniao|meeting|call)\b/i.test(t)) return false;
+  if (!/\b(reuniao(?:es)?|meeting|call)\b/i.test(t)) return false;
   const prep =
     /\b(marcar|marque|agendar|agende|pedir|cobrar|confirmar|remarcar|falar|combinar|definir|avisar|preparar|lembrar|ver|checar)\b[^·]*\b(reuniao|meeting|call)\b/i;
   return !prep.test(t);
