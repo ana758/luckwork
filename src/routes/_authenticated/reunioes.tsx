@@ -110,7 +110,15 @@ function MeetingsPage() {
     () =>
       allMeetings.filter(
         (meeting) =>
-          meeting.is_meeting !== false &&
+          // Mesma regra do vermelho no Calendário: se lá é reunião, aqui também.
+          (meeting.is_meeting !== false ||
+            meeting.source === "angi" ||
+            meeting.google_account?.toLowerCase().includes("angisaude.com") === true ||
+            /reuni/i.test(
+              `${meeting.title} ${meeting.meeting_type ?? ""}`
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, ""),
+            )) &&
           new Date(meeting.starts_at).getTime() >= monthStart &&
           !pending.has(meeting.id),
       ),
