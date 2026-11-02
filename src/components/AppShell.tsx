@@ -24,8 +24,8 @@ import { fetchMeetings, fetchTasks, seedQueryCache } from "@/lib/queries";
 const NAV = [
   { to: "/", label: "Início", icon: LayoutDashboard },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
-  { to: "/tarefas", label: "Tarefas", icon: ListTodo },
   { to: "/reunioes", label: "Reuniões", icon: Users },
+  { to: "/tarefas", label: "Tarefas", icon: ListTodo },
   { to: "/ai", label: "IA", icon: Sparkles },
   { to: "/configuracoes", label: "Ajustes", icon: Settings },
 ] as const;
