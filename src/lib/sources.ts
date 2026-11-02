@@ -13,6 +13,14 @@ export const REMOVED_SOURCES: SourceKey[] = ["devore"];
 export const isRemovedSource = (key: string | null | undefined) =>
   REMOVED_SOURCES.includes(key as SourceKey);
 
+/**
+ * Regra do LUCK: tudo que é reunião é vermelho, venha da aba que vier.
+ * Detecta pelo título (reunião, reuniao, reuniões, "reuni"…), sem acento.
+ */
+export function isMeetingLike(title: string | null | undefined): boolean {
+  return /reuni/i.test((title ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+}
+
 export const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "angi", label: "Angi" },
   { key: "bruna", label: "Brand.Pe" },
