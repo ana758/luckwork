@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { isAllDay, localDateKey, meetingDateKey, meetingTimeLabel } from "@/lib/all-day";
 import { AccessDrawer } from "@/components/AccessDrawer";
 import { endOfWeek, startOfWeek, useAccessEntries, useMeetings, useTasks } from "@/lib/queries";
-import { SOURCE_CHIP, SOURCE_DOT, type Meeting, type SourceKey, type Task } from "@/lib/sources";
+import { SOURCE_CHIP, SOURCE_DOT, isMeetingLike, type Meeting, type SourceKey, type Task } from "@/lib/sources";
 import { useArchivedSources } from "@/lib/archived-sources";
 
 // Partes pesadas carregam depois do resto da tela.
@@ -99,7 +99,7 @@ function Dashboard() {
       .map((x) => ({
         id: `m-${x.id}`,
         title: x.title,
-        dot: x.is_meeting ? "bg-reuniao" : SOURCE_DOT[x.source],
+        dot: x.is_meeting === true || isMeetingLike(x.title) ? "bg-reuniao" : SOURCE_DOT[x.source],
         time: isAllDay(x) ? "" : (meetingTimeLabel(x) ?? ""),
         tag: x.is_meeting ? "Reunião" : x.source,
         done: x.status === "done",
@@ -110,7 +110,7 @@ function Dashboard() {
       .map((x) => ({
         id: `t-${x.id}`,
         title: x.title,
-        dot: SOURCE_DOT[x.source],
+        dot: isMeetingLike(x.title) ? "bg-reuniao" : SOURCE_DOT[x.source],
         time: (x as Task & { due_time?: string | null }).due_time?.slice(0, 5) ?? "",
         tag: x.source,
         done: x.status === "done",
@@ -146,7 +146,7 @@ function Dashboard() {
           day: meetingDateKey(m),
           title: m.title,
           sub: isAllDay(m) ? "dia todo" : (meetingTimeLabel(m) ?? ""),
-          bar: m.is_meeting ? "var(--reuniao)" : SOURCE_BAR[m.source],
+          bar: m.is_meeting === true || isMeetingLike(m.title) ? "var(--reuniao)" : SOURCE_BAR[m.source],
         })),
       ...tasks
         .filter((t) => t.status !== "done" && keys.includes(t.source) && set.has(taskDay(t) ?? ""))
@@ -155,7 +155,7 @@ function Dashboard() {
           day: taskDay(t)!,
           title: t.title,
           sub: (t as Task & { due_time?: string | null }).due_time?.slice(0, 5) ?? "dia todo",
-          bar: SOURCE_BAR[t.source],
+          bar: isMeetingLike(t.title) ? "var(--reuniao)" : SOURCE_BAR[t.source],
         })),
     ].sort((a, b) => a.day.localeCompare(b.day) || a.sub.localeCompare(b.sub));
     return { days, items };

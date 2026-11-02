@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { withAuthRetry } from "@/lib/auth-retry";
 import { WeekdayPicker } from "@/components/WeekdayPicker";
 import { weekdayDates } from "@/lib/recurrence";
-import { SOURCES, SOURCE_DOT, RECURRENCE_LABEL, type SourceKey, type Recurrence } from "@/lib/sources";
+import { SOURCES, SOURCE_DOT, RECURRENCE_LABEL, isMeetingLike, type SourceKey, type Recurrence } from "@/lib/sources";
 
 /** Nova tarefa criada direto no calendário (dia e horário já preenchidos). */
 export function NewTaskModal({
@@ -32,6 +32,48 @@ export function NewTaskModal({
   const save = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error("Título é obrigatório.");
+
+      // Regra do LUCK: reunião criada em qualquer aba é reunião de verdade —
+      // vai para a aba Reuniões, fica vermelha e reflete no Google Agenda.
+      if (isMeetingLike(title) && recurrence === "none") {
+        if (!date) throw new Error("Escolha a data da reunião.");
+        const base = new Date(`${date}T${time || "09:00"}`);
+        const startsAt = base.toISOString();
+        const endsAt = new Date(base.getTime() + durationMin * 60_000).toISOString();
+        await withAuthRetry<{ id: string }>(() =>
+          supabase
+            .from("meetings")
+            .insert({
+              title: title.trim(),
+              source,
+              starts_at: startsAt,
+              ends_at: endsAt,
+              notes: notes.trim() || null,
+              meeting_type: "Reunião",
+              is_meeting: true,
+            })
+            .select("id")
+            .single(),
+        );
+        // Reflete no Google Agenda em segundo plano — não trava o salvamento.
+        void import("@/lib/gcal.functions")
+          .then(({ pushToGoogleCalendar }) =>
+            pushToGoogleCalendar({
+              data: {
+                title: title.trim(),
+                startsAt,
+                endsAt,
+                source,
+                notes: notes.trim() || null,
+                withMeetLink: false,
+              },
+            }),
+          )
+          .catch(() => {
+            /* segue só na LUCK */
+          });
+        return "meeting" as const;
+      }
 
       // Rotina por dias da semana: cria uma tarefa por ocorrência (uma série
       // sem fins de semana, por exemplo). Cada uma pode ser editada ou concluída
@@ -94,9 +136,16 @@ export function NewTaskModal({
           /* segue só na LUCK */
         });
     },
-    onSuccess: (count) => {
-      toast.success(typeof count === "number" ? `Rotina criada: ${count} tarefas` : "Tarefa criada");
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+      toast.success(
+        res === "meeting"
+          ? "Reunião criada"
+          : typeof res === "number"
+            ? `Rotina criada: ${res} tarefas`
+            : "Tarefa criada",
+      );
       onClose();
     },
     onError: (e: Error) => toast.error(e.message),

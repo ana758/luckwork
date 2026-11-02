@@ -13,6 +13,20 @@ export const REMOVED_SOURCES: SourceKey[] = ["devore"];
 export const isRemovedSource = (key: string | null | undefined) =>
   REMOVED_SOURCES.includes(key as SourceKey);
 
+/**
+ * Regra do LUCK: tudo que é reunião é vermelho, venha da aba que vier.
+ * Detecta pelo título (reunião, reuniao, meeting, call), sem acento.
+ * Pedidos e preparação ("marcar reunião", "avisar da reunião", "preparar
+ * reunião") são tarefas sobre a reunião — ficam com a cor da empresa.
+ */
+export function isMeetingLike(title: string | null | undefined): boolean {
+  const t = (title ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (!/\b(reunioes|reuniao|meeting|call)\b/i.test(t)) return false;
+  const prep =
+    /\b(marcar|marque|agendar|agende|pedir|cobrar|confirmar|remarcar|falar|combinar|definir|avisar|preparar|lembrar|ver|checar)\b[^·]*\b(reuniao|meeting|call)\b/i;
+  return !prep.test(t);
+}
+
 export const SOURCES: { key: SourceKey; label: string }[] = [
   { key: "angi", label: "Angi" },
   { key: "bruna", label: "Brand.Pe" },
