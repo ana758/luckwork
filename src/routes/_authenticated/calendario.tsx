@@ -18,7 +18,8 @@ import { SOURCE_TINT, SOURCE_DOT, STATUS_LABEL, isMeetingLike, type Meeting, typ
 import { useArchivedSources } from "@/lib/archived-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { allDayRange, isAllDay, meetingDateKey } from "@/lib/all-day";
-import { fiveCalendarDays } from "@/lib/calendar-range";
+import { fiveWeekdays, sevenCalendarDays } from "@/lib/calendar-range";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -26,17 +27,19 @@ export const Route = createFileRoute("/_authenticated/calendario")({
       { title: "Calendário · LUCK" },
       {
         name: "description",
-        content: "Visão diária, 5 dias ou mensal com tarefas e reuniões de todas as empresas.",
+        content: "Visões de dia, 5 dias úteis, 7 dias e mês com tarefas e reuniões de todas as empresas.",
       },
       { property: "og:title", content: "Calendário · LUCK" },
-      { property: "og:description", content: "Visão diária, 5 dias ou mensal de tarefas e reuniões." },
+      { property: "og:description", content: "Organize tarefas e reuniões nas visões Dia, 5 dias úteis, 7 dias e Mês." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CalendarPage,
 });
 
 const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-type ViewMode = "day" | "week" | "2day" | "5day" | "month";
+type ViewMode = "day" | "week" | "7day" | "2day" | "5day" | "month";
 
 /** Altura de uma hora na grade (px) — blocos maiores, como no Google. */
 const HOUR_H = 56;
@@ -182,7 +185,7 @@ function CalendarPage() {
     }
   })();
   const [view, setView] = useState<ViewMode>(
-    saved?.view === "day" || saved?.view === "month" ? saved.view : "week",
+    saved?.view === "day" || saved?.view === "month" || saved?.view === "7day" ? saved.view : "week",
   );
   const isMobile = useIsMobile();
   const [cursor, setCursor] = useState(() => {
@@ -368,12 +371,12 @@ function CalendarPage() {
 
 
   // No celular a grade é sempre de um dia (com a faixa da semana em cima).
-  const effView: ViewMode = isMobile && view !== "month" && view !== "week" ? "day" : view;
+  const effView: ViewMode = isMobile && view !== "month" && view !== "week" && view !== "7day" ? "day" : view;
 
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
     if (effView === "month") d.setMonth(d.getMonth() + dir);
-    else if (effView === "week") d.setDate(d.getDate() + dir * 5);
+    else if (effView === "week" || effView === "7day") d.setDate(d.getDate() + dir * 7);
     else if (effView === "5day") d.setDate(d.getDate() + dir * 5);
     else if (effView === "2day") d.setDate(d.getDate() + dir * 2);
     else d.setDate(d.getDate() + dir);
@@ -404,19 +407,21 @@ function CalendarPage() {
       return d;
     });
   }, [cursor]);
-  /** Cinco dias consecutivos, sem esconder sábado e domingo. */
-  const fiveDays = useMemo(() => fiveCalendarDays(cursor), [cursor]);
+  /** Cinco dias úteis; a visão de sete dias inclui o fim de semana. */
+  const fiveDays = useMemo(() => fiveWeekdays(cursor), [cursor]);
+  const sevenDays = useMemo(() => sevenCalendarDays(cursor), [cursor]);
 
   const rangeDays = useMemo(() => {
     if (effView === "month") return [];
     if (effView === "week") return fiveDays;
+    if (effView === "7day") return sevenDays;
     const n = effView === "day" ? 1 : effView === "2day" ? 2 : 5;
     return Array.from({ length: n }, (_, i) => {
       const d = new Date(cursor);
       d.setDate(cursor.getDate() + i);
       return d;
     });
-  }, [cursor, effView, fiveDays]);
+  }, [cursor, effView, fiveDays, sevenDays]);
 
   const headerLabel =
     effView === "month"
@@ -1104,7 +1109,7 @@ function CalendarPage() {
     );
   })();
 
-  const viewOptions = (["day", "week", "month"]) as ViewMode[];
+  const viewOptions = (["day", "week", "7day", "month"]) as ViewMode[];
   const monthTitle = cursor.toLocaleDateString("pt-BR", { month: "long" });
 
   return (
@@ -1188,13 +1193,16 @@ function CalendarPage() {
             </select>
             <div className="flex items-center rounded-md border p-0.5 text-xs">
               {viewOptions.map((v) => (
-                <button
+                <Button
                   key={v}
+                  variant="ghost"
+                  size="sm"
+                  aria-pressed={effView === v}
                   onClick={() => setView(v)}
-                  className={`rounded px-2.5 py-1 ${effView === v ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                  className={`h-auto rounded px-2.5 py-1 text-xs ${effView === v ? "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground" : "hover:bg-accent"}`}
                 >
-                  {v === "day" ? "Dia" : v === "week" ? "5 dias" : v === "2day" ? "2 dias" : v === "5day" ? "5 dias" : "Mês"}
-                </button>
+                  {v === "day" ? "Dia" : v === "week" ? "5 dias" : v === "7day" ? "7 dias" : "Mês"}
+                </Button>
               ))}
             </div>
             {!isMobile && (
@@ -1207,7 +1215,7 @@ function CalendarPage() {
             )}
           </div>
         </div>
-        {isMobile && view === "month" && (
+        {isMobile && (view === "month" || view === "week" || view === "7day") && (
           <div className="flex items-center gap-2">
             <button aria-label="Anterior" onClick={() => shift(-1)} className="rounded-md border p-2 hover:bg-accent">
               <ChevronLeft className="h-4 w-4" />
