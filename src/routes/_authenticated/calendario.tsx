@@ -18,6 +18,7 @@ import { SOURCE_TINT, SOURCE_DOT, STATUS_LABEL, isMeetingLike, type Meeting, typ
 import { useArchivedSources } from "@/lib/archived-sources";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { allDayRange, isAllDay, meetingDateKey } from "@/lib/all-day";
+import { fiveCalendarDays } from "@/lib/calendar-range";
 
 export const Route = createFileRoute("/_authenticated/calendario")({
   head: () => ({
@@ -372,7 +373,7 @@ function CalendarPage() {
   function shift(dir: -1 | 1) {
     const d = new Date(cursor);
     if (effView === "month") d.setMonth(d.getMonth() + dir);
-    else if (effView === "week") d.setDate(d.getDate() + dir * 7);
+    else if (effView === "week") d.setDate(d.getDate() + dir * 5);
     else if (effView === "5day") d.setDate(d.getDate() + dir * 5);
     else if (effView === "2day") d.setDate(d.getDate() + dir * 2);
     else d.setDate(d.getDate() + dir);
@@ -403,19 +404,19 @@ function CalendarPage() {
       return d;
     });
   }, [cursor]);
-  /** "5 dias" = segunda a sexta da semana do cursor. */
-  const workDays = useMemo(() => weekDays.slice(0, 5), [weekDays]);
+  /** Cinco dias consecutivos, sem esconder sábado e domingo. */
+  const fiveDays = useMemo(() => fiveCalendarDays(cursor), [cursor]);
 
   const rangeDays = useMemo(() => {
     if (effView === "month") return [];
-    if (effView === "week") return workDays;
+    if (effView === "week") return fiveDays;
     const n = effView === "day" ? 1 : effView === "2day" ? 2 : 5;
     return Array.from({ length: n }, (_, i) => {
       const d = new Date(cursor);
       d.setDate(cursor.getDate() + i);
       return d;
     });
-  }, [cursor, effView, workDays]);
+  }, [cursor, effView, fiveDays]);
 
   const headerLabel =
     effView === "month"
