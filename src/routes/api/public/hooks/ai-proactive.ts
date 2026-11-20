@@ -15,10 +15,15 @@ function admin() {
  * manda uma pergunta curta por push ("posso fazer X pra você?").
  * Roda por cron algumas vezes ao dia; nunca repete a mesma sugestão no mesmo dia.
  */
+const AI_PROACTIVE_DISABLED = true;
+
 export const Route = createFileRoute("/api/public/hooks/ai-proactive")({
   server: {
     handlers: {
       POST: async () => {
+        // Desligado a pedido da Ana (20/11/2026): sugestões automáticas não chamam mais IA.
+        // Para religar, remova esta linha.
+        if (AI_PROACTIVE_DISABLED) return Response.json({ ok: true, disabled: true });
         const { aiChat, hasAiProvider } = await import("@/lib/ai-fallback.server");
         if (!hasAiProvider()) return Response.json({ ok: false, error: "sem chave de IA" });
 
