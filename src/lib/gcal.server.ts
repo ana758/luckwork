@@ -88,11 +88,21 @@ export async function listEvents(
     orderBy: "startTime",
     maxResults: "250",
   });
-  const data = await gcal(
-    connectionKey,
-    `/calendars/${encodeURIComponent(calendarId)}/events?${qs}`,
-  );
-  return (data.items ?? []) as GEvent[];
+  // Pagina até o fim: sem isso, agendas cheias perdiam os eventos do fim da
+  // janela e a limpeza achava que tinham sido apagados no Google.
+  const out: GEvent[] = [];
+  let pageToken: string | undefined;
+  for (let i = 0; i < 20; i++) {
+    if (pageToken) qs.set("pageToken", pageToken);
+    const data = await gcal(
+      connectionKey,
+      `/calendars/${encodeURIComponent(calendarId)}/events?${qs}`,
+    );
+    out.push(...((data.items ?? []) as GEvent[]));
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
 }
 
 /** Create an event on a calendar (LUCK → Google). */

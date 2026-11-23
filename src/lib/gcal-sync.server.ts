@@ -169,6 +169,7 @@ export async function runCalendarSync(supabase: any, userId: string) {
   let imported = 0;
   const perAccount: { email: string; count: number }[] = [];
   const seenPairs = new Set<string>(); // `${google_account}::${google_event_id}`
+  const fetchedCalendars = new Set<string>(); // agendas lidas com sucesso nesta sync
 
   // Tombstones locais: quando a Ana apaga no LUCK, mantemos hidden=true para
   // impedir que o mesmo compromisso volte de outra agenda compartilhada.
@@ -347,7 +348,14 @@ export async function runCalendarSync(supabase: any, userId: string) {
         if (error) throw new Error(error.message);
       }
 
-      for (const e of candidates) seenPairs.add(`${cal.id}::${e.id}`);
+      for (const e of candidates) {
+        seenPairs.add(`${cal.id}::${e.id}`);
+        // Reunião repetida criada na LUCK guarda o id da série; o Google
+        // devolve cada ocorrência com sufixo. A série também conta como vista.
+        seenPairs.add(`${cal.id}::${googleSeriesId(e.id)}`);
+        if ((e as any).recurringEventId) seenPairs.add(`${cal.id}::${(e as any).recurringEventId}`);
+      }
+      fetchedCalendars.add(cal.id);
       accountCount += rows.length;
     }
 
@@ -367,7 +375,13 @@ export async function runCalendarSync(supabase: any, userId: string) {
     .gte("starts_at", timeMin)
     .lte("starts_at", timeMax);
   const orphans = (allSynced ?? [])
-    .filter((r: any) => !seenPairs.has(`${r.google_account}::${r.google_event_id}`))
+    .filter(
+      (r: any) =>
+        // Só apaga se a agenda daquele evento foi realmente lida agora.
+        fetchedCalendars.has(r.google_account) &&
+        !seenPairs.has(`${r.google_account}::${r.google_event_id}`) &&
+        !seenPairs.has(`${r.google_account}::${googleSeriesId(r.google_event_id)}`),
+    )
     .map((r: any) => r.id);
   if (orphans.length > 0) {
     await supabase.from("meetings").delete().in("id", orphans);
