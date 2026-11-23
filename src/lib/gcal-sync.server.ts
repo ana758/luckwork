@@ -342,6 +342,19 @@ export async function runCalendarSync(supabase: any, userId: string) {
 
 
       if (rows.length > 0) {
+        // A empresa escolhida pela Ana (ex.: Brand.Pe) vale mais que a regra
+        // automática: reuniões já existentes mantêm a empresa atual.
+        const { data: existingRows } = await supabase
+          .from("meetings")
+          .select("google_event_id, source")
+          .eq("google_account", cal.id)
+          .in("google_event_id", rows.map((r) => r.google_event_id));
+        const keep = new Map<string, string>();
+        for (const r of existingRows ?? []) if (r.source) keep.set(r.google_event_id, r.source);
+        for (const r of rows) {
+          const cur = keep.get(r.google_event_id);
+          if (cur) r.source = cur as typeof r.source;
+        }
         const { error } = await supabase
           .from("meetings")
           .upsert(rows, { onConflict: "google_account,google_event_id" });
@@ -478,7 +491,9 @@ export async function runCalendarSync(supabase: any, userId: string) {
       await supabase.from(table).update({ source: inferred }).eq("id", r.id);
     }
   };
-  await Promise.all([fix("meetings", mAll ?? []), fix("tasks", tAll ?? [])]);
+  // Não reclassifica mais itens existentes: isso desfazia a empresa que a
+  // Ana marcou à mão (ex.: Brand.Pe). Novos itens já são classificados na entrada.
+  void fix; void mAll; void tAll;
 
   return { imported, accounts: perAccount };
 }
