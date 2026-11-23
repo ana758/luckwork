@@ -301,7 +301,10 @@ export async function runCalendarSync(supabase: any, userId: string) {
             linkedTaskPairs.has(`${cal.id}::${e.id}`) ||
             hiddenExactPairs.has(`${cal.id}::${e.id}`) ||
             hiddenSeries.has(`${cal.id}::${googleSeriesId(e.id)}`) ||
-            hiddenSignatures.has(sig)
+            // Só bloqueia se o evento já existia quando a reunião foi apagada;
+            // uma reunião nova com o mesmo nome e horário entra normalmente.
+            (hiddenSigAt.has(sig) &&
+              (!(e as any).created || new Date((e as any).created).getTime() < new Date(hiddenSigAt.get(sig)!).getTime()))
           ) {
             return [];
           }
