@@ -29,6 +29,13 @@
       "when": 1792767035045,
       "tag": "0003_access_allowlist",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795437097237,
+      "tag": "0004_meeting_tombstone_only_older_copies",
+      "breakpoints": true
     }
   ]
 }
